@@ -495,6 +495,14 @@ pub fn push_decoded(obj: &mut Object<'_>, decoded: &Decoded<'_>, depth: u8) {
             obj.field_str("kind", "unsupported");
             push_dti(obj, "unsupported", dti);
         }
+        // Not APRS at all, so there is no `dti` to report: the first
+        // byte is ordinary text, and calling it an identifier is what
+        // this variant exists to stop.
+        DecodedKind::Text { text } => {
+            obj.field_str("kind", "text");
+            let mut o = obj.object("text");
+            o.field_bytes("text", text);
+        }
         // `DecodedKind` is `#[non_exhaustive]`: a variant added later
         // is still labelled, with its bytes intact on `info`.
         _ => {

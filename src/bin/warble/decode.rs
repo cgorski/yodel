@@ -495,6 +495,10 @@ fn summarize_kind(kind: &DecodedKind<'_>, info: &[u8]) -> String {
             printable(tp.path),
             summarize_info(tp.payload)
         ),
+        // Not APRS: a station identification, a beacon banner or a
+        // human-written bulletin. Named as text rather than reported
+        // with a data type identifier it does not have.
+        DecodedKind::Text { text } => format!("text \"{}\"", printable(text)),
         // `DecodedKind` is `#[non_exhaustive]`, and anything we cannot
         // name is still printable as its original bytes.
         _ => format!("raw \"{}\"", printable(info)),

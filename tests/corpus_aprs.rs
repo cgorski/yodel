@@ -67,31 +67,74 @@ const FILES: &[&str] = &[
 /// | 93.0% (2030/2182) | Mic-E stopped rejecting reports over an out-of-spec symbol table byte |
 /// | **93.1% (2032/2182)** | hemisphere letters accepted case-insensitively on receive |
 ///
+/// This figure counts every AX.25 frame heard, including the ones that
+/// are not APRS. It therefore has a ceiling below 100% that no parser
+/// improvement can reach, which is why
+/// [`MIN_APRS_STRUCTURED_PERCENT`] exists beside it.
+///
 /// # What the remaining 6.9% is
 ///
-/// Measured, frame by frame, rather than assumed — and it is very close
-/// to the floor. Of the 150 frames that yield no typed value:
+/// Measured frame by frame rather than assumed. Of the 150 frames that
+/// yield no typed value, **75 are not APRS at all** and 75 are APRS
+/// this crate refuses on purpose:
 ///
 /// | count | why | should it decode? |
 /// |---|---|---|
-/// | 85 | data-type identifiers `W`, `K`, `L`, `U`, `0x0d`, `0x20` | **No** — not APRS. Unassigned identifiers, i.e. non-APRS beacons sharing the channel |
+/// | 75 | plain-text beacons: 42 station identifications to `ID`, 23 beacon texts to `BEACON`, 4 firmware banners to `UIDIGI`, 6 human-written weather bulletins | **Not APRS**, so not a parser failure. Chapter 5's table rules out `A`-`S`, `U`-`Z`, `a`-`z` and `0`-`9` as identifiers, and these frames open with one. They now decode as `DecodedKind::Text` and are excluded from the APRS denominator |
+/// | 10 | an information field holding one CR and nothing else | **No** — there is no content, APRS or otherwise |
 /// | 58 | `!0000.000/00000.000>…` | **No** — a GPS with no fix, sending `'0'` where the hemisphere belongs. Decoding it would place the station at 0,0 in the Gulf of Guinea instead of reporting that it has no position |
 /// | 6 | Mic-E, `BadLongitudeByte { got: 190 }` | **No** — an FCS-valid frame carrying a 0xBE where a longitude byte belongs |
 /// | 1 | bytes corrupted mid-frame (`BadDigit`) | **No** — an FCS-valid frame whose payload is visibly damaged |
 ///
-/// The first and third rows used to be one row of 91 labelled
-/// "unassigned identifiers", which was wrong about six of them: the
-/// Mic-E fallback could only report *that* it had failed, so a damaged
-/// `` ` `` frame was filed next to a non-APRS `W` beacon. Now that
-/// Mic-E decodes through `DecodedKind` like everything else, those six
-/// arrive as `Malformed` carrying the byte that broke them. The total
-/// is unchanged at 150; only the labels got more accurate.
+/// The first row used to read "85 frames with data-type identifiers
+/// `W`, `K`, `L`, `U`, `0x0d`, `0x20`", which was wrong twice over.
+/// Those bytes are not data-type identifiers: chapter 5 marks their
+/// ranges "[Do not use]", so the frames are not APRS and have no
+/// identifier to report. And filing them beside real parse failures
+/// put non-APRS traffic in the denominator of an APRS coverage figure.
+/// Both are fixed: 75 of the 85 are now positively classified as text,
+/// and the 10 that are a bare CR stay unclassified because they have no
+/// content.
 ///
-/// So essentially all of the shortfall is traffic that *ought* to be
-/// rejected, and this percentage understates the parser. Do not chase
-/// it upward by loosening validation: the 58 no-fix beacons are exactly
-/// the case where accepting bad input produces confidently wrong output.
+/// So every one of the remaining 150 is traffic that *ought* not to
+/// produce an APRS value. Do not chase this number upward by loosening
+/// validation: the 58 no-fix beacons are exactly the case where
+/// accepting bad input produces confidently wrong output.
 const MIN_STRUCTURED_PERCENT: f64 = 93.0;
+
+/// Pinned floor for structured coverage of the frames that **are**
+/// APRS, which is the figure that measures the parser.
+///
+/// [`MIN_STRUCTURED_PERCENT`] divides by every AX.25 frame heard on
+/// 144.39 MHz, and some of that traffic is not APRS: station
+/// identifications, TNC beacon banners, human-written bulletins. Those
+/// frames can never yield an APRS value however good the parser gets,
+/// so counting them against it measures the channel rather than the
+/// crate. This ratchet divides by APRS frames alone.
+///
+/// The two are kept side by side rather than one replacing the other.
+/// The all-frames figure is the one a user cares about ("what fraction
+/// of what I hear does this understand?"); this one is the one a
+/// contributor cares about ("what fraction of APRS do we still get
+/// wrong?"). Reporting only the second would flatter the crate.
+///
+/// | Measured | Change |
+/// |---|---|
+/// | **96.4% (2032/2107)** | first measurement, when `DecodedKind::Text` made the non-APRS frames countable |
+///
+/// The 75 frames short of 100% are the 58 no-fix beacons, 6 Mic-E
+/// reports carrying an out-of-range longitude byte, 10 empty fields and
+/// 1 visibly corrupted payload. All four should stay rejected, so this
+/// figure is near its true ceiling.
+const MIN_APRS_STRUCTURED_PERCENT: f64 = 96.0;
+
+/// Ceiling on frames set aside as non-APRS.
+///
+/// [`MIN_APRS_STRUCTURED_PERCENT`] can be flattered by classifying more
+/// traffic as text, because that shrinks its denominator. This bounds
+/// the shrinking: if text classification ever starts swallowing APRS,
+/// the count rises and the build fails.
+const MAX_NON_APRS_FRAMES: usize = 80;
 
 /// Pinned floor for total frames, so a demodulator regression cannot
 /// quietly satisfy the ratio above by decoding fewer, easier frames.
@@ -601,6 +644,7 @@ fn corpus_aprs_structured_coverage_never_regresses() {
     let mut variants: BTreeMap<&'static str, usize> = BTreeMap::new();
     let mut fields: BTreeMap<&'static str, usize> = BTreeMap::new();
     let mut errors: BTreeMap<String, usize> = BTreeMap::new();
+    let mut non_aprs_frames = 0usize;
 
     for name in FILES {
         let path = dir.join(name);
@@ -614,6 +658,7 @@ fn corpus_aprs_structured_coverage_never_regresses() {
         let mut rx: DefaultTncReceiver = DefaultTncReceiver::new(cfg).expect("receiver");
 
         let (mut n, mut ok, mut pkt, mut mice) = (0usize, 0usize, 0usize, 0usize);
+        let mut non_aprs = 0usize;
         let pcm: Vec<i16> = reader
             .samples::<i16>()
             .map(|s| s.expect("sample"))
@@ -741,6 +786,15 @@ fn corpus_aprs_structured_coverage_never_regresses() {
                         *fields.entry("Mic-E device prefix").or_default() += 1;
                     }
                 }
+                // Not APRS at all, by chapter 5's own table of data
+                // type identifiers. Counted apart from the failures,
+                // because a frame that is not APRS is not a frame the
+                // APRS parser failed on.
+                DecodedKind::Text { .. } => {
+                    non_aprs += 1;
+                    *dti_lost.entry(dti_name(dti)).or_default() += 1;
+                    *errors.entry("Text (not APRS)".to_string()).or_default() += 1;
+                }
                 other => {
                     *dti_lost.entry(dti_name(dti)).or_default() += 1;
                     let label = match other {
@@ -761,10 +815,17 @@ fn corpus_aprs_structured_coverage_never_regresses() {
         aprs_ok += ok;
         packet_ok += pkt;
         mice_ok += mice;
+        non_aprs_frames += non_aprs;
     }
 
     let structured = aprs_ok + mice_ok;
     let pct = structured as f64 / frames as f64 * 100.0;
+    // The denominator that answers "how much APRS does this decode?".
+    // The one above answers "how much of everything heard on the
+    // channel", which is a different question and is bounded by how
+    // many non-APRS beacons happen to share the frequency.
+    let aprs_frames = frames - non_aprs_frames;
+    let aprs_pct = structured as f64 / aprs_frames as f64 * 100.0;
 
     println!("\n== totals ==");
     println!("frames decoded (AX.25):  {frames}");
@@ -782,7 +843,9 @@ fn corpus_aprs_structured_coverage_never_regresses() {
     );
     println!("Mic-E (needs the destination): {mice_ok}");
     println!("no structured value:     {}", frames - structured);
-    println!("structured coverage:     {pct:.1}%");
+    println!("  of which not APRS:     {non_aprs_frames} (plain-text beacons)");
+    println!("structured coverage:     {pct:.1}% of all frames heard");
+    println!("                         {aprs_pct:.1}% of the {aprs_frames} APRS frames");
 
     println!("\n== DTI histogram (count, then frames we could not structure) ==");
     let mut rows: Vec<_> = dti_seen.iter().collect();
@@ -826,6 +889,20 @@ fn corpus_aprs_structured_coverage_never_regresses() {
         pct >= MIN_STRUCTURED_PERCENT,
         "APRS structured coverage regressed to {pct:.1}%, floor is \
          {MIN_STRUCTURED_PERCENT}% ({structured} of {frames} frames)"
+    );
+    assert!(
+        aprs_pct >= MIN_APRS_STRUCTURED_PERCENT,
+        "coverage of APRS frames regressed to {aprs_pct:.1}%, floor is \
+         {MIN_APRS_STRUCTURED_PERCENT}% ({structured} of {aprs_frames} APRS frames)"
+    );
+    // A parser that stopped recognising non-APRS text would flatter
+    // `aprs_pct` by shrinking its denominator, so the count of frames
+    // removed from it is itself ratcheted.
+    assert!(
+        non_aprs_frames <= MAX_NON_APRS_FRAMES,
+        "{non_aprs_frames} frames were set aside as non-APRS, above the \
+         {MAX_NON_APRS_FRAMES} ceiling: text classification must not \
+         start swallowing APRS"
     );
     for &(key, floor) in MIN_FIELDS {
         let got = fields.get(key).copied().unwrap_or(0);

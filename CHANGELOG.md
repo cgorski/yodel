@@ -266,6 +266,34 @@ turned out to be, which approach was tried and abandoned.
   compressed position where a bogus refinement would move the position
   it claims to refine.
 
+- **Plain-text AX.25 beacons are classified instead of mislabelled.**
+  Not every frame on 144.39 MHz is APRS. Stations beacon readable text:
+  a TNC's station identification (conventionally addressed to `ID`), its
+  beacon banner (`BEACON`), a digipeater's firmware version (`UIDIGI`),
+  and human-written weather bulletins. These carry **no data type
+  identifier**, and the crate was reporting the first letter of
+  `WA6TK/R RELAY/D` as a data type identifier of `W`.
+
+  `DecodedKind::Text { text }` names them. The discriminator is chapter
+  5's own table, which marks `A`-`S`, `U`-`Z`, `a`-`z`, `0`-`9`, `|` and
+  `~` as "[Do not use]", with `T` (telemetry) carved out: a field
+  opening with one of those is not an APRS packet by the specification's
+  account. Identifiers the spec assigns or reserves, such as `?`, `{`
+  and `,`, stay `Unsupported` and keep naming the byte, so the
+  diagnostic still says which format is missing.
+
+  MEASURED: 75 of 2182 off-air frames and 749 of 95 219 live packets,
+  with zero packets newly rejected.
+
+  `Decoded::is_typed` answers **`false`** for `Text`, so the
+  structured-coverage figure does not move by fiat. The new
+  `Decoded::is_aprs` answers `false`, which is what makes a correct
+  denominator possible: `tests/corpus_aprs.rs` now reports coverage of
+  APRS frames (**96.4%**) beside coverage of every frame heard (93.1%),
+  with a floor on each and a ceiling on how many frames may be set aside
+  as non-APRS, so the new figure cannot be flattered by shrinking its
+  denominator.
+
 - **`warble aprsis`** reads the live APRS-IS feed and writes TNC2
   monitor lines, the format `decode --tnc2` already takes, so the two
   compose into a pipeline. `--filter` subscribes to a slice of the

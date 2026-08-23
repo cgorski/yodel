@@ -735,6 +735,38 @@ pub enum DecodedKind<'a> {
     /// [`ThirdParty::payload`](thirdparty::ThirdParty::payload) if you
     /// want to descend. Doing so explicitly is what bounds recursion.
     ThirdParty(thirdparty::ThirdParty<'a>),
+    /// An AX.25 frame carrying plain text rather than an APRS payload.
+    ///
+    /// Not every frame on 144.39 MHz is APRS. Stations beacon readable
+    /// text: a TNC's station identification (conventionally addressed
+    /// to `ID`), its beacon text (`BEACON`), a digipeater's firmware
+    /// banner (`UIDIGI`), and human-written weather bulletins.
+    ///
+    /// These frames carry **no data type identifier at all**. Chapter
+    /// 5's table marks `A`-`S`, `U`-`Z`, `a`-`z`, `0`-`9`, `|` and `~`
+    /// as "[Do not use]", and does not list the control characters or
+    /// the space, so a field opening with one of those is not an APRS
+    /// packet by the specification's own account. Reporting the first
+    /// byte of `WA6TK/R RELAY/D` as a data type identifier of `W` is
+    /// simply wrong, and that is what this variant replaces.
+    ///
+    /// # This is not counted as a typed APRS value
+    ///
+    /// [`Decoded::is_typed`] answers `false` here, on purpose. The
+    /// frame is classified rather than decoded: there are no fields to
+    /// extract, and letting it raise the structured-coverage figure
+    /// would inflate that number with traffic that is not APRS. See
+    /// `tests/corpus_aprs.rs`, which counts these separately and uses
+    /// them to state coverage over APRS frames rather than over every
+    /// frame heard.
+    ///
+    /// MEASURED over 2182 off-air frames: 75, of which 42 are station
+    /// identifications, 23 beacon text, 4 firmware banners and 6
+    /// plain-text weather bulletins.
+    Text {
+        /// The information field, verbatim.
+        text: &'a [u8],
+    },
     /// A data type identifier whose payload is split between the
     /// information field and the AX.25 destination address, decoded
     /// from the information field alone.
@@ -901,10 +933,26 @@ impl<'a> Decoded<'a> {
             // alternative of an or-pattern.
             #[cfg(feature = "micE")]
             DecodedKind::MicE(_) => true,
-            DecodedKind::NeedsDestination { .. }
+            // `Text` is a classification, not a decode: the frame is
+            // positively identified as non-APRS, but no APRS field
+            // comes out of it, so it must not raise the coverage
+            // figure this function feeds.
+            DecodedKind::Text { .. }
+            | DecodedKind::NeedsDestination { .. }
             | DecodedKind::Unsupported { .. }
             | DecodedKind::Malformed { .. } => false,
         }
+    }
+
+    /// Whether the information field is an APRS payload at all.
+    ///
+    /// `false` only for [`DecodedKind::Text`], which is the case the
+    /// specification's own data-type-identifier table rules out. This
+    /// is the denominator a coverage measurement wants: a frame that is
+    /// not APRS is not a frame the APRS parser failed on.
+    #[must_use]
+    pub const fn is_aprs(&self) -> bool {
+        !matches!(self.kind, DecodedKind::Text { .. })
     }
 }
 
@@ -972,9 +1020,49 @@ impl<'a> DecodedKind<'a> {
 
         match AprsPacket::parse(info) {
             Ok(packet) => DecodedKind::Packet(packet),
-            Err(AprsError::InvalidDataType { got }) => DecodedKind::Unsupported { dti: got },
+            Err(AprsError::InvalidDataType { got }) => {
+                // A byte chapter 5 rules out as an identifier means the
+                // frame is not APRS, rather than APRS this crate has
+                // not implemented. Say which, because the two want
+                // different things from a caller: one is text to show,
+                // the other is a gap to fill.
+                if !is_data_type_identifier(got) && info.iter().any(u8::is_ascii_graphic) {
+                    DecodedKind::Text { text: info }
+                } else {
+                    DecodedKind::Unsupported { dti: got }
+                }
+            }
             Err(error) => DecodedKind::Malformed { dti, error },
         }
+    }
+}
+
+/// Whether `byte` is a data type identifier chapter 5 assigns or
+/// reserves, as opposed to one it rules out.
+///
+/// The table in chapter 5 ("APRS Data Type Identifiers") lists every
+/// identifier. Four of its rows are ranges marked **"[Do not use]"**,
+/// `A`-`S`, `U`-`Z`, `a`-`z` and `0`-`9`, plus `|` and `~`; `T`
+/// (telemetry) is the one letter carved out of them. Bytes absent from
+/// the table altogether, which is every control character except the
+/// two Mic-E betas and the space, are equally not identifiers.
+///
+/// Rows marked "[Unused]" or "[Reserved]" are a different matter and
+/// answer `true`: the specification keeps them for itself, so a frame
+/// opening with one is APRS that this crate does not implement, and
+/// [`DecodedKind::Unsupported`] is the accurate label.
+const fn is_data_type_identifier(byte: u8) -> bool {
+    match byte {
+        // "[Do not use]", so not an identifier. `T` is telemetry and is
+        // matched below, before this arm can claim it.
+        b'A'..=b'S' | b'U'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'|' | b'~' => false,
+        // Current and old Mic-E Data (Rev 0 beta).
+        0x1c | 0x1d => true,
+        b'T' => true,
+        // Every printable identifier the table names, assigned,
+        // unused or reserved.
+        b'!'..=b'/' | b':'..=b'@' | b'['..=b'`' | b'{' | b'}' => true,
+        _ => false,
     }
 }
 

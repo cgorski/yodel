@@ -50,8 +50,14 @@ microcontroller and for a workstation:
 the method that produced them:
 
 * **2182 real off-air frames** from a published test recording are
-  demodulated and decoded on every run, with ratchet floors that fail the
-  build if structured coverage regresses. It currently sits at 93.1%.
+  demodulated and decoded on every run, behind ratchet floors that fail
+  the build if coverage regresses. **96.4% of the APRS frames yield a
+  typed value.** The 3.6% that do not are traffic that should be
+  refused: a tracker with no GPS fix beaconing zeros where the
+  hemisphere belongs, and frames whose payload is visibly corrupted.
+  Counting every frame heard on the channel, including the plain-text
+  station identifications and beacon banners that are not APRS at all,
+  it is 93.1%.
 * **95 219 live APRS-IS packets** across two captures are used to check
   that a decoded packet re-serializes to the bytes that arrived. 1.14%
   are rejected as malformed, and zero re-serialize to a different value.

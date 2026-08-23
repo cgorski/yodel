@@ -202,7 +202,8 @@ fn assert_accessors(decoded: &Decoded<'_>, info: &[u8]) {
         decoded.is_typed(),
         !matches!(
             decoded.kind,
-            DecodedKind::NeedsDestination { .. }
+            DecodedKind::Text { .. }
+                | DecodedKind::NeedsDestination { .. }
                 | DecodedKind::Unsupported { .. }
                 | DecodedKind::Malformed { .. }
         ),
@@ -761,4 +762,83 @@ fn nesting_is_bounded_by_the_caller() {
     }
     assert_eq!(depth, 19, "19 further levels below the outermost");
     assert_eq!(payload, b">innermost");
+}
+
+// ---------------------------------------------------------------------
+// Plain text is distinguished from unimplemented APRS
+// ---------------------------------------------------------------------
+
+/// A byte chapter 5 rules out as an identifier means "not APRS", and a
+/// byte it assigns means "APRS this crate has not implemented".
+///
+/// The distinction matters to a caller: one is text to display, the
+/// other is a gap to fill. Before `DecodedKind::Text` both arrived as
+/// `Unsupported { dti }`, which additionally reported the first letter
+/// of a station identification as a data type identifier it is not.
+///
+/// The table is chapter 5's, "APRS Data Type Identifiers". It marks the
+/// ranges `A`-`S`, `U`-`Z`, `a`-`z` and `0`-`9` as "[Do not use]", with
+/// `T` (telemetry) carved out of them, and does not list the control
+/// characters or the space at all.
+#[test]
+fn text_is_told_apart_from_an_unimplemented_identifier() {
+    // Real frames from the off-air corpus: a station identification, a
+    // TNC beacon, a digipeater banner and a human-written bulletin.
+    for wire in [
+        &b"WA6TK/R RELAY/D KC7FD-1/B"[..],
+        &b"KA6IHT-3/R RELAY/D ADE2-1/B"[..],
+        &b"WEATHER STATION ON-LINE"[..],
+        &b"UIDIGI 1.9"[..],
+        &b"Located 18 miles south of Ridgecrest. KPC3/DR1200/Weatherbase10"[..],
+        &b" TUE NOV 22  6:00:27 PM  TMP 67 DP 56 R/H 68%"[..],
+    ] {
+        let decoded = Decoded::decode(wire);
+        assert!(
+            matches!(decoded.kind, DecodedKind::Text { text } if text == wire),
+            "{:?} should be text, got {:?}",
+            core::str::from_utf8(wire).unwrap_or("?"),
+            decoded.kind
+        );
+        assert!(!decoded.is_aprs(), "a text beacon is not APRS");
+        assert!(
+            !decoded.is_typed(),
+            "text must not count toward structured coverage"
+        );
+        assert_eq!(decoded.info, wire, "the bytes survive either way");
+    }
+
+    // Identifiers chapter 5 assigns or reserves, which this crate does
+    // not implement. These must stay `Unsupported`, naming the byte, so
+    // the diagnostic still says which format is missing.
+    for wire in [
+        &b"?APRS?"[..],  // query
+        &b"{custom"[..], // user-defined
+        &b",test"[..],   // invalid or test data
+        &b"%DFJr"[..],   // Agrelo DF
+        &b"[GRID"[..],   // Maidenhead beacon, obsolete
+    ] {
+        let decoded = Decoded::decode(wire);
+        let dti = wire[0];
+        assert!(
+            matches!(decoded.kind, DecodedKind::Unsupported { dti: got } if got == dti),
+            "{:?} is an assigned identifier and must stay Unsupported, got {:?}",
+            core::str::from_utf8(wire).unwrap_or("?"),
+            decoded.kind
+        );
+        assert!(decoded.is_aprs(), "an assigned identifier is still APRS");
+    }
+
+    // `T` is the one letter carved out of "[Do not use]", so it must
+    // never be read as text.
+    let telemetry = Decoded::decode(b"T#005,199,000,255,073,123,01101001");
+    assert!(matches!(telemetry.kind, DecodedKind::Packet(_)));
+
+    // An information field with no printable byte is not text either:
+    // there is nothing to hand a caller. 10 corpus frames are one CR.
+    for wire in [&b"\r"[..], &b"\x00\x00"[..]] {
+        assert!(
+            matches!(Decoded::decode(wire).kind, DecodedKind::Unsupported { .. }),
+            "an unprintable field has no text to report"
+        );
+    }
 }
