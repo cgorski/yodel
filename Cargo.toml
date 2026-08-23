@@ -1,0 +1,434 @@
+[package]
+name = "warble"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.96"
+license = "MIT OR Apache-2.0"
+description = "Bell 202 AFSK (1200/2200 Hz) software modem: no-std, allocation-free, streaming modulator"
+repository = "https://github.com/cgorski/warble"
+documentation = "https://docs.rs/warble"
+readme = "README.md"
+keywords = ["afsk", "bell202", "modem", "no-std", "embedded"]
+categories = ["embedded", "no-std", "encoding", "multimedia::audio"]
+# Keep study-only material, benchmark corpora, scratch space, and large WAV
+# fixtures out of any packaged crate. (These are also gitignored, but the
+# explicit list makes the packaging intent auditable.)
+exclude = [
+    "/reference",
+    "/corpus",
+    "/scratch",
+    "*.wav",
+    "tests/*.wav",
+]
+
+[features]
+default = ["mod", "demod"]
+# Modulator (bit stream -> PCM samples).
+mod = []
+# Demodulator (PCM samples -> bits).
+demod = []
+# Heap-backed conveniences.
+alloc = []
+# std conveniences (implies alloc). Does NOT pull in any
+# dependency: a consumer wanting only std::error::Error impls should not
+# pay for a WAV codec. WAV I/O lives behind the separate `wav` feature.
+std = ["alloc"]
+# WAV I/O (the `hound` codec) for std hosts; used by the `warble` CLI
+# binary. Split out of `std` so plain-`std` builds stay dependency-free.
+wav = ["std", "dep:hound"]
+# NRZI differential line coding (layer between raw AFSK bits and HDLC).
+nrzi = []
+# AX.25 UI-frame layer: addresses, FCS, HDLC bit framing (implies nrzi).
+ax25 = ["nrzi"]
+# APRS payloads (position/status/message) over AX.25 UI frames (implies ax25).
+aprs = ["ax25"]
+# WIDEn-N digipeater primitives: served aliases, the pure relay-decision
+# core, and duplicate suppression (implies ax25). NOT part of `tnc`: a
+# digipeater is a consumer of the modem stack, not a layer of it.
+digipeat = ["ax25"]
+# Mic-E compressed position reports (APRS 1.01 chapter 10; implies aprs).
+micE = ["aprs"]
+# KISS TNC framing (byte-level escaping; standalone, no other features).
+kiss = []
+# G3RUH 9600-baud multiplicative LFSR scrambler/descrambler pair
+# (x^17 + x^12 + 1; standalone bit-stream stage, no other features).
+g3ruh = []
+# FX.25 FEC layer: the Reed-Solomon RS(255,k) codec over GF(256), the
+# eleven published correlation tags, the transmit wrapper, and the
+# bit-level tag-hunting receiver (`Fx25Receiver`, which needs `ax25`
+# for the embedded HDLC deframer; without it only the byte-block
+# encode/decode half compiles). Not reachable from `TncConfig`: the
+# CLI wires it in behind `--fx25`.
+fx25 = []
+# IL2P (Improved Layer 2 Protocol) frame codec: 13-byte header codec,
+# x^9+x^4+1 scrambler, per-block RS(255,k) FEC. Implies `ax25` because
+# the header translates AX.25 addresses/frames (reuses the RS codec
+# compiled by either fx25 or il2p). Off by default, pulled by nothing.
+il2p = ["ax25"]
+# WSPR (weak-signal family, new module — not part of the streaming TNC
+# chain): type-1 message source encoding, K=32 r=1/2 convolutional
+# code, bit interleaver, sync-vector merge, the continuous-phase 4-FSK
+# audio generator, and the no_std RX math (deinterleave, capped Fano
+# sequential decoder, message unpack). The buffered receive engine
+# (`WsprDecoder`) additionally needs `std` (combine the features).
+# Off by default; enabled by `cli`; no deps.
+wspr = []
+# FT8 (weak-signal family, sibling of `wspr`): 77-bit payload
+# packing for the documented message subset (standard i3=1 + free
+# text), CRC-14, LDPC(174,91) encode, Gray mapping + Costas sync (79
+# channel symbols), the GFSK-shaped continuous-phase 8-FSK audio
+# generator, and the no_std RX math (per-bit LLRs, hard-capped LDPC
+# min-sum decoder, CRC verify, message unpack). The buffered receive
+# engine (`Ft8Decoder`) additionally needs `std` (combine the
+# features). Off by default; enabled by `cli`; no deps.
+ft8 = []
+# M17 packet-mode data (weak-signal family sibling in spirit, but a
+# baseband PAM modem, not the streaming TNC chain): base-40 callsign
+# addressing, Link Setup Frame + packet frames with the spec's CRC-16,
+# K=5 r=1/2 convolutional FEC with P1/P3 puncturing, QPP interleaver,
+# decorrelator, Golay(24,12) building block, and a 4-level RRC-shaped
+# 4800-symbol/s baseband modulator + receiver. Entirely no_std and
+# alloc-free (fixed buffers). Voice (Codec2) is absent —
+# see docs/ARCHITECTURE.md. Off by default; pulled in by `cli` only.
+m17 = []
+# High-level TNC pipeline: PCM samples <-> APRS packets over AX.25 UI
+# frames (composes the aprs + mod + demod layers).
+tnc = ["aprs", "mod", "demod"]
+# Convenience aggregate enabling everything the `warble` CLI binary
+# needs; it is the single required-feature of the [[bin]] below.
+# `kiss` backs the `warble serve` KISS TNC server mode
+# (src/bin/warble/serve.rs).
+# wspr, ft8 and m17 ride along so the CLI's `warble wspr` /
+# `warble ft8` / `warble m17` subcommands (TX gen plus the receive
+# engines) are always available.
+cli = ["wav", "tnc", "micE", "kiss", "fx25", "il2p", "wspr", "ft8", "m17", "ptt", "dep:clap"]
+# Serial PTT for `warble ptt`: assert RTS or DTR on a USB-serial
+# adapter to key a transmitter, hold it while a player runs, and drop
+# it again. CLI only, and the ONE place in this crate that can put a
+# signal on the air by itself, so its failure mode is deassert.
+#
+# Pulls `serialport` with default-features off: the default set links
+# libudev on Linux, a system dependency this crate will not impose for
+# a feature that needs three ioctls.
+ptt = ["std", "dep:serialport"]
+# Live sound-card capture for the `live_capture` example ONLY (cpal).
+# Off by default and never enabled by any other feature: library
+# consumers and the embedded matrix never see cpal. NOTE:
+# `--all-features` now compiles cpal, so tests run with it must never
+# OPEN an audio device — the example's plumbing (downmix/convert/rate
+# checks) is pure and proven with a fake source in tests/cli.rs
+# (mod live_capture_plumbing, which #[path]-includes the example).
+capture = ["std", "dep:cpal"]
+# Tokio adapter layer (`warble::asynk`): Stream-of-frames decoding,
+# a one-call async KISS server, and a concurrent many-feeds decoder.
+# Off by default and enabled by nothing else: default builds compile
+# no async code and pull no tokio/futures. Combine with `wav` for
+# `asynk::decode_wav`.
+async = [
+    "std",
+    "tnc",
+    "kiss",
+    "dep:tokio",
+    "dep:futures-core",
+    "dep:tokio-stream",
+]
+# Embassy adapter layer (`warble::embassy`): an async chunk-drain loop
+# over `SampleRing` + `TncReceiver` and a periodic-TX ticker helper.
+# Off by default and enabled by nothing else: default and embedded
+# builds compile none of it and pull no embassy crates. no_std-first —
+# NOT tied to `std` (the whole point is bare-metal use).
+embassy = ["tnc", "dep:embassy-time"]
+
+[dependencies]
+# WAV reading/writing for the `wav` feature (and thus the CLI); never
+# part of no_std or plain-`std` builds.
+hound = { version = "3", optional = true }
+# Argument parsing for the `warble` binary; activated ONLY by the `cli`
+# feature, never part of no_std/library builds.
+clap = { version = "4", features = ["derive"], optional = true }
+# Sound-card input for the `capture` feature (the live_capture example
+# only); never part of no_std, library, or default builds.
+cpal = { version = "0.16", optional = true }
+serialport = { version = "4", optional = true, default-features = false }
+# The tokio adapter layer (`async` feature only): runtime handle for
+# spawn/spawn_blocking, bounded mpsc channels, async read helpers
+# (io-std covers the piped-stdin intake), and the TCP listener of the
+# async KISS server. Never part of no_std, default, or embedded builds.
+tokio = { version = "1", features = ["rt", "sync", "net", "io-util", "io-std", "fs", "macros"], optional = true }
+# The `Stream` trait the `async` adapters return (`async` feature only).
+futures-core = { version = "0.3", optional = true }
+# `ReceiverStream`, wrapping a bounded mpsc receiver as a `Stream`
+# (`async` feature only).
+tokio-stream = { version = "0.1", optional = true }
+# Timekeeping for the `embassy` feature only: `Ticker` drives the
+# periodic-TX helper. no_std, alloc-free; the platform HAL supplies the
+# time driver at link time. Never part of no_std-core, default, or
+# embedded-matrix builds.
+embassy-time = { version = "0.4", optional = true, default-features = false }
+
+[dev-dependencies]
+# Kept as a plain dev-dependency so the test suite can use WAV fixtures
+# regardless of the `std` feature.
+hound = "3"
+# Runtime + test macros for the `async`-feature test suite
+# (tests/asynk.rs) and the doc examples of `warble::asynk`.
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "sync", "net", "io-util", "io-std", "time"] }
+# Stream combinators for the same tests.
+tokio-stream = "0.1"
+# Host-side time driver for the `embassy`-feature tests and example
+# (`std` supplies a std-clock driver; dev-only, so library consumers
+# and the embedded matrix never see it).
+embassy-time = { version = "0.4", features = ["std", "generic-queue-8"] }
+# `block_on` + `join` for the same tests/example: a dependency-free
+# busy-poll executor, enough to run the adapter on a host.
+embassy-futures = "0.1"
+# Structured per-frame decision spans for the workstation digipeater
+# example (`examples/digipeater_station.rs`). Dev-dependencies are
+# NEVER part of the library build: `cargo tree -e normal` for a
+# consumer of warble is unchanged by these two lines.
+tracing = "0.1"
+tracing-subscriber = "0.3"
+
+# The CLI binary: only built when the `cli` aggregate feature is enabled
+# (e.g. `cargo build --features cli` or `--all-features`).
+[[bin]]
+name = "warble"
+path = "src/bin/warble/main.rs"
+required-features = ["cli"]
+
+# tests/equivalence.rs freezes the pre-optimization G3RUH baseband
+# filter and uses `warble::BasebandDemodulator` at the top level, so it
+# needs `g3ruh` beyond its `mod`+`demod` cfg gate; declared here so
+# feature sets like `--features embassy` (default + embassy, no g3ruh)
+# skip it instead of failing to compile it.
+[[test]]
+name = "equivalence"
+required-features = ["mod", "demod", "g3ruh"]
+
+# tests/app_examples.rs uses the alloc-gated `transmit_to_vec_i16`
+# convenience beyond its `tnc` cfg gate; declared here so tnc-without-
+# alloc feature sets (e.g. `--features embassy`) skip it instead of
+# failing to compile it.
+[[test]]
+name = "app_examples"
+required-features = ["tnc", "alloc"]
+
+# tests/demod_normalization.rs exercises the full TncReceiver path but
+# carries no cfg gate of its own; declared here so feature sets that
+# enable `ax25` without `tnc` (e.g. `--features il2p`) skip it instead
+# of failing to compile it.
+[[test]]
+name = "demod_normalization"
+required-features = ["tnc"]
+
+# tests/wspr_rx.rs exercises the std-gated WSPR receive engine, which
+# only exists with `wspr` + `std`; declared here so wspr-solo no_std
+# feature sets skip it instead of failing to compile it.
+[[test]]
+name = "wspr_rx"
+required-features = ["wspr", "std"]
+
+# tests/ft8_rx.rs exercises the std-gated FT8 receive engine, which
+# only exists with `ft8` + `std`; declared here so ft8-solo no_std
+# feature sets skip it instead of failing to compile it.
+[[test]]
+name = "ft8_rx"
+required-features = ["ft8", "std"]
+
+# tests/m17.rs exercises the m17 feature only; declared so every other
+# feature set skips it instead of failing to compile it.
+[[test]]
+name = "m17"
+required-features = ["m17"]
+
+# tests/coverage_fill.rs carries only `#![cfg(feature = "tnc")]`, but
+# `untested_public_accessors` reaches `aprs::mic_e` and
+# `il2p::payload_wire_len`, so `--no-default-features --features tnc`
+# failed to COMPILE it rather than skipping it. Declared here so every
+# feature set that cannot supply the whole trio skips the file; the
+# `wav`/`ft8` blocks inside it are `#[cfg]`-gated per test instead,
+# because those additions are separable and gating them here would cost
+# coverage in the smaller feature sets.
+[[test]]
+name = "coverage_fill"
+required-features = ["tnc", "micE", "il2p"]
+
+# tests/roundtrip.rs is the modulator -> demodulator exact-recovery suite:
+# `warble::modulator::Modulator` forces `mod` and
+# `warble::demodulator::AfskDemodulator` forces `demod`, and the file
+# carries no cfg gate, so every set holding one half of the modem (or
+# neither) failed to COMPILE it with E0432 instead of skipping it. Declared
+# whole rather than per-test because 40 of its 45 tests go through
+# `roundtrip_i16`/`roundtrip_f32`; the five that do not (the SampleRate /
+# BaudRate / TonePair boundary matrices, `Bit` conversions, and
+# ConfigError Display) are mirrored by the `src/types.rs` unit tests, which
+# compile in every feature set.
+[[test]]
+name = "roundtrip"
+required-features = ["mod", "demod"]
+
+# tests/noise.rs is the seeded-noise property suite; like roundtrip.rs it
+# imports `warble::modulator::Modulator` (`mod`) and
+# `warble::demodulator::AfskDemodulator` (`demod`) with no cfg gate.
+# Declared whole because every test in the file funnels through
+# `case_recovers`, which needs both halves of the modem.
+[[test]]
+name = "noise"
+required-features = ["mod", "demod"]
+
+# tests/oracle.rs is the reference-implementation differential suite. Its
+# top-level imports are `warble::Modulator` (`mod`) and
+# `warble::AfskDemodulator` (`demod`); the AX.25/APRS layers are already
+# `#[cfg]`-gated inside the file (`mod full_stack` on `aprs`, `mod
+# mic_e_oracle` on `micE`), and `full_stack`'s own
+# `warble::ax25::tx_i16` / `warble::ax25::FrameReceiver` need nothing
+# beyond that same `mod`/`demod` pair. So `mod` + `demod` is the minimal
+# declaration: `--features aprs` now skips the file instead of failing on
+# E0432, and every set that does have the modem still compiles the AX.25
+# and APRS halves. The suite stays `#[ignore]`d and env-var driven either
+# way -- nothing here names or locates the reference binaries.
+[[test]]
+name = "oracle"
+required-features = ["mod", "demod"]
+
+# Examples: WAV I/O comes from the `hound` dev-dependency, so only the
+# library features they exercise are required.
+[[example]]
+name = "encode_wav"
+required-features = ["tnc", "wav"]
+
+[[example]]
+name = "decode_wav"
+required-features = ["tnc", "wav"]
+
+[[example]]
+name = "embedded_modem"
+required-features = ["tnc"]
+
+[[example]]
+name = "decode_to_log"
+required-features = ["tnc", "wav"]
+
+# N-concurrent-feeds decode pattern: bounded worker pool + bounded
+# channel + sink trait (std threads only; the runtime-free companion
+# of the `async` feature — the header shows the tokio transposition).
+[[example]]
+name = "decode_many_threads"
+required-features = ["tnc", "wav"]
+
+# Host-only decode/modulate throughput benchmark (std::time::Instant,
+# no new dependencies); run with --release, see the file header.
+[[example]]
+name = "throughput"
+required-features = ["tnc", "g3ruh", "fx25"]
+
+[[example]]
+name = "digipeater_station"
+required-features = ["tnc", "digipeat", "wav"]
+
+# IL2P encode → corrupt → modulate → demodulate → decode round trip
+# with corrected-symbol statistics (`mod`/`demod` for the audio legs).
+[[example]]
+name = "il2p_roundtrip"
+required-features = ["il2p", "mod", "demod"]
+
+# WSPR beacon WAV generation + self-decode with quality metrics (WAV
+# writing via the hound dev-dependency; `std` for the receive engine).
+[[example]]
+name = "wspr_beacon"
+required-features = ["wspr", "wav"]
+
+# FT8 encode → WAV → decode cycle with freq/dt/quality printout (WAV
+# via the hound dev-dependency; `std` for the receive engine).
+[[example]]
+name = "ft8_cycle"
+required-features = ["ft8", "std", "wav"]
+
+# M17 packet-mode round trip: text packet -> baseband audio -> receiver
+# (pure in-memory; the library core is no_std, the example uses Vec).
+[[example]]
+name = "m17_packet"
+required-features = ["m17"]
+
+[[example]]
+name = "trigger_reply"
+required-features = ["tnc", "wav"]
+
+# Opens the default sound-card input via cpal: only built with the
+# non-default `capture` feature, so no library or CI build needs an
+# audio stack unless explicitly asked for.
+[[example]]
+name = "live_capture"
+required-features = ["tnc", "capture"]
+
+# Embassy-flavoured balloon tracker: simulated ADC intake task + decode
+# task + sensor task + telemetry TX ticker on one core. Host-runnable
+# via the dev-dependency executor; only built with the non-default
+# `embassy` feature.
+[[example]]
+name = "balloon_tracker_embassy"
+required-features = ["embassy"]
+
+# Bare-metal-flavoured balloon tracker: superloop + SampleRing intake +
+# bounded_latency() chunked decode + millis-scheduled duties, all fixed
+# buffers. Host-runnable; doubles as an integration demo (decodes a
+# synthesized frame and asserts it).
+[[example]]
+name = "balloon_tracker_baremetal"
+required-features = ["tnc"]
+
+# Standard-OS balloon tracker (Raspberry Pi / any Linux box as the
+# tracker computer): std threads + mpsc channels, WAV/stdin intake via
+# the `wav` sniffing helpers, and a self-demo mode that synthesizes a
+# beacon in memory and asserts it decodes, so it runs with no input.
+[[example]]
+name = "balloon_tracker"
+required-features = ["tnc", "wav"]
+
+# RTIC-shaped balloon tracker: the RTIC 2 app skeleton in comments, the
+# task bodies (ISR push / bounded chunk drain / beacon / idle sensors)
+# as real host-compiled code with explicit priorities and a worst-case
+# latency table. No `rtic` feature exists on purpose — see "The rtic
+# verdict" in docs/ARCHITECTURE.md.
+[[example]]
+name = "balloon_tracker_rtic"
+required-features = ["tnc"]
+
+
+# Async (tokio) balloon tracker: the same duties as `balloon_tracker`,
+# for an application that already lives in a runtime. Exercises the
+# `asynk` stream API end to end.
+[[example]]
+name = "balloon_tracker_tokio"
+required-features = ["async", "wav"]
+
+# Many-feeds decode on tokio: the `asynk` stream API, feed tagging and
+# bounded-channel backpressure. The runtime-free counterpart is
+# `decode_many_threads`.
+[[example]]
+name = "decode_many_tokio"
+required-features = ["async"]
+
+# Live PCM stream decode on tokio: TCP or stdin through `asynk::frames`,
+# with a self-demo radio, a total-budget timeout and observable
+# backpressure. Needs only `async` -- no `wav`, since raw PCM has no
+# header to parse.
+[[example]]
+name = "decode_pcm_tokio"
+required-features = ["async"]
+
+[[example]]
+name = "aprs_is"
+required-features = ["std", "aprs"]
+
+[[example]]
+name = "aprs_offline"
+required-features = ["std", "aprs"]
+
+[[example]]
+name = "aprs_offline_alloc"
+required-features = ["std", "alloc", "aprs"]
+
+[[example]]
+name = "corpus_diff"
+required-features = ["std", "aprs"]

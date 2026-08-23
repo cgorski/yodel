@@ -1,0 +1,59 @@
+# Minimal CI: the same gates CONTRIBUTING.md asks for locally.
+name: CI
+
+on:
+  push:
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  fmt:
+    name: rustfmt
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: cargo fmt --check
+
+  clippy:
+    name: clippy (-D warnings)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: rustup component add clippy
+      - run: cargo clippy --all-features --all-targets -- -D warnings
+
+  test:
+    name: test (--all-features)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: cargo test --all-features
+
+  embedded:
+    name: embedded no_std matrix
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # Pass 1 of the script builds the LIBRARY for every no_std feature set
+      # on both bare-metal targets plus the detached ESP32 RISC-V examples
+      # sub-crate; only rustup target installation is needed. The `embedded`
+      # argument skips the host test-compilation pass, which the
+      # feature-matrix job below runs in parallel instead.
+      - run: rustup target add riscv32imac-unknown-none-elf riscv32imc-unknown-none-elf thumbv7em-none-eabihf
+      - run: scripts/check-embedded.sh embedded
+
+  feature-matrix:
+    name: feature-set test compilation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # Pass 2 of the same script, on the HOST target: compiles (--no-run)
+      # the whole test suite once per feature set. Neither the `test` job
+      # above (--all-features only) nor the `embedded` job (library only,
+      # and bare-metal targets cannot host a test binary) ever compiles the
+      # tests for a PARTIAL feature set, which is how unresolved imports and
+      # alloc-dependent unit tests used to rot unnoticed. No rustup targets
+      # needed: this pass never leaves the host.
+      - run: scripts/check-embedded.sh tests

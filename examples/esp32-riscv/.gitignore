@@ -1,0 +1,4 @@
+# Build artifacts of the detached sub-crate (the root .gitignore only
+# anchors /target, which does not cover this nested crate).
+/target
+Cargo.lock

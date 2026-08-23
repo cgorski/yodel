@@ -1,0 +1,9 @@
+/target
+/reference/
+/scratch/
+*.wav
+Cargo.lock
+/corpus/
+
+# Agent-harness configuration: operator-local, never published.
+/.curia/
