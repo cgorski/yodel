@@ -1161,6 +1161,22 @@ fn decode_info<'a>(
     if course >= 400 {
         course -= 400;
     }
+    // One subtraction does not bound this to a legal course. `course`
+    // is `(DC % 10) * 100 + SE`, so it reaches 999 before the wrap and
+    // 599 after it, while chapter 10 gives the field `0..=360`. A
+    // comment here used to assert "course < 400 after the wrap", which
+    // is false, and the struct field documents `0..=360`, which the
+    // decoder was therefore breaking. MEASURED over 205 635 live
+    // packets: 5 reports arrive with 466 or 366 degrees.
+    //
+    // Reported as unknown rather than refused, for the same reason the
+    // symbol table byte below is not validated: an impossible course
+    // says nothing about whether the position decoded, and chapter 10
+    // already spells "unknown or indefinite" as 0. Refusing would throw
+    // away a good fix over a field the sender got wrong.
+    if course > 360 {
+        course = 0;
+    }
     // The symbol table identifier is NOT validated here.
     //
     // Mic-E packs position, course, speed and symbol into one field, and
@@ -1176,7 +1192,8 @@ fn decode_info<'a>(
     // (see `MicE::new` and `MicE::encode`), which is where being strict
     // protects someone — we should never transmit a table identifier we
     // would not accept.
-    // Cannot truncate: speed < 800 and course < 400 after the wrap.
+    // Cannot truncate: speed < 800 after the wrap, course <= 360 after
+    // the range check above.
     #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
     let (speed, course) = (speed as u16, course as u16);
     let tail = split_altitude(&info[9..])?;

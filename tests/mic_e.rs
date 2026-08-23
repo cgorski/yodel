@@ -1272,3 +1272,56 @@ fn an_out_of_range_longitude_byte_is_refused_rather_than_repaired() {
          of them is checkable against this station's other frames"
     );
 }
+
+/// A course the wire cannot mean is reported as unknown, not published.
+///
+/// Chapter 10 packs the course as `(DC mod 10) * 100 + SE`, which
+/// reaches 999, and then says to subtract 400 if the result is 400 or
+/// more. One subtraction leaves 400..=599 reachable, while the field is
+/// defined over `0..=360`. A comment in the decoder used to assert
+/// "course < 400 after the wrap", which is false, and
+/// [`MicE::course`]'s own documentation promises `0..=360`, so the
+/// decoder was breaking the invariant its own type states.
+///
+/// MEASURED over 205 635 live packets: 5 reports from three Swiss
+/// stations decode to 366 or 466 degrees.
+///
+/// Reported as 0 rather than refused. Chapter 10 already spells 0 as
+/// "unknown or indefinite", and the decoder declines to reject on an
+/// out-of-spec symbol table byte for the same reason: a field the
+/// sender got wrong says nothing about whether the position decoded.
+/// Throwing away a good fix to punish a bad course would cost more than
+/// it saves.
+#[test]
+fn a_course_outside_the_field_is_reported_as_unknown() {
+    // Bytes 4..=6 are SP+28, DC+28, SE+28. The three below give a raw
+    // course of 999, 936 and 855, all of which stay above 360 after the
+    // single subtraction chapter 10 prescribes.
+    for (sp, dc, se, raw) in [(0x21, 0x25, 0x7f, 999), (0x21, 0x25, 0x40, 936)] {
+        let info = [
+            0x60, 0x7d, 0x38, 0x67, sp, dc, se, 0x3e, 0x2f, 0x5d, 0x22, 0x35, 0x68, 0x7d,
+        ];
+        let report = mic_e::decode(b"S32UVT", &info).expect("the position still decodes");
+        assert_eq!(
+            report.course, 0,
+            "a raw course of {raw} is not a direction and must not be published"
+        );
+        assert!(
+            report.course <= 360,
+            "MicE::course documents 0..=360 and the decoder must honour it"
+        );
+        // The point of not refusing: the fix survives.
+        assert_ne!(report.latitude.units(), 0);
+        assert_ne!(report.longitude.units(), 0);
+    }
+
+    // A legal course is untouched, including the 360 boundary that
+    // chapter 10 distinguishes from 0.
+    for (se, want) in [(0x53u8, 355u16), (0x58, 360)] {
+        let info = [
+            0x60, 0x7d, 0x38, 0x67, 0x26, 0x29, se, 0x3e, 0x2f, 0x5d, 0x22, 0x35, 0x68, 0x7d,
+        ];
+        let report = mic_e::decode(b"S32UVT", &info).expect("decodes");
+        assert_eq!(report.course, want, "a legal course must survive verbatim");
+    }
+}

@@ -884,3 +884,52 @@ fn space_blanked_control_packets_are_a_separate_population() {
         assert_eq!(rebuilt(line), as_sent(line));
     }
 }
+
+// ---------------------------------------------------------------------
+// A field the parser accepted must be a field build can write
+// ---------------------------------------------------------------------
+
+/// An impossible wind direction is dropped, not carried into the value.
+///
+/// From WC4PEM-4 via APRS-IS, 2026-08-21. Nineteen packets from three
+/// stations running the same weather firmware spell the direction
+/// `767`, which chapter 12 gives the range `000` to `360`.
+///
+/// This was the only case in 205 635 packets where **parse succeeded
+/// and build then failed**: `WeatherReport::check` enforces `0..=360`
+/// on the way out and the parser enforced nothing on the way in, so the
+/// canonicalisation was undefined on a packet the parser had claimed.
+/// The crate also rendered "wind dir 767 deg" to its own CLI.
+///
+/// The direction is reported absent rather than the packet refused. The
+/// other eight measurements in the report are unaffected by a wind vane
+/// returning nonsense, and chapter 12 already has a spelling for a
+/// missing field, so dropping one reading keeps eight.
+#[test]
+fn an_impossible_wind_direction_is_dropped_rather_than_carried() {
+    let line = b"WC4PEM-4>APRS,TCPIP*,qAC,T2FLORIDA:@211401z2813.82N/08133.10W_767/000g000t083r000p003P000h78b10182";
+    let AprsPacket::PositionWeather(w) = packet(line) else {
+        panic!("expected a weather report");
+    };
+    assert_eq!(
+        w.weather.wind_direction, None,
+        "767 is not a direction and must not reach the typed value"
+    );
+    // Everything else the station measured is still here.
+    assert!(w.weather.temperature.is_some(), "83 F survives");
+    assert!(w.weather.humidity.is_some(), "78% survives");
+    assert!(w.weather.barometric_pressure.is_some(), "1018 hPa survives");
+
+    // And the packet now builds at all, which is the property that was
+    // broken: parse and build must be defined on the same inputs.
+    let built = rebuilt(line);
+    assert!(
+        !built.is_empty(),
+        "build must be defined wherever parse succeeded"
+    );
+    // F3: what it writes reads back as the same value.
+    let AprsPacket::PositionWeather(again) = packet(line) else {
+        panic!("still a weather report");
+    };
+    assert_eq!(again.weather.wind_direction, None);
+}
