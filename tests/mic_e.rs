@@ -1192,3 +1192,83 @@ fn decoded_needs_the_destination_and_decode_frame_supplies_it() {
         }
     );
 }
+
+/// An out-of-range longitude byte stays rejected, and the tempting
+/// one-bit repair is why.
+///
+/// From AC6VV-9, destination `S4PXYX`, off-air on the TNC Test CD:
+/// six byte-identical frames across two of its tracks, each carrying
+/// `0xBE` where the `d+28` longitude byte belongs. Chapter 10 puts that
+/// byte in `38..=127`, so 190 is outside it and the report is refused.
+///
+/// # Why not just clear the high bit
+///
+/// `0xBE & 0x7F` is `0x3E`, which *is* in range, so masking looks like
+/// an obvious repair for a station whose transmitter sets bit 7. It is
+/// not, and this test exists to stop it being tried.
+///
+/// The same station sends the same destination valid frames that decode
+/// to 34.149667 N, 118.133167 W, in the San Gabriel Valley. Clearing
+/// bit 7 alone decodes instead to **134.133167 W**, roughly 1470 km due
+/// west in the Pacific, and it does so *cleanly*: a well-formed Mic-E
+/// report with no error for a caller to notice. Reaching the position
+/// the station actually had needs bits 7 **and** 4 cleared, which is
+/// not a decode but a guess checked against an answer already known
+/// from other frames.
+///
+/// So the choice is between refusing six frames and publishing a
+/// confident position 1470 km out to sea. These six stay refused, and
+/// they are 0.27% of the corpus.
+#[test]
+fn an_out_of_range_longitude_byte_is_refused_rather_than_repaired() {
+    use warble::aprs::{Decoded, DecodedKind};
+    use warble::ax25::Address;
+
+    let dest = Address::new(b"S4PXYX", 0).expect("valid destination");
+    // The frame exactly as received, six times, on two tracks.
+    const WIRE: &[u8] = b"\x60\xbe\x5f\x7f\x6c\x23\x35\x3e\x2f\x5d\x22\x36\x6e\x7d";
+
+    let decoded = Decoded::decode_frame(dest, WIRE);
+    assert!(
+        matches!(
+            decoded.kind,
+            DecodedKind::Malformed { .. } | DecodedKind::Unsupported { .. }
+        ),
+        "0xBE is outside chapter 10's 38..=127, got {:?}",
+        decoded.kind
+    );
+    assert!(!decoded.is_typed());
+    assert_eq!(decoded.info, WIRE, "the bytes are still handed back");
+
+    // The measurement behind the doc comment, so the argument is
+    // checked rather than asserted. Both repairs decode; they disagree
+    // by 16 degrees of longitude.
+    let mut bit7 = WIRE.to_vec();
+    bit7[1] = 0x3e; // clear bit 7 only
+    let mut bits74 = WIRE.to_vec();
+    bits74[1] = 0x2e; // clear bits 7 and 4
+
+    let one_bit = Decoded::decode_frame(dest, &bit7);
+    let DecodedKind::MicE(ref out_to_sea) = one_bit.kind else {
+        panic!("clearing bit 7 produces a well-formed report, which is the hazard");
+    };
+    let two_bit = Decoded::decode_frame(dest, &bits74);
+    let DecodedKind::MicE(ref on_land) = two_bit.kind else {
+        panic!("clearing bits 7 and 4 reaches the station's real position");
+    };
+
+    let sea = hundredths(out_to_sea.longitude.units());
+    let land = hundredths(on_land.longitude.units());
+    assert_eq!(land, -(118 * 6000 + 7 * 100 + 99), "118 07.99 W, as sent");
+    assert_eq!(
+        sea,
+        -(134 * 6000 + 7 * 100 + 99),
+        "134 07.99 W, the Pacific"
+    );
+    assert_eq!(
+        (land - sea) / 6000,
+        16,
+        "the two repairs differ by 16 degrees of longitude, and only one \
+         of them is checkable against this station's other frames"
+    );
+}
