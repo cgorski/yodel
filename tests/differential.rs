@@ -666,6 +666,7 @@ fn generate_corpus() -> Vec<TxCase> {
                         latitude: Latitude::new(rand_lat(&mut rng, q)).unwrap(),
                         longitude: Longitude::new(rand_lon(&mut rng, q)).unwrap(),
                         symbol: Symbol::from_wire(b'/', SYMBOL_CODES[rng.next(5) as usize]),
+                        compressed: false,
                         comment: &comment,
                     });
                     ("object", dest, build_and_round_trip(&p, "object", i), false)
@@ -679,6 +680,7 @@ fn generate_corpus() -> Vec<TxCase> {
                         latitude: Latitude::new(rand_lat(&mut rng, q)).unwrap(),
                         longitude: Longitude::new(rand_lon(&mut rng, q)).unwrap(),
                         symbol: Symbol::from_wire(b'/', SYMBOL_CODES[rng.next(5) as usize]),
+                        compressed: false,
                         comment: &comment,
                     });
                     ("item", dest, build_and_round_trip(&p, "item", i), false)

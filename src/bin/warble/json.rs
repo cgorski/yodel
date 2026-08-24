@@ -635,6 +635,7 @@ pub fn push_packet(obj: &mut Object<'_>, packet: &AprsPacket<'_>) {
             push_timestamp(&mut o, "timestamp", item.timestamp);
             push_masked_position(&mut o, &item.coordinates());
             push_symbol(&mut o, item.symbol);
+            o.field_bool("compressed", item.compressed);
             o.field_bytes("comment", item.comment);
         }
         AprsPacket::Item(ref item) => {
@@ -644,6 +645,7 @@ pub fn push_packet(obj: &mut Object<'_>, packet: &AprsPacket<'_>) {
             o.field_bool("live", item.live);
             push_masked_position(&mut o, &item.coordinates());
             push_symbol(&mut o, item.symbol);
+            o.field_bool("compressed", item.compressed);
             o.field_bytes("comment", item.comment);
         }
         AprsPacket::Status(ref s) => {

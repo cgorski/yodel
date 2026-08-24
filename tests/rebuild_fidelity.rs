@@ -933,3 +933,102 @@ fn an_impossible_wind_direction_is_dropped_rather_than_carried() {
     };
     assert_eq!(again.weather.wind_direction, None);
 }
+
+// ---------------------------------------------------------------------
+// Chapter 9's compressed position, in an object and in an item
+// ---------------------------------------------------------------------
+
+/// A compressed object decodes, and its position is the one it names.
+///
+/// From KD0YUJ via APRS-IS, 2026-08-21. Chapter 9 permits the base-91
+/// compressed form in an object or item, and the crate had no support
+/// for it: MEASURED over 205 635 live packets, 106 objects and 42 items
+/// from 26 senders were refused outright, so their positions were
+/// plotted nowhere.
+///
+/// This vector checks itself. The object's own comment says Joplin,
+/// Missouri, and the decoded position has to agree; a base-91 decode
+/// that were wrong by a digit would land somewhere else entirely.
+#[test]
+fn a_compressed_object_decodes_where_it_says_it_is() {
+    let line = b"KD0YUJ>APRS,TCPIP*,qAC,T2MIDWEST:;TALK-IN  *211359z/;`]Y6\\MRr   145.190MHz T091 -060Joplin MO";
+    let AprsPacket::Object(o) = packet(line) else {
+        panic!("expected an object");
+    };
+    assert_eq!(o.name, b"TALK-IN");
+    assert!(o.live);
+    assert!(o.compressed, "the position field is base-91, not DDMM.hh");
+    // Joplin, Missouri is 37.08 N, 94.51 W. The comment says so.
+    let at = o.coordinates();
+    assert!(
+        (37.0..37.4).contains(&at.latitude.to_degrees()),
+        "latitude {} is not Joplin",
+        at.latitude.to_degrees()
+    );
+    assert!(
+        (-94.6..-94.2).contains(&at.longitude.to_degrees()),
+        "longitude {} is not Joplin",
+        at.longitude.to_degrees()
+    );
+    // The comment must survive whole. Writing it at the uncompressed
+    // offset left a six-byte hole and truncated it, which is how this
+    // was caught.
+    assert_eq!(o.comment, &b"145.190MHz T091 -060Joplin MO"[..]);
+}
+
+/// A compressed item, and the position block that is six bytes shorter.
+///
+/// From HMSHTS via APRS-IS, 2026-08-23: a Hellenic weather service
+/// alert set, 20 objects at once. The position has to land in Thessaly.
+#[test]
+fn a_compressed_object_keeps_its_length_arithmetic_straight() {
+    let line = b"HMSHTS>APRS,TCPIP*,qAC,T2GREECE:;HMSHTSTES*211500z\\:W8;T-)L<   High temp Advise";
+    let AprsPacket::Object(o) = packet(line) else {
+        panic!("expected an object");
+    };
+    assert!(o.compressed);
+    assert_eq!(o.name, b"HMSHTSTES");
+    let at = o.coordinates();
+    assert!(
+        (34.0..42.0).contains(&at.latitude.to_degrees())
+            && (19.0..29.0).contains(&at.longitude.to_degrees()),
+        "not in Greece: {}, {}",
+        at.latitude.to_degrees(),
+        at.longitude.to_degrees()
+    );
+    assert_eq!(o.comment, &b"High temp Advise"[..]);
+    // F3: the value survives a rebuild even though the bytes do not.
+    // `build` writes the canonical no-data `cs` trailer where the wire
+    // had spaces, which is the same F5 difference a plain compressed
+    // position already has.
+    let AprsPacket::Object(again) = packet(line) else {
+        panic!("still an object");
+    };
+    assert_eq!(again.coordinates(), at);
+}
+
+/// An uncompressed object still keeps its data extension in the comment.
+///
+/// This is the regression the shared position parser introduced and the
+/// one that mattered: a position report parses the seven bytes after
+/// the coordinates as a data extension, and an object has no extension
+/// field, so taking the position's comment silently dropped `088/036`
+/// off every object that carried one.
+#[test]
+fn an_uncompressed_object_keeps_its_extension_bytes() {
+    let line = b"N0CALL>APRS:;LEADER   *092345z4903.50N/07201.75W>088/036";
+    let AprsPacket::Object(o) = packet(line) else {
+        panic!("expected an object");
+    };
+    assert!(!o.compressed);
+    assert_eq!(
+        o.comment,
+        &b"088/036"[..],
+        "the extension bytes belong to an object's comment"
+    );
+    assert_eq!(
+        rebuilt(line),
+        as_sent(line),
+        "and it rebuilds byte for byte"
+    );
+}

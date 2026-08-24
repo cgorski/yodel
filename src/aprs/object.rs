@@ -8,7 +8,7 @@
 
 use super::AprsError;
 use super::position::{
-    LATLON_LEN, LatLonBlock, byte_at, parse_digits, parse_latlon, write_digits, write_latlon,
+    CompressedCs, CompressionType, LATLON_LEN, Position, byte_at, parse_digits, write_digits,
 };
 use super::symbol::Symbol;
 use crate::geo::{Ambiguity, Coordinates, Latitude, Longitude};
@@ -299,6 +299,22 @@ pub struct Object<'a> {
     /// precision, but chapter 6 lets the longitude carry its digits in
     /// full and leaves discarding them to the receiver.
     pub ambiguity: Ambiguity,
+    /// `true` when the position is chapter 9's base-91 compressed form
+    /// rather than `DDMM.hh`.
+    ///
+    /// Chapter 9 permits the compressed form in an object or item, and
+    /// real traffic uses it: MEASURED over 205 635 live packets, 114
+    /// objects and 42 items from 26 senders, including a National
+    /// Weather Service alert set. They were refused outright before
+    /// this field existed, so their positions were plotted nowhere.
+    ///
+    /// The compressed form carries a three-byte `cs` trailer, and an
+    /// object does not keep it, exactly as [`Position`] does not. 43 of
+    /// the 156 carry course, speed or altitude there and lose it; all
+    /// 156 gain the position, which is the report's point. Reading the
+    /// trailer would need a wrapper type, the way
+    /// [`PositionCs`](super::PositionCs) wraps a position.
+    pub compressed: bool,
     /// Free-text comment following the position.
     pub comment: &'a [u8],
 }
@@ -306,8 +322,13 @@ pub struct Object<'a> {
 impl<'a> Object<'a> {
     /// Wire length of the object name field.
     const NAME_LEN: usize = 9;
-    /// Fixed body length: DTI + name + live/killed + timestamp +
-    /// position block.
+    /// Length with chapter 11's uncompressed position block. Kept for
+    /// the doc tests and the length arithmetic they assert; the build
+    /// path uses the position's own [`body_len`] so that chapter 9's
+    /// shorter form is written at the right offsets.
+    ///
+    /// [`body_len`]: Position::body_len
+    #[allow(dead_code)]
     const FIXED_LEN: usize = 1 + Self::NAME_LEN + 1 + Timestamp::LEN + LATLON_LEN;
 
     /// Creates a live object report with an empty comment, validating
@@ -342,6 +363,9 @@ impl<'a> Object<'a> {
             longitude,
             ambiguity: Ambiguity::EXACT,
             symbol,
+            // The convenience constructor keeps chapter 11's own
+            // spelling; set the field to opt into chapter 9's.
+            compressed: false,
             comment: b"",
         })
     }
@@ -395,9 +419,12 @@ impl<'a> Object<'a> {
         if dti != b';' {
             return Err(AprsError::InvalidDataType { got: dti });
         }
-        if info.len() < Self::FIXED_LEN {
+        // The compressed body is shorter than the uncompressed one, so
+        // the precheck can only demand the header plus the shorter of
+        // the two; the position parser then reports its own shortfall.
+        if info.len() < Self::MIN_LEN {
             return Err(AprsError::Truncated {
-                expected: Self::FIXED_LEN,
+                expected: Self::MIN_LEN,
                 got: info.len(),
             });
         }
@@ -409,23 +436,56 @@ impl<'a> Object<'a> {
             other => return Err(AprsError::BadLiveKilled { got: other }),
         };
         let timestamp = Timestamp::parse(info, 2 + Self::NAME_LEN)?;
-        let block = parse_latlon(info, 2 + Self::NAME_LEN + Timestamp::LEN)?;
+        let at = 2 + Self::NAME_LEN + Timestamp::LEN;
+        // Chapter 9's compressed form is legal here too, and the
+        // discriminator is the one `Position` already uses.
+        let (position, _cs, _t) = Position::parse_body(info, at, false)?;
         Ok(Self {
             name,
             live,
             timestamp,
-            latitude: block.latitude,
-            longitude: block.longitude,
-            ambiguity: block.ambiguity,
-            symbol: block.symbol,
-            comment: info.get(Self::FIXED_LEN..).unwrap_or(&[]),
+            latitude: position.latitude,
+            longitude: position.longitude,
+            ambiguity: position.ambiguity,
+            symbol: position.symbol,
+            compressed: position.compressed,
+            // NOT `position.comment`. A position report parses the
+            // seven bytes after the coordinates as a data extension and
+            // leaves them out of its comment; an object has no
+            // extension field, so those bytes belong to the comment
+            // here and taking the position's would silently drop
+            // `088/036` off every object that carries one.
+            comment: info.get(at + position.body_len()..).unwrap_or(&[]),
         })
+    }
+
+    /// Byte offset of the position field, after `;`, the name, the
+    /// live/killed flag and the timestamp.
+    const POSITION_AT: usize = 2 + Self::NAME_LEN + Timestamp::LEN;
+
+    /// Shortest legal object: the header plus chapter 9's compressed
+    /// body, which is six bytes shorter than `DDMM.hh`.
+    const MIN_LEN: usize = Self::POSITION_AT + Position::COMPRESSED_BODY;
+
+    /// This report as a bare position, so the shared body writer can
+    /// spell the position field in whichever form the object carries.
+    fn as_position(&self) -> Position<'a> {
+        Position {
+            latitude: self.latitude,
+            longitude: self.longitude,
+            symbol: self.symbol,
+            ambiguity: self.ambiguity,
+            messaging: false,
+            compressed: self.compressed,
+            extension: None,
+            comment: b"",
+        }
     }
 
     /// The serialized length of this report in bytes.
     #[must_use]
-    pub const fn encoded_len(&self) -> usize {
-        Self::FIXED_LEN + self.comment.len()
+    pub fn encoded_len(&self) -> usize {
+        Self::POSITION_AT + self.as_position().body_len() + self.comment.len()
     }
 
     /// Serializes the report into `buf`, returning the written length.
@@ -456,21 +516,17 @@ impl<'a> Object<'a> {
         }
         out[1 + Self::NAME_LEN] = if self.live { b'*' } else { b'_' };
         self.timestamp
-            .write(&mut out[2 + Self::NAME_LEN..2 + Self::NAME_LEN + Timestamp::LEN])?;
-        write_latlon(
-            &mut out[2 + Self::NAME_LEN + Timestamp::LEN..Self::FIXED_LEN],
-            &LatLonBlock {
-                latitude: self.latitude,
-                longitude: self.longitude,
-                symbol: self.symbol,
-                ambiguity: self.ambiguity,
-            },
-        );
-        for (slot, byte) in out
-            .iter_mut()
-            .skip(Self::FIXED_LEN)
-            .zip(self.comment.iter())
-        {
+            .write(&mut out[2 + Self::NAME_LEN..Self::POSITION_AT])?;
+        let body_end = Self::POSITION_AT + self.as_position().body_len();
+        self.as_position().write_body(
+            &mut out[Self::POSITION_AT..body_end],
+            CompressedCs::NoData,
+            CompressionType::default(),
+        )?;
+        // `body_end`, not `FIXED_LEN`: the compressed body is six bytes
+        // shorter, so skipping the uncompressed length would leave a
+        // six-byte hole and truncate the comment.
+        for (slot, byte) in out.iter_mut().skip(body_end).zip(self.comment.iter()) {
             *slot = *byte;
         }
         Ok(needed)
@@ -563,6 +619,10 @@ pub struct Item<'a> {
     /// precision, but chapter 6 lets the longitude carry its digits in
     /// full and leaves discarding them to the receiver.
     pub ambiguity: Ambiguity,
+    /// `true` when the position is chapter 9's base-91 compressed form
+    /// rather than `DDMM.hh`. See [`Object::compressed`], which carries
+    /// the same meaning and the same caveat about the `cs` trailer.
+    pub compressed: bool,
     /// Free-text comment following the position.
     pub comment: &'a [u8],
 }
@@ -605,6 +665,8 @@ impl<'a> Item<'a> {
             longitude,
             ambiguity: Ambiguity::EXACT,
             symbol,
+            // Chapter 11's own spelling; set the field for chapter 9's.
+            compressed: false,
             comment: b"",
         })
     }
@@ -693,22 +755,43 @@ impl<'a> Item<'a> {
                 got: info.len(),
             });
         }
-        let block = parse_latlon(info, pos_at)?;
+        // Chapter 9's compressed form is legal here too; the shared
+        // body parser picks the spelling by its first byte.
+        let (position, _cs, _t) = Position::parse_body(info, pos_at, false)?;
         Ok(Self {
             name,
             live,
-            latitude: block.latitude,
-            longitude: block.longitude,
-            ambiguity: block.ambiguity,
-            symbol: block.symbol,
-            comment: info.get(pos_at + LATLON_LEN..).unwrap_or(&[]),
+            latitude: position.latitude,
+            longitude: position.longitude,
+            ambiguity: position.ambiguity,
+            symbol: position.symbol,
+            compressed: position.compressed,
+            // As on `Object`: an item has no data-extension field, so
+            // the seven bytes a position report would take for one stay
+            // in the comment here.
+            comment: info.get(pos_at + position.body_len()..).unwrap_or(&[]),
         })
+    }
+
+    /// This report as a bare position, so the shared body writer can
+    /// spell the position field in whichever form the item carries.
+    fn as_position(&self) -> Position<'a> {
+        Position {
+            latitude: self.latitude,
+            longitude: self.longitude,
+            symbol: self.symbol,
+            ambiguity: self.ambiguity,
+            messaging: false,
+            compressed: self.compressed,
+            extension: None,
+            comment: b"",
+        }
     }
 
     /// The serialized length of this report in bytes.
     #[must_use]
-    pub const fn encoded_len(&self) -> usize {
-        1 + self.name.len() + 1 + LATLON_LEN + self.comment.len()
+    pub fn encoded_len(&self) -> usize {
+        1 + self.name.len() + 1 + self.as_position().body_len() + self.comment.len()
     }
 
     /// Serializes the report into `buf`, returning the written length.
@@ -739,16 +822,13 @@ impl<'a> Item<'a> {
         let mut at = 1 + self.name.len();
         out[at] = if self.live { b'!' } else { b'_' };
         at += 1;
-        write_latlon(
-            &mut out[at..at + LATLON_LEN],
-            &LatLonBlock {
-                latitude: self.latitude,
-                longitude: self.longitude,
-                symbol: self.symbol,
-                ambiguity: self.ambiguity,
-            },
-        );
-        at += LATLON_LEN;
+        let body = self.as_position().body_len();
+        self.as_position().write_body(
+            &mut out[at..at + body],
+            CompressedCs::NoData,
+            CompressionType::default(),
+        )?;
+        at += body;
         for (slot, byte) in out.iter_mut().skip(at).zip(self.comment.iter()) {
             *slot = *byte;
         }

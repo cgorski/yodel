@@ -797,6 +797,7 @@ mod full_stack {
             latitude: Latitude::new(ORACLE_LAT).unwrap(),
             longitude: Longitude::new(ORACLE_LON).unwrap(),
             symbol: Symbol::CAR,
+            compressed: false,
             comment: b"obj oracle",
         })
     }
@@ -809,6 +810,7 @@ mod full_stack {
             latitude: Latitude::new(ORACLE_LAT).unwrap(),
             longitude: Longitude::new(ORACLE_LON).unwrap(),
             symbol: Symbol::DIGI,
+            compressed: false,
             comment: b"item oracle",
         })
     }

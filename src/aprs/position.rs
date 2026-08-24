@@ -541,7 +541,7 @@ impl<'a> Position<'a> {
     const UNCOMPRESSED_BODY: usize = LATLON_LEN;
     /// Length of the compressed body (after DTI/timestamp): table +
     /// 4 lat + 4 lon + code + `csT`.
-    const COMPRESSED_BODY: usize = 1 + 4 + 4 + 1 + 3;
+    pub(crate) const COMPRESSED_BODY: usize = 1 + 4 + 4 + 1 + 3;
     /// Length of the uncompressed report: DTI + body.
     const UNCOMPRESSED_LEN: usize = 1 + Self::UNCOMPRESSED_BODY;
     /// Length of the compressed report: DTI + body.
@@ -569,7 +569,17 @@ impl<'a> Position<'a> {
     /// on the first body byte) starting at `at`, returning the typed
     /// `csT` payload alongside (no-data defaults for the uncompressed
     /// form).
-    fn parse_body(
+    /// `pub(crate)` so objects and items can share it verbatim.
+    ///
+    /// Chapter 9's compressed form is permitted in an object or item as
+    /// well as a position report, and the discriminator is the same:
+    /// the first byte of the position field is a digit only in the
+    /// uncompressed form. Sharing this function rather than copying the
+    /// base-91 arithmetic is deliberate here for a reason this crate
+    /// has already paid for once: when the coordinate unit changed,
+    /// nine duplicated divisors had to be found by hand and five of
+    /// them the compiler could not catch.
+    pub(crate) fn parse_body(
         info: &'a [u8],
         at: usize,
         messaging: bool,
@@ -688,7 +698,7 @@ impl<'a> Position<'a> {
     }
 
     /// The serialized length of the body (without DTI or timestamp).
-    const fn body_len(&self) -> usize {
+    pub(crate) const fn body_len(&self) -> usize {
         if self.compressed {
             Self::COMPRESSED_BODY
         } else {
@@ -736,7 +746,8 @@ impl<'a> Position<'a> {
     /// must be at least [`Self::body_len`] long; returns the body
     /// length. The `cs`/`t` trailer applies to the compressed form
     /// only.
-    fn write_body(
+    /// `pub(crate)` for the same reason as [`Self::parse_body`].
+    pub(crate) fn write_body(
         &self,
         out: &mut [u8],
         cs: CompressedCs,

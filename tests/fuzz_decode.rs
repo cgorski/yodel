@@ -487,6 +487,7 @@ fn corpus() -> Vec<Vec<u8>> {
             latitude: lat(49 * 6000 + 350),
             longitude: lon(-(72 * 6000 + 175)),
             symbol: Symbol::CAR,
+            compressed: false,
             comment: b"088/036",
         }),
         AprsPacket::Item(Item {
@@ -496,6 +497,7 @@ fn corpus() -> Vec<Vec<u8>> {
             latitude: lat(6000),
             longitude: lon(-6000),
             symbol: Symbol::from_wire(b'/', b'8'),
+            compressed: false,
             comment: b"first aid",
         }),
         // A compressed position whose csT trailer carries data, so the

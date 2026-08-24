@@ -1137,6 +1137,7 @@ fn object_killed_and_timestamp_formats_round_trip() {
             latitude: lat(0),
             longitude: lon(0),
             symbol: Symbol::from_wire(b'\\', b'-'),
+            compressed: false,
             comment: b"note",
         };
         let mut buf = [0u8; 80];
@@ -1159,6 +1160,7 @@ fn object_single_char_name_pads_to_nine() {
         latitude: lat(6000),
         longitude: lon(-6000),
         symbol: Symbol::from_wire(b'/', b'c'),
+        compressed: false,
         comment: b"",
     };
     let mut buf = [0u8; 80];
@@ -1207,11 +1209,14 @@ fn object_rejections() {
             position: 5
         })
     );
-    // Truncated.
+    // Truncated. The floor is the header plus chapter 9's compressed
+    // body (31), not the uncompressed one (37): a compressed object is
+    // six bytes shorter and demanding 37 up front would reject every
+    // one of them before the position parser saw a byte.
     assert_eq!(
         Object::parse(b";LEADER   *0923"),
         Err(AprsError::Truncated {
-            expected: 37,
+            expected: 31,
             got: 15
         })
     );
@@ -1228,6 +1233,7 @@ fn object_rejections() {
         latitude: lat(0),
         longitude: lon(0),
         symbol: Symbol::HOUSE,
+        compressed: false,
         comment: b"",
     };
     let mut buf = [0u8; 80];
@@ -1278,6 +1284,7 @@ fn item_name_length_boundaries_round_trip() {
             latitude: lat(-(89 * 6000 + 5999)),
             longitude: lon(179 * 6000 + 5999),
             symbol: Symbol::from_wire(b'/', b'r'),
+            compressed: false,
             comment: b"comment text",
         };
         let mut buf = [0u8; 80];
@@ -1295,6 +1302,7 @@ fn item_killed_round_trip() {
         latitude: lat(45 * 6000),
         longitude: lon(-(122 * 6000)),
         symbol: Symbol::from_wire(b'\\', b'W'),
+        compressed: false,
         comment: b"",
     };
     let mut buf = [0u8; 80];
@@ -1347,6 +1355,7 @@ fn item_rejections() {
         latitude: lat(0),
         longitude: lon(0),
         symbol: Symbol::HOUSE,
+        compressed: false,
         comment: b"",
     };
     let mut buf = [0u8; 80];

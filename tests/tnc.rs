@@ -129,6 +129,7 @@ fn object() -> AprsPacket<'static> {
         latitude: lat(49 * 6000 + 350),
         longitude: lon(-(72 * 6000 + 175)),
         symbol: Symbol::CAR,
+        compressed: false,
         comment: b"088/036",
     })
 }
@@ -141,6 +142,7 @@ fn item() -> AprsPacket<'static> {
         latitude: lat(6000),
         longitude: lon(-6000),
         symbol: Symbol::from_wire(b'/', b'8'),
+        compressed: false,
         comment: b"first aid",
     })
 }
