@@ -1,8 +1,11 @@
 //! Shared plumbing of the `warble` subcommands: the modem presets and
 //! per-knob overrides (`--preset`/`--baud`/`--mark`/`--space`/`--fx25`/
 //! `--il2p`), address parsing/formatting, WAV-header validation,
-//! raw-PCM sample iteration, and the FX.25/IL2P transmit wrappers used
-//! by both `encode` and `gen`.
+//! raw-PCM sample iteration, the FX.25/IL2P transmit wrappers used by
+//! both `encode` and `gen`, and the stdout writer every subcommand
+//! prints through.
+
+use std::io::Write;
 
 use clap::{Args, ValueEnum};
 
@@ -400,4 +403,84 @@ pub fn il2p_samples(
             config.tail_flags().max(2),
         ))
         .collect())
+}
+
+/// Buffered stdout for subcommand output, with pipeline manners.
+///
+/// Rust ignores `SIGPIPE`, so the `print!` family turns a closed stdout
+/// into a panic — `failed printing to stdout: Broken pipe`, exit 101.
+/// Every other filter in a Unix pipeline stops quietly instead, which is
+/// what `warble decode ... | head -5` should do.
+///
+/// Once the downstream reader goes away this writer latches [`closed`],
+/// discards the rest of the output, and still reports success: the run
+/// is over, and it did not fail. A subcommand streaming many lines
+/// should poll [`Output::closed`] and stop early rather than decode a
+/// whole capture nobody is reading.
+///
+/// [`closed`]: Output::closed
+pub struct Output {
+    /// Block-buffered, unlike `println!`, which takes the stdout lock
+    /// and flushes on every line.
+    out: std::io::BufWriter<std::io::Stdout>,
+    /// Latched once a write reports `BrokenPipe`.
+    closed: bool,
+}
+
+impl Default for Output {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Output {
+    /// A writer over the process's stdout.
+    #[must_use]
+    pub fn new() -> Self {
+        Self {
+            out: std::io::BufWriter::new(std::io::stdout()),
+            closed: false,
+        }
+    }
+
+    /// Whether the downstream reader has gone away.
+    ///
+    /// Buffering means this turns true at the write that happens to
+    /// flush, not necessarily the first write after the reader left, so
+    /// treat it as "stop soon", not "stop exactly here".
+    #[must_use]
+    pub fn closed(&self) -> bool {
+        self.closed
+    }
+
+    /// Writes one line. A closed downstream is not an error.
+    pub fn line(&mut self, args: std::fmt::Arguments<'_>) -> Result<(), String> {
+        if self.closed {
+            return Ok(());
+        }
+        match writeln!(self.out, "{args}") {
+            Ok(()) => Ok(()),
+            Err(e) if e.kind() == std::io::ErrorKind::BrokenPipe => {
+                self.closed = true;
+                Ok(())
+            }
+            Err(e) => Err(format!("writing to stdout: {e}")),
+        }
+    }
+
+    /// Flushes what is buffered. A closed downstream is not an error.
+    ///
+    /// Call this before returning from a subcommand: `BufWriter`'s own
+    /// `Drop` flush discards the error, which would hide a genuinely
+    /// full disk on `warble decode > file`.
+    pub fn finish(&mut self) -> Result<(), String> {
+        match self.out.flush() {
+            Ok(()) => Ok(()),
+            Err(e) if e.kind() == std::io::ErrorKind::BrokenPipe => {
+                self.closed = true;
+                Ok(())
+            }
+            Err(e) => Err(format!("writing to stdout: {e}")),
+        }
+    }
 }

@@ -23,8 +23,8 @@ use warble::tnc::{DefaultTncReceiver, MAX_FRAME_BYTES, TncConfig};
 
 use crate::json::{self, StreamPos};
 use crate::shared::{
-    IL2P_PARITY, InputFormat, ModemArgs, check_wav_spec, format_address, sniff_stdin_samples,
-    wav_samples,
+    IL2P_PARITY, InputFormat, ModemArgs, Output, check_wav_spec, format_address,
+    sniff_stdin_samples, wav_samples,
 };
 
 #[derive(Args)]
@@ -117,6 +117,7 @@ struct Emitter {
     wall_clock: bool,
     rate: SampleRate,
     line: String,
+    out: Output,
 }
 
 impl Emitter {
@@ -127,13 +128,14 @@ impl Emitter {
             wall_clock: args.wall_clock,
             rate,
             line: String::new(),
+            out: Output::new(),
         }
     }
 
     /// Prints one frame, decoded at sample index `sample`.
-    fn emit(&mut self, sample: u64, frame: &UiFrame<'_>) {
+    fn emit(&mut self, sample: u64, frame: &UiFrame<'_>) -> Result<(), String> {
         match self.format {
-            OutputFormat::Text => println!("{}", format_frame(frame)),
+            OutputFormat::Text => self.out.line(format_args!("{}", format_frame(frame))),
             OutputFormat::Jsonl => {
                 self.line.clear();
                 let at = StreamPos {
@@ -142,9 +144,23 @@ impl Emitter {
                     unix_time: self.wall_clock.then(unix_time),
                 };
                 json::push_frame(&mut self.line, at, frame);
-                println!("{}", self.line);
+                // `self.line` is borrowed by `format_args!` while
+                // `self.out` is borrowed mutably, so split the borrow.
+                let Self { out, line, .. } = self;
+                out.line(format_args!("{line}"))
             }
         }
+    }
+
+    /// Whether the downstream reader has gone away, so the decode loop
+    /// can stop instead of grinding through a capture nobody reads.
+    fn closed(&self) -> bool {
+        self.out.closed()
+    }
+
+    /// Flushes the buffered output.
+    fn finish(&mut self) -> Result<(), String> {
+        self.out.finish()
     }
 }
 
@@ -334,9 +350,13 @@ fn decode_samples(
     let mut rx = DefaultTncReceiver::new(config).map_err(|e| format!("receiver setup: {e}"))?;
     for (at, sample) in samples.enumerate() {
         if let Some(frame) = rx.push_i16(sample?) {
-            out.emit(at as u64, frame.ui_frame());
+            out.emit(at as u64, frame.ui_frame())?;
+            if out.closed() {
+                break;
+            }
         }
     }
+    out.finish()?;
     let stats = rx.stats();
     eprintln!(
         "frames ok: {}, fcs errors: {}",
@@ -371,7 +391,10 @@ fn decode_fx25(
                 let frame = frame.to_vec();
                 if let Ok(ui) = UiFrame::parse(&frame) {
                     frames_ok += 1;
-                    out.emit(at as u64, &ui);
+                    out.emit(at as u64, &ui)?;
+                    if out.closed() {
+                        break;
+                    }
                 }
             }
             Some(Err(Fx25Error::Ax25(warble::ax25::Ax25Error::FcsMismatch { .. }))) => {
@@ -380,6 +403,7 @@ fn decode_fx25(
             _ => {}
         }
     }
+    out.finish()?;
     eprintln!("frames ok: {frames_ok}, fcs errors: {fcs_errors}");
     Ok(())
 }
@@ -414,13 +438,17 @@ fn decode_il2p(
                 corrected += frame.corrected() as u64;
                 if let Ok(ui) = frame.ui_frame() {
                     frames_ok += 1;
-                    out.emit(at as u64, &ui);
+                    out.emit(at as u64, &ui)?;
+                    if out.closed() {
+                        break;
+                    }
                 }
             }
             Some(Err(_)) => uncorrectable += 1,
             None => {}
         }
     }
+    out.finish()?;
     eprintln!(
         "frames ok: {frames_ok}, uncorrectable: {uncorrectable}, symbols corrected: {corrected}"
     );

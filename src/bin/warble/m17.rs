@@ -12,7 +12,7 @@ use clap::{Args, Subcommand};
 use warble::SampleRate;
 use warble::m17::{Address, Lsf, M17FrameEvent, M17PacketTx, M17Receiver, PacketAssembler};
 
-use crate::shared::check_wav_spec;
+use crate::shared::{Output, check_wav_spec};
 
 /// Arguments of `warble m17`: M17 packet-mode TX and capture RX.
 #[derive(Args)]
@@ -135,6 +135,7 @@ fn decode(input: &str) -> Result<(), String> {
     let mut lsf_count = 0usize;
     let mut frame_count = 0usize;
     let mut packet_count = 0usize;
+    let mut out = Output::new();
     for sample in reader.samples::<i16>() {
         let sample = sample.map_err(|e| format!("reading '{input}': {e}"))?;
         match rx.push_i16(sample) {
@@ -142,25 +143,29 @@ fn decode(input: &str) -> Result<(), String> {
                 lsf_count += 1;
                 let mut sbuf = [0u8; 9];
                 let mut dbuf = [0u8; 9];
-                println!(
+                out.line(format_args!(
                     "LSF: {} -> {} | type {:#06x} | CAN {}",
                     lsf.src.callsign(&mut sbuf),
                     lsf.dst.callsign(&mut dbuf),
                     lsf.lsf_type,
                     (lsf.lsf_type >> 7) & 0xF
-                );
+                ))?;
                 assembler.start(lsf);
             }
             Some(M17FrameEvent::PacketFrame(frame)) => {
                 frame_count += 1;
                 if let Some(payload) = assembler.feed(&frame) {
                     packet_count += 1;
-                    println!("payload: {}", String::from_utf8_lossy(payload));
+                    out.line(format_args!(
+                        "payload: {}",
+                        String::from_utf8_lossy(payload)
+                    ))?;
                 }
             }
             None => {}
         }
     }
+    out.finish()?;
     eprintln!(
         "{packet_count} packet(s) | {lsf_count} LSF(s) | {frame_count} packet frame(s) \
          passed FEC"

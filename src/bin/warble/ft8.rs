@@ -10,7 +10,7 @@ use clap::{Args, Subcommand};
 use warble::SampleRate;
 use warble::ft8::{Ft8Config, Ft8Decoder, Ft8DecoderConfig, Ft8Message, Ft8Modulator, Ft8Tail};
 
-use crate::shared::check_wav_spec;
+use crate::shared::{Output, check_wav_spec};
 
 /// Arguments of `warble ft8`: FT8 TX and capture RX.
 #[derive(Args)]
@@ -174,12 +174,14 @@ fn decode(input: &str, window: u32, max_candidates: usize) -> Result<(), String>
     let decodes = decoder
         .decode(&samples)
         .map_err(|e| format!("decoding '{input}': {e}"))?;
+    let mut out = Output::new();
     for d in &decodes {
-        println!(
+        out.line(format_args!(
             "{} | freq {:.1} Hz | dt {:.2} s | snr {:.0} dB | sync {:.2}",
             d.message, d.freq_hz, d.dt_seconds, d.snr_db, d.sync_score
-        );
+        ))?;
     }
+    out.finish()?;
     eprintln!("{} decode(s)", decodes.len());
     Ok(())
 }

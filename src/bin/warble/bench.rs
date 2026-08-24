@@ -13,7 +13,7 @@ use warble::fx25::Fx25Receiver;
 use warble::nrzi::NrziDecoder;
 use warble::tnc::{DefaultTncReceiver, MAX_FRAME_BYTES};
 
-use crate::shared::{ModemArgs, check_wav_spec, wav_samples};
+use crate::shared::{ModemArgs, Output, check_wav_spec, wav_samples};
 
 /// Arguments of `warble bench`: decode-accuracy measurement over WAV
 /// recordings with CI-friendly thresholds.
@@ -215,6 +215,7 @@ pub fn bench(args: &BenchArgs) -> Result<(), String> {
         }
     };
 
+    let mut out = Output::new();
     if args.json {
         let mut json = String::from("{\"files\":[");
         for (i, r) in results.iter().enumerate() {
@@ -242,7 +243,7 @@ pub fn bench(args: &BenchArgs) -> Result<(), String> {
         json.push_str(&format!(
             "],\"decoded\":{total_decoded},\"expected\":{expected},\"min\":{min},\"pass\":{pass_text}}}"
         ));
-        println!("{json}");
+        out.line(format_args!("{json}"))?;
     } else {
         let width = results
             .iter()
@@ -250,26 +251,36 @@ pub fn bench(args: &BenchArgs) -> Result<(), String> {
             .max()
             .unwrap_or(0)
             .max("total".len());
-        println!("{:<width$}  {:>7}  {:>8}", "file", "decoded", "expected");
+        out.line(format_args!(
+            "{:<width$}  {:>7}  {:>8}",
+            "file", "decoded", "expected"
+        ))?;
         for r in &results {
             let expected = match r.expected {
                 Some(n) => n.to_string(),
                 None => "?".to_owned(),
             };
-            println!("{:<width$}  {:>7}  {:>8}", r.path, r.decoded, expected);
+            out.line(format_args!(
+                "{:<width$}  {:>7}  {:>8}",
+                r.path, r.decoded, expected
+            ))?;
         }
         let expected = match total_expected {
             Some(n) => n.to_string(),
             None => "?".to_owned(),
         };
-        println!("{:<width$}  {total_decoded:>7}  {expected:>8}", "total");
+        out.line(format_args!(
+            "{:<width$}  {total_decoded:>7}  {expected:>8}",
+            "total"
+        ))?;
         if let (Some(min), Some(ok)) = (&args.min, pass) {
-            println!(
+            out.line(format_args!(
                 "threshold --min {min}: {}",
                 if ok { "PASS" } else { "FAIL" }
-            );
+            ))?;
         }
     }
+    out.finish()?;
 
     if pass == Some(false) {
         return Err(format!(

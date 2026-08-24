@@ -187,6 +187,64 @@ fn encode_message_decode_round_trip() {
     let _ = std::fs::remove_file(&wav);
 }
 
+/// `warble decode ... | head -1` must exit quietly rather than panic.
+///
+/// Rust ignores SIGPIPE, so writing to a closed stdout surfaces as
+/// `ErrorKind::BrokenPipe`, and the `print!` family turns that into a
+/// panic: `failed printing to stdout: Broken pipe`, exit 101. Every
+/// other filter in a pipeline stops silently, and `decode_tnc2` in the
+/// same module already gets this right with `writeln!` + `?`.
+///
+/// Closing the read end outright, rather than reading a line and then
+/// dropping, is what makes this deterministic: with no reader at all
+/// the first write fails whatever the pipe buffer size happens to be.
+#[test]
+fn decode_exits_cleanly_on_closed_stdout() {
+    for format in ["text", "jsonl"] {
+        let wav = scratch(&format!("closed-stdout-{format}"));
+        let path = wav.to_string_lossy().into_owned();
+        let (ok, _, stderr) = run(&[
+            "encode",
+            "--out",
+            &path,
+            "--from",
+            "N0CALL",
+            "--to",
+            "APRS",
+            "position",
+            "--lat",
+            "40.1234",
+            "--lon",
+            "-105.5678",
+            "--comment",
+            "closed stdout",
+        ]);
+        assert!(ok, "encode failed: {stderr}");
+
+        let mut child = Command::new(BIN)
+            .args(["decode", "--output-format", format, &path])
+            .stdout(std::process::Stdio::piped())
+            .stderr(std::process::Stdio::piped())
+            .spawn()
+            .expect("spawning the warble binary");
+        // No reader at all: every write the child attempts fails.
+        drop(child.stdout.take());
+        let output = child.wait_with_output().expect("waiting for the binary");
+        let stderr = String::from_utf8_lossy(&output.stderr);
+
+        assert!(
+            !stderr.contains("panicked"),
+            "decode --output-format {format} panicked on a closed stdout: {stderr}"
+        );
+        assert!(
+            output.status.success(),
+            "decode --output-format {format} must exit 0 when stdout closes early, got {:?}: {stderr}",
+            output.status.code()
+        );
+        let _ = std::fs::remove_file(&wav);
+    }
+}
+
 #[test]
 fn decode_wav_written_by_library() {
     use warble::SampleRate;

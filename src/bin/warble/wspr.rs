@@ -9,7 +9,7 @@ use clap::{Args, Subcommand};
 use warble::wspr::{WsprConfig, WsprDecoder, WsprDecoderConfig, WsprMessage, WsprModulator};
 use warble::{MaidenheadGrid, SampleRate};
 
-use crate::shared::check_wav_spec;
+use crate::shared::{Output, check_wav_spec};
 
 /// Arguments of `warble wspr`: WSPR beacon TX and capture RX.
 #[derive(Args)]
@@ -143,20 +143,22 @@ fn decode(input: &str, window: u32, max_candidates: usize) -> Result<(), String>
     let decodes = decoder
         .decode(&samples)
         .map_err(|e| format!("decoding '{input}': {e}"))?;
+    let mut out = Output::new();
     for d in &decodes {
         let call = String::from_utf8_lossy(d.message.callsign())
             .trim()
             .to_owned();
         let grid = d.message.grid();
-        println!(
+        out.line(format_args!(
             "{call} {grid} {} dBm | freq {:.1} Hz | dt {:.2} s | snr {:.0} dB | sync {:.2}",
             d.message.power_dbm(),
             d.freq_hz,
             d.dt_seconds,
             d.snr_db,
             d.sync_score
-        );
+        ))?;
     }
+    out.finish()?;
     eprintln!("{} decode(s)", decodes.len());
     Ok(())
 }

@@ -287,21 +287,22 @@ fn transmit(args: &PttArgs, started: Instant) -> Result<(), String> {
 fn list_ports() -> Result<(), String> {
     let ports =
         serialport::available_ports().map_err(|e| format!("cannot enumerate serial ports: {e}"))?;
+    let mut out = crate::shared::Output::new();
     if ports.is_empty() {
-        println!("no serial ports found");
-        return Ok(());
+        out.line(format_args!("no serial ports found"))?;
+        return out.finish();
     }
     for p in ports {
         match p.port_type {
-            serialport::SerialPortType::UsbPort(info) => println!(
+            serialport::SerialPortType::UsbPort(info) => out.line(format_args!(
                 "{}  USB {:04x}:{:04x} {}",
                 p.port_name,
                 info.vid,
                 info.pid,
                 info.product.unwrap_or_default()
-            ),
-            other => println!("{}  {other:?}", p.port_name),
+            ))?,
+            other => out.line(format_args!("{}  {other:?}", p.port_name))?,
         }
     }
-    Ok(())
+    out.finish()
 }
