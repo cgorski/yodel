@@ -264,6 +264,16 @@ turned out to be, which approach was tried and abandoned.
   `kiss`, `digipeat`, `g3ruh`, `fx25`, `il2p`, `wspr`, `ft8` and `m17`.
   Feature badges now render on each gated item.
 
+- **`scripts/check-public-api-exercised.sh`.** CONTRIBUTING.md says "no
+  public function should be reachable by users and by nothing else" and
+  gives a recipe requiring a CALL, not a mention, splitting each `src/`
+  file at its `#[cfg(test)]` boundary so implementation code cannot
+  vouch for itself. Run by hand once, it found four; then it stopped
+  being run. Automated and wired into CI, it found two more —
+  `aprs::decoded_from_ui`, reached only from the CLI binary, and
+  `aprs::monitor::is_q_construct`, reached only from its own module.
+  Both now have tests in `tests/coverage_fill.rs`.
+
 - **`scripts/check-coverage-citations.sh`.** `docs/COVERAGE.md` cites a
   few hundred tests by name and says they are checked mechanically
   against `--list --include-ignored`. Nothing was doing the checking.
@@ -385,6 +395,36 @@ turned out to be, which approach was tried and abandoned.
   somewhere to connect anonymously.
 
 ### Fixed
+
+- **A modem config re-checks its tones against its own sample rate.**
+  `TonePair::new` takes a `SampleRate`, checks Nyquist and then discards
+  it, so the pair carries no memory of what cleared it. A pair validated
+  at 48 kHz could be handed to a `ModulatorConfig` or `DemodulatorConfig`
+  at 8 kHz, where it aliases — a hole in the claim that `types` makes
+  "illegal modem configurations unrepresentable". Both constructors now
+  return `ConfigError::ToneOutOfRange` for a tone that does not fit.
+
+  The `TonePair` constants are plain `const`s that no rate has ever
+  cleared; they pass only because every one of their tones sits below
+  the Nyquist of `SAMPLE_RATE_MIN`, which is now pinned so a future
+  constant cannot quietly break it.
+
+- **FT8 refuses a non-finite channel LLR instead of fabricating a
+  decode.** The LDPC hard decision is `posterior < 0.0`, and `NaN`
+  compares false against everything, so a single poisoned LLR read as a
+  confident bit 0 and `ldpc_decode` returned a codeword assembled from
+  nothing. `llrs_from_energies` divides by a mean floored at
+  `f32::MIN_POSITIVE`, so one infinite energy anywhere in the symbol
+  window was enough to reach it. CRC-14 caught most of it downstream,
+  which is a 1-in-16384 gate standing in for a check the decoder could
+  make directly. New `Ft8Error::LlrNotFinite` (the enum is
+  `#[non_exhaustive]`, so this is additive).
+
+- **The lazy iterator adapters are `#[must_use]`.** `Iterator`'s own
+  `#[must_use]` covers `-> impl Iterator`, not the named structs these
+  return, so dropping the result of `Modulator::i16_samples`,
+  `Demodulator::i16_bits`, the baseband pair, `nrzi::encode_iter` or
+  `scrambler::scramble_iter` was a silent no-op.
 
 - **`warble decode ... | head` exits quietly instead of panicking.**
   Rust ignores `SIGPIPE`, so the `print!` family turns a closed stdout

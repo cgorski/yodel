@@ -127,6 +127,17 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - run: cargo publish --dry-run --all-features
 
+  # CONTRIBUTING.md: "no public function should be reachable by users and
+  # by nothing else". The recipe there found four unexercised functions
+  # by hand and then stopped being run. Pure text analysis, so this needs
+  # no toolchain and finishes in seconds.
+  public-api:
+    name: public API is exercised
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: scripts/check-public-api-exercised.sh
+
   # docs/COVERAGE.md cites a few hundred tests by name and says they are
   # checked mechanically. This is what does the checking; without it the
   # claim decays into a few hundred hand-maintained rows that read as
