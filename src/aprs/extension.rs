@@ -856,7 +856,8 @@ const fn dao_addend(byte: u8, base91: bool) -> Option<i64> {
 ///
 /// # Why the scan skips base-91 telemetry
 ///
-/// See [`telemetry_span`]. A telemetry payload is arbitrary base-91
+/// See the private `telemetry_span` helper. A telemetry payload is
+/// arbitrary base-91
 /// bytes and produces `!x??!` sequences that are indistinguishable from
 /// this field by shape alone.
 ///

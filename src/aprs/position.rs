@@ -41,7 +41,7 @@
 //! Altitude decoding truncates, so `1.002^e` sits above the foot count
 //! it reports and the exponent nearest that foot count is routinely
 //! `e - 1`: rebuilding through the power dropped a foot on 999 of the
-//! 8281 altitude codes. See [`exponent_for`].
+//! 8281 altitude codes. See the private `exponent_for` helper.
 
 use super::AprsError;
 use super::extension::{
