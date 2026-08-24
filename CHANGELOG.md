@@ -221,6 +221,40 @@ turned out to be, which approach was tried and abandoned.
   the masking accessor. One accessor that is always right beats two
   where the caller picks.
 
+- **Objects and items read chapter 9's compressed position.** They
+  called the uncompressed-only parser, so the base-91 form the chapter
+  permits in an object or item was refused outright. MEASURED over
+  205 635 live packets: 106 objects and 42 items from 26 senders,
+  including a Hellenic weather service alert set, whose positions were
+  plotted nowhere.
+
+  `Object` and `Item` gain `compressed: bool`, and both now go through
+  the position module's own body parser and writer rather than a second
+  copy of the base-91 arithmetic. `encoded_len` on both is no longer
+  `const fn`, because the length depends on which form the report
+  carries. The truncation floor drops from 37 to 31 bytes, since
+  demanding the uncompressed length would refuse every compressed
+  object before the position parser saw one.
+
+  The three-byte `cs` trailer is not carried, as `Position` does not
+  carry it either: 43 of the 148 lose course, speed or altitude there,
+  and all 148 gain the position.
+
+- **A direction the wire cannot mean is no longer published.** The
+  parser accepted a wind direction outside chapter 12's `000` to `360`
+  while `build` enforced it, so `767` reached the typed value, was
+  rendered as "wind dir 767 deg", and then could not be written back.
+  It is now reported absent, keeping the other eight measurements.
+
+  Mic-E had the same shape of bug, invisible to the rebuild check
+  because Mic-E is not buildable from an information field. Chapter 10
+  packs the course as `(DC mod 10) * 100 + SE`, which reaches 999, then
+  subtracts 400 once, leaving 400..=599 reachable while the field is
+  `0..=360`. `MicE::course` documents that range and `MicE::new`
+  enforces it, but the decoder built the struct directly. Out-of-range
+  courses are now reported as 0, which chapter 10 spells "unknown or
+  indefinite". MEASURED: 24 packets across both faults, now 0.
+
 ### Added
 
 - **Chapter 13 telemetry definition messages are typed.** `PARM.`,
@@ -293,6 +327,26 @@ turned out to be, which approach was tried and abandoned.
   with a floor on each and a ceiling on how many frames may be set aside
   as non-APRS, so the new figure cannot be flattered by shrinking its
   denominator.
+
+- **`decode --verify-rebuild` re-parses instead of comparing bytes.**
+  It compared `build(parse(w))` against `w` and stopped, so `differs`
+  covered both a harmless re-spelling and a changed value, and the
+  second was invisible. It now re-parses and compares typed values.
+
+  | verdict | meaning |
+  |---|---|
+  | `exact` | byte for byte |
+  | `differs` | bytes changed, the value did not |
+  | `value_changed` | does not parse back to the same value |
+  | `rejected` | output this crate would itself refuse |
+  | `failed` | build undefined where parse succeeded |
+
+  MEASURED over 205 635 packets, 190 804 of them buildable: 11
+  `value_changed`, 0 `rejected`, 0 `failed`. The 11 are chapter 6
+  ambiguity, where the longitude field holds digits the latitude
+  declared ambiguous and `coordinates()` masks both to the same
+  position, so no caller sees a moved station. This bumps the JSON Lines
+  schema to **2**.
 
 - **`warble aprsis`** reads the live APRS-IS feed and writes TNC2
   monitor lines, the format `decode --tnc2` already takes, so the two
