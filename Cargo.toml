@@ -21,6 +21,23 @@ exclude = [
     "tests/*.wav",
 ]
 
+# docs.rs builds DEFAULT features only unless told otherwise. With
+# `default = ["mod", "demod"]` that would publish the modulator and
+# demodulator and hide everything behind `aprs`, `ax25`, `tnc`, `kiss`,
+# `digipeat`, `g3ruh`, `fx25`, `il2p`, `wspr`, `ft8` and `m17` — nearly
+# the whole API. Build the full surface, and set `docsrs` so
+# `doc_auto_cfg` renders the "Available on crate feature ..." badge that
+# tells a reader which flag an item needs.
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+# `docsrs` is set only by the docs.rs builder (via the rustdoc-args
+# above). Declaring it keeps the `unexpected_cfgs` lint quiet in every
+# ordinary build without blanket-allowing unknown cfgs.
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(docsrs)'] }
+
 [features]
 default = ["mod", "demod"]
 # Modulator (bit stream -> PCM samples).

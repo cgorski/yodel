@@ -2,8 +2,15 @@
 /reference/
 /scratch/
 *.wav
-Cargo.lock
 /corpus/
+
+# Cargo.lock IS tracked. This crate ships a binary ([[bin]] warble), and
+# the current guidance for any repo with a binary is to commit the
+# lockfile: it makes CI reproducible (a semver-compatible upstream
+# release can no longer turn a green PR red with no local change), makes
+# a dependency regression bisectable, and makes `cargo install --locked`
+# resolve what was actually reviewed. Library consumers are unaffected --
+# cargo ignores a dependency's lockfile.
 
 # Agent-harness configuration: operator-local, never published.
 /.curia/

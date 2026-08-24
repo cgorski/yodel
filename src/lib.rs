@@ -35,6 +35,8 @@
 //!   `demod`.
 //! * `aprs`: APRS position/status/message payloads over AX.25 UI frames;
 //!   implies `ax25`.
+//! * `micE`: Mic-E compressed position reports (APRS 1.01 chapter 10);
+//!   implies `aprs`.
 //! * `digipeat`: WIDEn-N digipeater primitives — served aliases, the
 //!   pure relay-decision core, duplicate suppression; implies `ax25`.
 //! * `kiss`: KISS TNC framing (byte-level escaping); standalone.
@@ -73,7 +75,10 @@
 //!   by default, enabled by `cli`.
 //! * `tnc`: high-level TNC pipeline (PCM samples ↔ APRS packets);
 //!   implies `aprs`, `mod` and `demod`.
-//! * `alloc`: heap-backed conveniences (reserved).
+//! * `alloc`: heap-backed conveniences — `TncTransmitter::to_vec_i16`
+//!   / `_f32`, `kiss::encode_to_vec`, `AprsPacket::to_vec` and
+//!   `UiFrame::to_vec`. Each is gated on `alloc` plus the feature that
+//!   owns the type, and pulls in no dependency.
 //! * `std`: std conveniences; implies `alloc`. Pulls in no dependency.
 //! * `wav`: WAV I/O via `hound`; implies `std`.
 //! * `async`: tokio adapters ([`asynk`]) — decoded frames as `Stream`s,
@@ -84,8 +89,16 @@
 //!   chunk-drain decode loop over the sync core plus an embassy-time
 //!   TX ticker; implies `tnc`, pulls only `embassy-time`. Off by
 //!   default, enabled by nothing else.
-//! * `cli`: aggregate (`wav` + `tnc` + `micE` + `kiss` + `fx25` + `il2p`
-//!   + `wspr` + `ft8` + `m17`) enabling the `warble` command-line binary.
+//! * `ptt`: serial PTT for `warble ptt` — assert RTS or DTR on a
+//!   USB-serial adapter to key a transmitter, hold it, and drop it
+//!   again. CLI only, and the one feature in this crate that can put a
+//!   signal on the air by itself, so its failure mode is deassert.
+//!   Pulls `serialport` with default features off.
+//! * `capture`: live sound-card capture (`cpal`) for the `live_capture`
+//!   example only. Off by default and enabled by nothing else.
+//! * `cli`: aggregate (`wav` + `tnc` + `micE` + `kiss` + `fx25` +
+//!   `il2p` + `wspr` + `ft8` + `m17` + `ptt`) enabling the `warble`
+//!   command-line binary.
 //!
 //! # Units and geography
 //!
@@ -106,6 +119,10 @@
 //!
 //! [Bell 202]: https://en.wikipedia.org/wiki/Bell_202_modem
 #![cfg_attr(not(feature = "std"), no_std)]
+// docs.rs sets `docsrs` (see [package.metadata.docs.rs]); this renders
+// the feature badge on every gated item. Nightly-only, and never set by
+// an ordinary build.
+#![cfg_attr(docsrs, feature(doc_auto_cfg))]
 // Without the DSP features, the shared sine-table machinery in `types` is
 // unused; it is not worth cfg-gating each item for feature-solo builds.
 #![cfg_attr(not(any(feature = "mod", feature = "demod")), allow(dead_code))]
