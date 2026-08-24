@@ -556,6 +556,70 @@ fn tone_pair_boundary_matrix() {
     assert!(TonePair::new(1, 2, sr).is_ok(), "minimal legal tones");
 }
 
+/// A tone pair is only valid against the rate it is USED at.
+///
+/// `TonePair::new` takes a `SampleRate`, checks Nyquist and then throws
+/// the rate away, so the pair carries no memory of what it was cleared
+/// for. Nothing stopped a pair validated at 48 kHz being handed to a
+/// config at 8 kHz, where it aliases -- a hole in the module's claim
+/// that it makes "illegal modem configurations unrepresentable".
+///
+/// The crate's own tone constants are the sharper case: they are plain
+/// `const`s, so they have never been checked against any rate at all.
+#[test]
+fn a_config_rechecks_its_tones_against_its_own_sample_rate() {
+    let fast = SampleRate::new(48_000).unwrap();
+    let slow = SampleRate::new(8_000).unwrap(); // Nyquist = 4000 Hz
+    let baud = BaudRate::new(1_200).unwrap();
+
+    // Cleared at 48 kHz, where Nyquist is 24 kHz.
+    let pair = TonePair::new(20_000, 21_000, fast).expect("valid at 48 kHz");
+    assert!(ModulatorConfig::new(fast, baud, pair).is_ok());
+    assert!(DemodulatorConfig::new(fast, baud, pair).is_ok());
+
+    // The same pair at 8 kHz is pure aliasing and must be refused by
+    // both ends, naming the offending tone.
+    assert_eq!(
+        ModulatorConfig::new(slow, baud, pair),
+        Err(ConfigError::ToneOutOfRange {
+            got: 20_000,
+            nyquist: 4_000
+        }),
+        "the modulator must re-check the tones it was handed"
+    );
+    assert_eq!(
+        DemodulatorConfig::new(slow, baud, pair),
+        Err(ConfigError::ToneOutOfRange {
+            got: 20_000,
+            nyquist: 4_000
+        }),
+        "the demodulator must re-check the tones it was handed"
+    );
+
+    // The crate's own `TonePair` constants are bare `const`s that no
+    // rate has ever cleared, so they rely entirely on this check. They
+    // pass it at every representable rate only because every one of
+    // their tones sits below 4000 Hz, the Nyquist of the lowest sample
+    // rate the crate accepts. Pin that, so a future constant with a
+    // higher tone cannot be added without noticing.
+    let slowest = SampleRate::new(warble::SAMPLE_RATE_MIN).unwrap();
+    for (name, pair) in [
+        ("BELL_202", TonePair::BELL_202),
+        ("BELL_103_ORIGINATE", TonePair::BELL_103_ORIGINATE),
+        ("BELL_103_ANSWER", TonePair::BELL_103_ANSWER),
+        ("HF_APRS", TonePair::HF_APRS),
+    ] {
+        assert!(
+            ModulatorConfig::new(slowest, baud, pair).is_ok(),
+            "{name} must remain usable at the lowest supported sample rate"
+        );
+    }
+
+    // And the ordinary case still works: Bell 202 at 48 kHz.
+    assert!(ModulatorConfig::bell_202(fast).is_ok());
+    assert!(DemodulatorConfig::bell_202(fast).is_ok());
+}
+
 /// Bit conversions are exhaustive and round-trip in both directions.
 #[test]
 fn bit_conversions_exhaustive() {

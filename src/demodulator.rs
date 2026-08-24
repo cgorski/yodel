@@ -44,7 +44,19 @@ impl DemodulatorConfig {
     /// # Errors
     ///
     /// Returns [`ConfigError::BaudExceedsSampleRate`] when the sample rate
-    /// yields fewer than 2 samples per bit.
+    /// yields fewer than 2 samples per bit, or
+    /// [`ConfigError::ToneOutOfRange`] when a tone does not fit under this
+    /// rate's Nyquist frequency.
+    ///
+    /// The tones are re-checked here even though [`TonePair::new`]
+    /// already validates them. That constructor takes a [`SampleRate`]
+    /// and then discards it, so the pair carries no memory of which rate
+    /// cleared it: a pair validated at 48 kHz was freely usable at
+    /// 8 kHz, where it aliases. The `TonePair` constants are plain
+    /// `const`s that no rate has ever cleared at all; they pass because
+    /// every one of their tones sits below the Nyquist of
+    /// [`SAMPLE_RATE_MIN`](crate::SAMPLE_RATE_MIN), which
+    /// `tests/roundtrip.rs` pins.
     pub const fn new(
         sample_rate: SampleRate,
         baud: BaudRate,
@@ -55,6 +67,11 @@ impl DemodulatorConfig {
                 baud: baud.bps(),
                 sample_rate: sample_rate.hz(),
             });
+        }
+        // Re-validating through the same constructor keeps one
+        // definition of "a tone that fits".
+        if let Err(e) = TonePair::new(tones.mark_hz(), tones.space_hz(), sample_rate) {
+            return Err(e);
         }
         Ok(Self {
             sample_rate,
@@ -222,6 +239,7 @@ impl<D: Discriminator> Demodulator<D> {
 ///
 /// Created by [`Demodulator::i16_bits`].
 #[derive(Debug, Clone)]
+#[must_use = "iterators are lazy and do nothing unless consumed"]
 pub struct I16Bits<I, D> {
     demodulator: Demodulator<D>,
     samples: I,
@@ -248,6 +266,7 @@ where
 ///
 /// Created by [`Demodulator::f32_bits`].
 #[derive(Debug, Clone)]
+#[must_use = "iterators are lazy and do nothing unless consumed"]
 pub struct F32Bits<I, D> {
     demodulator: Demodulator<D>,
     samples: I,

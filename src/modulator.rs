@@ -59,7 +59,18 @@ impl ModulatorConfig {
     /// # Errors
     ///
     /// Returns [`ConfigError::BaudExceedsSampleRate`] when each bit would
-    /// span less than one sample.
+    /// span less than one sample, or [`ConfigError::ToneOutOfRange`] when
+    /// a tone does not fit under this rate's Nyquist frequency.
+    ///
+    /// The tones are re-checked here even though [`TonePair::new`]
+    /// already validates them. That constructor takes a [`SampleRate`]
+    /// and then discards it, so the pair carries no memory of which rate
+    /// cleared it: a pair validated at 48 kHz was freely usable at
+    /// 8 kHz, where it aliases. The `TonePair` constants are plain
+    /// `const`s that no rate has ever cleared at all; they pass because
+    /// every one of their tones sits below the Nyquist of
+    /// [`SAMPLE_RATE_MIN`](crate::SAMPLE_RATE_MIN), which
+    /// `tests/roundtrip.rs` pins.
     pub const fn new(
         sample_rate: SampleRate,
         baud: BaudRate,
@@ -70,6 +81,11 @@ impl ModulatorConfig {
                 baud: baud.bps(),
                 sample_rate: sample_rate.hz(),
             });
+        }
+        // Re-validating through the same constructor keeps one
+        // definition of "a tone that fits".
+        if let Err(e) = TonePair::new(tones.mark_hz(), tones.space_hz(), sample_rate) {
+            return Err(e);
         }
         Ok(Self {
             sample_rate,
@@ -233,6 +249,7 @@ impl Modulator {
 ///
 /// Created by [`Modulator::i16_samples`].
 #[derive(Debug, Clone)]
+#[must_use = "iterators are lazy and do nothing unless consumed"]
 pub struct I16Samples<I> {
     modulator: Modulator,
     bits: I,
@@ -259,6 +276,7 @@ where
 ///
 /// Created by [`Modulator::f32_samples`].
 #[derive(Debug, Clone)]
+#[must_use = "iterators are lazy and do nothing unless consumed"]
 pub struct F32Samples<I> {
     modulator: Modulator,
     bits: I,
