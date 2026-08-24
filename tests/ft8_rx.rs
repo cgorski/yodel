@@ -194,6 +194,46 @@ fn ldpc_iteration_cap_on_garbage() {
     assert!((10..=100).contains(&LDPC_MAX_ITERS));
 }
 
+/// A non-finite LLR is rejected, not silently decoded as zeros.
+///
+/// The decoder's hard decision is `posterior < 0.0`. `NaN < 0.0` is
+/// FALSE, so every NaN posterior read as bit 0 and the decoder happily
+/// returned an all-zero-ish codeword built from nothing. CRC-14 catches
+/// most of that downstream, but "the answer is wrong for a reason the
+/// decoder could see" is not something to leave to a 1-in-16384 gate.
+///
+/// `llrs_from_energies` divides by a mean floored at `f32::MIN_POSITIVE`
+/// (see `src/ft8.rs`), so a single infinite energy anywhere in the
+/// symbol window produces NaN LLRs here.
+#[test]
+fn ldpc_rejects_non_finite_llrs() {
+    let payload = Ft8Message::standard("CQ", "K1ABC", false, grid("FN42"))
+        .unwrap()
+        .payload();
+    let codeword = ldpc_encode(&add_crc(&payload));
+
+    // A clean LLR set built from a real codeword decodes, so the only
+    // difference below is the poisoned value.
+    let clean = ideal_llrs(&codeword);
+    assert!(ldpc_decode(&clean).is_ok(), "the control must decode");
+
+    for (name, poison) in [
+        ("NaN", f32::NAN),
+        ("+inf", f32::INFINITY),
+        ("-inf", f32::NEG_INFINITY),
+    ] {
+        // One poisoned bit is enough: it is one damaged symbol.
+        for position in [0usize, 90, CODEWORD_BITS - 1] {
+            let mut llr = clean;
+            llr[position] = poison;
+            match ldpc_decode(&llr) {
+                Err(Ft8Error::LlrNotFinite) => {}
+                other => panic!("{name} at bit {position} must be refused, got {other:?}"),
+            }
+        }
+    }
+}
+
 // ---- CRC gate ----
 
 #[test]

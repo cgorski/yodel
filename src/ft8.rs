@@ -432,6 +432,17 @@ pub enum Ft8Error {
     /// ([`LDPC_MAX_ITERS`]) with parity checks still failing: the
     /// input is noise or below the decodable floor.
     LdpcNotConverged,
+    /// A channel LLR handed to [`ldpc_decode`] was `NaN` or infinite.
+    ///
+    /// This is a damaged input rather than an undecodable one, and it
+    /// is refused explicitly because the failure is otherwise silent:
+    /// the decoder's hard decision is `posterior < 0.0`, and `NaN`
+    /// compares false against everything, so a poisoned bit read as a
+    /// confident zero and the decoder returned a codeword assembled
+    /// from nothing. [`llrs_from_energies`] divides by a mean floored
+    /// at [`f32::MIN_POSITIVE`], so one non-finite energy anywhere in
+    /// the symbol window is enough to produce this.
+    LlrNotFinite,
     /// The LDPC decode converged to a codeword whose CRC-14 does not
     /// match its payload (a wrong-codeword convergence, rejected).
     CrcMismatch,
@@ -506,6 +517,10 @@ impl fmt::Display for Ft8Error {
             Self::LdpcNotConverged => write!(
                 f,
                 "LDPC decode did not converge within the {LDPC_MAX_ITERS}-iteration cap"
+            ),
+            Self::LlrNotFinite => write!(
+                f,
+                "a channel LLR was NaN or infinite, so the decode would have been fabricated"
             ),
             Self::CrcMismatch => write!(
                 f,
@@ -687,8 +702,18 @@ pub fn llrs_from_energies(energies: &[[f32; 8]; 58]) -> [f32; CODEWORD_BITS] {
 ///
 /// [`Ft8Error::LdpcNotConverged`] when the iteration cap is reached
 /// with parity checks still failing (the input is noise or the signal
-/// is below the decodable floor).
+/// is below the decodable floor), or [`Ft8Error::LlrNotFinite`] when an
+/// input LLR is `NaN` or infinite.
 pub fn ldpc_decode(llr: &[f32; CODEWORD_BITS]) -> Result<[u8; CODEWORD_LEN], Ft8Error> {
+    // Refuse a poisoned input up front. The hard decision below is
+    // `posterior < 0.0`, and `NaN` compares false against everything,
+    // so a single NaN LLR would read as a confident bit 0 and this
+    // function would return a codeword built from nothing rather than
+    // report a problem it can plainly see. CRC-14 catches most of that
+    // downstream, but a 1-in-16384 gate is not where this belongs.
+    if llr.iter().any(|value| !value.is_finite()) {
+        return Err(Ft8Error::LlrNotFinite);
+    }
     // Check-to-variable messages, one slot per (check, edge).
     let mut c2v = [[0.0f32; 7]; PARITY_BITS];
     let mut posterior = [0.0f32; CODEWORD_BITS];
