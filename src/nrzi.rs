@@ -188,6 +188,7 @@ where
 ///
 /// Created by [`NrziEncoder::encode_iter`] or [`encode_iter`].
 #[derive(Debug, Clone)]
+#[must_use = "iterators are lazy and do nothing unless consumed"]
 pub struct EncodeIter<I> {
     encoder: NrziEncoder,
     bits: I,
@@ -212,6 +213,7 @@ where
 ///
 /// Created by [`NrziDecoder::decode_iter`] or [`decode_iter`].
 #[derive(Debug, Clone)]
+#[must_use = "iterators are lazy and do nothing unless consumed"]
 pub struct DecodeIter<I> {
     decoder: NrziDecoder,
     bits: I,

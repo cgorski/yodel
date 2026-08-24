@@ -321,6 +321,7 @@ impl BasebandModulator {
 /// Created by [`BasebandModulator::i16_samples`].
 #[cfg(feature = "mod")]
 #[derive(Debug, Clone)]
+#[must_use = "iterators are lazy and do nothing unless consumed"]
 pub struct BasebandI16Samples<I> {
     modulator: BasebandModulator,
     bits: I,
@@ -358,6 +359,7 @@ where
 /// Created by [`BasebandModulator::f32_samples`].
 #[cfg(feature = "mod")]
 #[derive(Debug, Clone)]
+#[must_use = "iterators are lazy and do nothing unless consumed"]
 pub struct BasebandF32Samples<I> {
     modulator: BasebandModulator,
     bits: I,

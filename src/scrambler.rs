@@ -300,6 +300,7 @@ impl Descrambler {
 ///
 /// Created by [`Scrambler::scramble_iter`].
 #[derive(Debug, Clone)]
+#[must_use = "iterators are lazy and do nothing unless consumed"]
 pub struct ScrambleIter<I> {
     scrambler: Scrambler,
     bits: I,
@@ -324,6 +325,7 @@ where
 ///
 /// Created by [`Descrambler::descramble_iter`].
 #[derive(Debug, Clone)]
+#[must_use = "iterators are lazy and do nothing unless consumed"]
 pub struct DescrambleIter<I> {
     descrambler: Descrambler,
     bits: I,
