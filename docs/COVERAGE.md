@@ -25,6 +25,9 @@ holding fifteen tests). `src/...` names an in-module `#[cfg(test)]`
 unit test; `tests/...` an integration test. Every citation in this
 document is checked mechanically against `--list --include-ignored`
 output from the compiled test binaries; none of it is verified by eye.
+The checker is `scripts/check-coverage-citations.sh`, and CI runs it, so
+a renamed or deleted test cannot leave a citation behind that reads as
+evidence and is not.
 
 > **Physical-layer measurement suites** sit outside this matrix because
 > they measure *quality*, not correctness of a wire format:
@@ -40,11 +43,11 @@ direction that exercises it. For total codes with no rejectable input
 
 ## Totals, by tier
 
-MEASURED at HEAD. `cargo test --all-features`: **1182 passed, 0 failed,
-63 ignored**, across 53 test binaries plus the doctest pass. Running
+MEASURED at HEAD. `cargo test --all-features`: **1306 passed, 0 failed,
+62 ignored**, across 57 test binaries plus the doctest pass. Running
 every compiled test binary with `--list --include-ignored` counts
-**1086 test functions**; the doctest pass reports **159 doctests**
-(150 run, 9 ignored). 1245 cases in all.
+**1199 test functions**; the doctest pass reports **169 doctests**
+(162 run, 7 ignored). 1368 cases in all.
 
 The per-tier split below was last derived at commit `515f8ba`, when the
 totals were 1159 passed / 63 ignored over 1063 test functions and 159
