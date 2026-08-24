@@ -377,6 +377,126 @@ fn untested_public_builders_round_trip() {
     assert_eq!(PositionWeather::parse(&buf[..len]).unwrap(), stamped);
 }
 
+/// `decoded_from_ui` is the frame-level decode, and the only one that
+/// can read a Mic-E report.
+///
+/// It and `packet_from_ui` are peers over the same frame, and the whole
+/// reason both exist is that they disagree on Mic-E: half of a Mic-E
+/// position lives in the AX.25 DESTINATION, so an information-field-only
+/// parse cannot see it and rejects the frame. Asserting only that
+/// `decoded_from_ui` returns something would not catch it silently
+/// becoming the strict one, so this pins the disagreement itself, and
+/// the position that only the total decode can recover.
+///
+/// Found by `scripts/check-public-api-exercised.sh`: outside `src/` and
+/// the CLI binary, nothing called it.
+#[test]
+fn decoded_from_ui_reads_mic_e_where_packet_from_ui_cannot() {
+    use warble::aprs::mic_e::{MicE, MicEMessage};
+    use warble::aprs::{DecodedKind, decoded_from_ui, packet_from_ui};
+
+    // 33 deg 25.64 min N, 112 deg 07.00 min W: exact in the hundredths
+    // of an arc-minute Mic-E puts on the wire, so the decode must come
+    // back bit-identical rather than merely close.
+    let latitude = Latitude::from_degrees_minutes(33, 2564, warble::LatitudeHemisphere::North)
+        .expect("a valid latitude");
+    let longitude = Longitude::from_degrees_minutes(112, 700, warble::LongitudeHemisphere::West)
+        .expect("a valid longitude");
+    let report = MicE::new(
+        latitude,
+        longitude,
+        20,
+        251,
+        Symbol::from_wire(b'/', b'j'),
+        MicEMessage::InService,
+    )
+    .expect("a valid Mic-E report");
+
+    let mut dest_bytes = [0u8; 6];
+    let mut info = [0u8; 32];
+    let info_len = report
+        .encode(&mut dest_bytes, &mut info)
+        .expect("encoding the report");
+    let dest = Address::new(&dest_bytes, 0).expect("the encoded destination");
+    let src = Address::new(b"N0CALL", 7).expect("a valid source");
+    let frame = UiFrame::new(dest, src, &info[..info_len]);
+
+    // The information-field-only peer cannot see the destination, so a
+    // Mic-E frame is not a data type it recognises.
+    assert_eq!(
+        packet_from_ui(&frame),
+        Err(AprsError::InvalidDataType { got: b'`' }),
+        "packet_from_ui must still reject Mic-E outright"
+    );
+
+    // The total decode reads it, and recovers what was encoded.
+    let decoded = decoded_from_ui(&frame);
+    assert_eq!(decoded.info, &info[..info_len], "the bytes are never lost");
+    let DecodedKind::MicE(got) = decoded.kind else {
+        panic!("expected a Mic-E report, got {:?}", decoded.kind);
+    };
+    assert_eq!(got.latitude, latitude);
+    assert_eq!(got.longitude, longitude);
+    assert_eq!(got.speed, 20);
+    assert_eq!(got.course, 251);
+}
+
+/// `is_q_construct` decides which path elements are APRS-IS bookkeeping
+/// rather than radio hops.
+///
+/// The rule is exactly three bytes, `q`, then upper-case `A`, then
+/// anything. Every boundary of that gets a case, because a validator
+/// that accepts too much loses real digipeaters out of a path and one
+/// that accepts too little leaves injection markers in it.
+///
+/// Found by `scripts/check-public-api-exercised.sh`: it was called only
+/// from its own module.
+#[test]
+fn is_q_construct_accepts_exactly_the_q_forms() {
+    use warble::aprs::monitor::is_q_construct;
+
+    // The constructs actually seen on APRS-IS.
+    for good in [
+        &b"qAC"[..],
+        b"qAR",
+        b"qAS",
+        b"qAO",
+        b"qAX",
+        b"qAU",
+        b"qAo",
+        b"qAI",
+        // The third byte is unconstrained, so an unassigned one still
+        // reads as a q construct rather than as a callsign.
+        b"qAZ",
+        b"qA0",
+    ] {
+        assert!(
+            is_q_construct(good),
+            "{} must read as a q construct",
+            core::str::from_utf8(good).unwrap()
+        );
+    }
+
+    for bad in [
+        &b""[..],
+        b"q",
+        b"qA",   // two bytes: too short
+        b"qACX", // four bytes: too long
+        b"QAC",  // upper-case q
+        b"qac",  // lower-case A
+        b"qaC",
+        b"WIDE1-1", // an ordinary path element
+        b"TCPIP*",
+        b"N0CALL",
+    ] {
+        assert!(
+            !is_q_construct(bad),
+            "{} must not read as a q construct",
+            core::str::from_utf8(bad).unwrap_or("<non-utf8>")
+        );
+    }
+}
+
 /// The public accessors and helpers that no other test reaches.
 ///
 /// The same mechanical sweep that found the untested builders above
