@@ -39,7 +39,9 @@ use std::sync::mpsc::{self, RecvTimeoutError};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
-use warble_bin::serve::{PcmSink, SampleSink, ServeStats, kiss_bytes, run_stream, run_tcp};
+use warble_bin::serve::{
+    MAX_CLIENTS, PcmSink, SampleSink, ServeStats, kiss_bytes, run_stream, run_tcp,
+};
 
 use warble::SampleRate;
 use warble::ax25::{Address, UiFrame};
@@ -304,6 +306,94 @@ fn tcp_bridge_shuts_down_without_clients() {
         Err(RecvTimeoutError::Timeout) => panic!("idle bridge failed to shut down"),
         Err(e) => panic!("bridge thread lost: {e}"),
     }
+}
+
+/// A client that connects and leaves must give its slot back, even
+/// though no frame is ever broadcast.
+///
+/// The broadcast list used to be a bare `Vec<TcpStream>` with no way
+/// for a reader to identify its own entry, so the ONLY thing that ever
+/// removed a client was a failed broadcast write. On a quiet band there
+/// are no broadcasts, so eight connect/disconnect cycles — an ordinary
+/// Direwolf or Xastir reconnect loop over a few days — left eight dead
+/// sockets holding every slot, and the bridge refused new clients
+/// forever.
+#[test]
+fn disconnected_clients_free_their_slots() {
+    let (port, audio_tx, _sink, done_rx) = start_tcp_bridge();
+
+    // Fill and vacate every slot, with no RX audio at any point.
+    for _ in 0..MAX_CLIENTS {
+        drop(connect(port));
+    }
+    // Let the reader threads see EOF and retire their entries.
+    std::thread::sleep(Duration::from_millis(500));
+
+    // The cap must now be clear: a fresh client is admitted and served.
+    let mut fresh = connect(port);
+    let rx_body = frame_body(9, b">after the churn");
+    audio_tx.send(frame_samples(&rx_body)).unwrap();
+    assert_eq!(
+        read_kiss_frame(&mut fresh),
+        rx_body,
+        "a client after {MAX_CLIENTS} connect/disconnect cycles must still be served"
+    );
+
+    drop(audio_tx);
+    assert!(
+        done_rx
+            .recv_timeout(DEADLINE)
+            .expect("bridge must shut down")
+            .is_ok()
+    );
+}
+
+/// A failing TX sink ends the run even when the audio source never
+/// reaches EOF.
+///
+/// Audio EOF is the normal shutdown trigger, so the decode loop used to
+/// read `rx_audio` to exhaustion and never consult the shutdown flag.
+/// A sound card or a piped PCM stream never reaches EOF, so when the TX
+/// sink failed (disk full, broken pipe) the caller set `shutdown`, broke
+/// out of the TX loop, and then blocked on `decode.join()` forever.
+#[test]
+fn sink_failure_shuts_down_with_endless_audio() {
+    /// Refuses every burst, the way a full disk or a closed pipe does.
+    struct FailingSink;
+    impl SampleSink for FailingSink {
+        fn write_samples(&mut self, _samples: &[i16]) -> Result<(), String> {
+            Err("sink refused the burst".to_owned())
+        }
+        fn finish(&mut self) -> Result<(), String> {
+            Ok(())
+        }
+    }
+
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let port = listener.local_addr().unwrap().port();
+    let (done_tx, done_rx) = mpsc::channel();
+    std::thread::spawn(move || {
+        // Endless silence: `next()` never returns `None`, so audio EOF
+        // can never be what stops this run.
+        let rx_audio = std::iter::repeat(Ok(0i16));
+        let mut sink = FailingSink;
+        let _ = done_tx.send(run_tcp(listener, config(), false, rx_audio, &mut sink));
+    });
+
+    // One client frame is enough to drive the TX loop into the sink.
+    let mut client = connect(port);
+    client
+        .write_all(&kiss_bytes(&frame_body(10, b">into a failing sink")))
+        .unwrap();
+    client.flush().unwrap();
+
+    let result = done_rx
+        .recv_timeout(DEADLINE)
+        .expect("a failing sink must end the run even with endless audio");
+    assert!(
+        result.is_err(),
+        "the sink error must be reported, got {result:?}"
+    );
 }
 
 /// The stdio shape on in-memory buffers: KISS in on a byte slice, KISS

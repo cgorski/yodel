@@ -120,6 +120,36 @@ pub mod serve {
     /// How often the accept loop polls for shutdown between connections.
     const ACCEPT_POLL: std::time::Duration = std::time::Duration::from_millis(25);
 
+    /// How long one broadcast write may block before its client is
+    /// dropped.
+    ///
+    /// A peer that stops reading fills its receive window and then
+    /// blocks the writer indefinitely. The bridge has to keep serving
+    /// everyone else, so a client that cannot absorb a frame in this
+    /// long has stopped being a client.
+    const WRITE_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(10);
+
+    /// One admitted KISS client, and the identity that lets it leave.
+    ///
+    /// The id is what allows a reader thread to retire its OWN entry
+    /// when the socket closes. Without it the only thing that could
+    /// ever shrink the list was a failed broadcast write, so on a quiet
+    /// band dead sockets held every slot permanently.
+    struct Client {
+        /// Unique for the lifetime of one `run_tcp` call.
+        id: u64,
+        /// The write half handed to the broadcaster.
+        ///
+        /// Shared rather than duplicated: the broadcaster has to take a
+        /// snapshot on every frame so it can write outside the lock,
+        /// and `try_clone` per client per frame is a syscall and a file
+        /// descriptor each time. `&TcpStream` implements `Write`, so an
+        /// `Arc` clone is enough. Concurrent read and write on one
+        /// socket is fine; the single `try_clone` at admission exists
+        /// only because the reader thread needs an owned handle.
+        stream: Arc<TcpStream>,
+    }
+
     /// Counters returned by a completed bridge run.
     #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
     pub struct ServeStats {
@@ -355,7 +385,7 @@ pub mod serve {
             .set_nonblocking(true)
             .map_err(|e| format!("listener setup: {e}"))?;
         let shutdown = Arc::new(AtomicBool::new(false));
-        let clients: Arc<Mutex<Vec<TcpStream>>> = Arc::new(Mutex::new(Vec::new()));
+        let clients: Arc<Mutex<Vec<Client>>> = Arc::new(Mutex::new(Vec::new()));
         let rx_frames = Arc::new(AtomicU64::new(0));
         let tx_frames = Arc::new(AtomicU64::new(0));
 
@@ -375,6 +405,14 @@ pub mod serve {
                 let mut decoder = FrameDecoder::new(config, fx25)?;
                 let mut result = Ok(());
                 for sample in rx_audio {
+                    // Audio EOF is the normal shutdown trigger, but a
+                    // sound card and a piped PCM stream never reach it.
+                    // Without this poll the TX loop's failure path sets
+                    // `shutdown`, breaks, and then blocks forever on
+                    // `decode.join()`.
+                    if shutdown.load(Ordering::Relaxed) {
+                        break;
+                    }
                     let sample = match sample {
                         Ok(s) => s,
                         Err(e) => {
@@ -393,8 +431,8 @@ pub mod serve {
                 // accept loop and unblock every client reader.
                 shutdown.store(true, Ordering::SeqCst);
                 if let Ok(list) = clients.lock() {
-                    for stream in list.iter() {
-                        let _ = stream.shutdown(Shutdown::Both);
+                    for client in list.iter() {
+                        let _ = client.stream.shutdown(Shutdown::Both);
                     }
                 }
                 result
@@ -407,13 +445,33 @@ pub mod serve {
             let clients = Arc::clone(&clients);
             std::thread::spawn(move || {
                 for bytes in bc_rx {
-                    if let Ok(mut list) = clients.lock() {
-                        list.retain_mut(|stream| {
-                            stream
-                                .write_all(&bytes)
-                                .and_then(|()| stream.flush())
-                                .is_ok()
-                        });
+                    // Snapshot the list under the lock, then write
+                    // OUTSIDE it. Holding the mutex across a blocking
+                    // `write_all` let a single wedged client stall the
+                    // accept loop and the decode thread's shutdown
+                    // sweep, both of which want the same mutex.
+                    let targets: Vec<(u64, Arc<TcpStream>)> = {
+                        let Ok(list) = clients.lock() else { break };
+                        list.iter()
+                            .map(|client| (client.id, Arc::clone(&client.stream)))
+                            .collect()
+                    };
+                    let mut failed: Vec<u64> = Vec::new();
+                    for (id, stream) in targets {
+                        // `&TcpStream` is the `Write` impl, so this
+                        // needs no owned handle.
+                        if (&*stream)
+                            .write_all(&bytes)
+                            .and_then(|()| (&*stream).flush())
+                            .is_err()
+                        {
+                            failed.push(id);
+                        }
+                    }
+                    if !failed.is_empty()
+                        && let Ok(mut list) = clients.lock()
+                    {
+                        list.retain(|client| !failed.contains(&client.id));
                     }
                 }
             })
@@ -430,15 +488,24 @@ pub mod serve {
             let audio_tx = audio_tx.clone();
             std::thread::spawn(move || {
                 let mut readers = Vec::new();
+                let mut next_id = 0u64;
                 while !shutdown.load(Ordering::SeqCst) {
                     match listener.accept() {
                         Ok((stream, _)) => {
+                            let id = next_id;
+                            next_id += 1;
                             let admitted = {
                                 let Ok(mut list) = clients.lock() else { break };
                                 if list.len() >= MAX_CLIENTS {
                                     false
                                 } else if let Ok(writer) = stream.try_clone() {
-                                    list.push(writer);
+                                    // Bound how long this peer can hold
+                                    // up the broadcaster.
+                                    let _ = writer.set_write_timeout(Some(WRITE_TIMEOUT));
+                                    list.push(Client {
+                                        id,
+                                        stream: Arc::new(writer),
+                                    });
                                     true
                                 } else {
                                     false
@@ -450,8 +517,22 @@ pub mod serve {
                             let _ = stream.set_nonblocking(false);
                             let audio_tx = audio_tx.clone();
                             let tx_frames = Arc::clone(&tx_frames);
+                            let clients = Arc::clone(&clients);
+                            // Finished readers are joined at shutdown;
+                            // reap them as we go so a long run does not
+                            // accumulate handles for every client that
+                            // ever connected.
+                            readers.retain(|handle: &std::thread::JoinHandle<()>| {
+                                !handle.is_finished()
+                            });
                             readers.push(std::thread::spawn(move || {
                                 client_reader(stream, config, fx25, &audio_tx, &tx_frames);
+                                // Retire this slot. On a quiet band no
+                                // broadcast ever runs, so nothing else
+                                // would ever remove it.
+                                if let Ok(mut list) = clients.lock() {
+                                    list.retain(|client| client.id != id);
+                                }
                             }));
                         }
                         Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => {
