@@ -681,7 +681,7 @@ fn parsed_jsonl_lines(stdout: &str) -> Vec<&str> {
             panic!("line {} is not well-formed JSON ({e}): {line}", n + 1);
         }
         assert!(
-            line.starts_with("{\"v\":1,\"sample\":"),
+            line.starts_with("{\"v\":2,\"sample\":"),
             "line {} does not start with the schema version and sample offset: {line}",
             n + 1
         );
@@ -854,7 +854,7 @@ fn tiny_json_accepts_and_rejects() {
 /// Status report: two hops with the H bit set on the first, and every
 /// escape the writer implements.
 const PIN_STATUS: &str = concat!(
-    r#"{"v":1,"sample":31492,"t":0.656083,"src":"N0CALL-7","dst":"APRS","#,
+    r#"{"v":2,"sample":31492,"t":0.656083,"src":"N0CALL-7","dst":"APRS","#,
     r#""path":[{"call":"WIDE1-1","repeated":true},{"call":"WIDE2-2","repeated":false}],"#,
     r#""kind":"status","status":{"text":"q\"s b\\s\b\t\n\f\r\u0001\u007fend","#,
     r#""message":"q\"s b\\s\b\t\n\f\r\u0001\u007fend"},"#,
@@ -864,7 +864,7 @@ const PIN_STATUS: &str = concat!(
 /// Uncompressed position with a course/speed extension and a `/A=`
 /// altitude found inside the comment.
 const PIN_POSITION: &str = concat!(
-    r#"{"v":1,"sample":66132,"t":1.377750,"src":"N0CALL","dst":"APRS","path":[],"#,
+    r#"{"v":2,"sample":66132,"t":1.377750,"src":"N0CALL","dst":"APRS","path":[],"#,
     r#""kind":"position","position":{"lat_deg":40.123333,"lon_deg":-105.567833,"#,
     r#""symbol":"/>","messaging":false,"compressed":false,"altitude_ft":5280,"#,
     r#""extension":{"type":"course_speed","course_deg":88,"speed_kt":36},"#,
@@ -874,7 +874,7 @@ const PIN_POSITION: &str = concat!(
 /// A real off-air Mic-E report: half its position comes from the
 /// destination callsign, which is why the projection is frame-level.
 const PIN_MIC_E: &str = concat!(
-    r#"{"v":1,"sample":94812,"t":1.975250,"src":"WA8LMF","dst":"STPYXT","#,
+    r#"{"v":2,"sample":94812,"t":1.975250,"src":"WA8LMF","dst":"STPYXT","#,
     r#""path":[{"call":"WIDE2-2","repeated":false}],"kind":"mic_e","#,
     r#""mic_e":{"lat_deg":34.164000,"lon_deg":-118.117000,"speed_kt":0,"course_deg":67,"#,
     r#""symbol":"/>","message":"off_duty","fix":"old","altitude_m":310,"#,
@@ -886,7 +886,7 @@ const PIN_MIC_E: &str = concat!(
 /// same, labelled `malformed`, carrying the parser's own message and
 /// — because 0xBE is not valid UTF-8 — an `info_hex` sibling.
 const PIN_MALFORMED: &str = concat!(
-    r#"{"v":1,"sample":121252,"t":2.526083,"src":"AC6VV-9","dst":"S4PXYX","path":[],"#,
+    r#"{"v":2,"sample":121252,"t":2.526083,"src":"AC6VV-9","dst":"S4PXYX","path":[],"#,
     r#""kind":"malformed","malformed":{"dti":96,"dti_char":"`"},"#,
     r#""error":"Mic-E report: longitude byte 0xBE at offset 1 decodes outside its legal range","#,
     // U+FFFD is what the lossy conversion leaves where the 0xBE was;

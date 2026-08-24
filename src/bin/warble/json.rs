@@ -86,7 +86,12 @@ use crate::shared::format_address;
 /// Bumped only for a **breaking** change (a key removed, retyped, or
 /// given a new meaning). Adding a key is not breaking and does not bump
 /// it.
-pub const SCHEMA_VERSION: u32 = 1;
+///
+/// | version | change |
+/// |---|---|
+/// | 1 | first |
+/// | 2 | `rebuild` narrowed: it used to compare bytes only, so `differs` covered both a harmless re-spelling and a changed value. It now re-parses, `differs` means the value survived, and `value_changed` and `rejected` are new |
+pub const SCHEMA_VERSION: u32 = 2;
 
 /// Decimal places used for every floating-point value.
 ///
@@ -395,21 +400,58 @@ pub fn push_monitor_line(
     }
     drop(path);
     if verify_rebuild {
-        // Serialize what we understood and compare it with what
-        // arrived. `exact` means the reading agrees with the sender.
-        // Only the buildable payloads can be checked; the receive-only
-        // formats have no builder by design.
-        let verdict = match &decoded.kind {
-            DecodedKind::Packet(p) => match p.to_vec() {
-                Ok(v) if v == decoded.info => "exact",
-                Ok(_) => "differs",
-                Err(_) => "failed",
-            },
-            _ => "n/a",
-        };
-        obj.field_str("rebuild", verdict);
+        obj.field_str("rebuild", rebuild_verdict(&decoded));
     }
     push_decoded(&mut obj, &decoded, 0);
+}
+
+/// Compares what we understood against what arrived.
+///
+/// This is the crate's main diagnostic, and it used to stop at a byte
+/// comparison. That made `differs` mean two very different things at
+/// once: a packet re-spelled without loss, and a packet whose value
+/// changed. The second is the only one that matters, and it was
+/// invisible.
+///
+/// The verdicts map onto the round-trip vocabulary in
+/// `docs/APRS_CONFORMANCE.md` section 4, where `p` is parse, `b` is
+/// build, and `k = b . p`:
+///
+/// | verdict | meaning | property |
+/// |---|---|---|
+/// | `exact` | `k(w) = w` | F1 holds |
+/// | `differs` | bytes changed, the value did not | F5 fails, F3 holds |
+/// | `value_changed` | it does not parse back to the same value | **F3 fails** |
+/// | `rejected` | the output is not something this crate accepts | **F2 fails**, the worst |
+/// | `failed` | `b` is undefined where `p` succeeded | a gap between two partial maps |
+/// | `n/a` | receive-only format, no builder by design | not measurable |
+///
+/// `value_changed` compares the typed values, so it is strict about
+/// fields rather than about what a caller would see. Chapter 6
+/// ambiguity shows up here: a latitude that declares ambiguity leaves
+/// the longitude field carrying digits `build` then writes as spaces,
+/// so the struct differs while [`coordinates`] masks both to the same
+/// position. That is the intended reading of the field-versus-accessor
+/// rule, and it is reported rather than suppressed, because a check
+/// that quietly forgave some value changes would be the same mistake
+/// this function exists to fix.
+///
+/// [`coordinates`]: warble::aprs::Position::coordinates
+fn rebuild_verdict(decoded: &Decoded<'_>) -> &'static str {
+    let DecodedKind::Packet(ref packet) = decoded.kind else {
+        return "n/a";
+    };
+    let Ok(built) = packet.to_vec() else {
+        return "failed";
+    };
+    if built == decoded.info {
+        return "exact";
+    }
+    match AprsPacket::parse(&built) {
+        Ok(ref again) if again == packet => "differs",
+        Ok(_) => "value_changed",
+        Err(_) => "rejected",
+    }
 }
 
 /// The AX.25 envelope: source, destination and digipeater path.
