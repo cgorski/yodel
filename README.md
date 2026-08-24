@@ -142,7 +142,8 @@ buffer or returns a collection.
 | `ft8`   | FT8: documented message subset (standard `i3=1` + free text) → CRC-14 → LDPC(174,91) → 79 Gray/Costas channel symbols → GFSK-shaped continuous-phase 8-FSK audio; no_std RX math (Gray-demap LLRs, hard-capped LDPC min-sum decoder, CRC verify, unpack); with `std` also the buffered `Ft8Decoder` receive engine | — (standalone; RX engine needs `std`) | TX + decode math | no      |
 | `m17`   | M17 **packet mode**: base-40 callsign addressing, Link Setup Frame + packet frames (CRC-16 0x5935), K=5 r=1/2 convolutional FEC with P1/P3 puncturing, QPP interleaver, decorrelator, Golay(24,12), and a 4-level RRC-shaped 4800 sym/s baseband modem (TX + RX). Voice (Codec2) is out of scope | — (standalone) | yes | no |
 | `tnc`   | High-level TNC pipeline: `AprsPacket` ⇄ PCM samples in one type each way | `aprs`, `mod`, `demod` | yes  | no      |
-| `cli`   | The `warble` command-line binary (encode/decode WAV files)              | `wav`, `tnc`, `micE`, `kiss`, `fx25`, `il2p`, `wspr`, `ft8`, `m17` | no | no    |
+| `ptt`   | Serial PTT for `warble ptt` — assert RTS or DTR to key a transmitter. The one feature that can put a signal on the air by itself, so its failure mode is deassert | `std` | no | no |
+| `cli`   | The `warble` command-line binary (encode/decode WAV files)              | `wav`, `tnc`, `micE`, `kiss`, `fx25`, `il2p`, `wspr`, `ft8`, `m17`, `ptt` | no | no    |
 | `capture` | Sound-card input via `cpal` for `examples/live_capture.rs` only — never a library dependency | `std` | no | no |
 | `async` | Tokio adapters (`asynk`): frame `Stream`s, one-call KISS server, concurrent many-feeds decoder | `std`, `tnc`, `kiss` | no | no |
 | `embassy` | Embassy adapters (`embassy`): an async chunk-drain decode loop over `SampleRing` + `TncReceiver`, and a periodic-TX ticker. Pulls only `embassy-time` | `tnc` | yes | no |

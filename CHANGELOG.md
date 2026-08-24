@@ -257,6 +257,28 @@ turned out to be, which approach was tried and abandoned.
 
 ### Added
 
+- **docs.rs builds the whole API.** Without
+  `[package.metadata.docs.rs]`, docs.rs builds default features only —
+  `mod` and `demod` — which would have published the modulator and the
+  demodulator and hidden every module behind `aprs`, `ax25`, `tnc`,
+  `kiss`, `digipeat`, `g3ruh`, `fx25`, `il2p`, `wspr`, `ft8` and `m17`.
+  Feature badges now render on each gated item.
+
+- **`scripts/check-coverage-citations.sh`.** `docs/COVERAGE.md` cites a
+  few hundred tests by name and says they are checked mechanically
+  against `--list --include-ignored`. Nothing was doing the checking.
+  This does, CI runs it, and a renamed or deleted test can no longer
+  leave a citation behind that reads as evidence and is not.
+
+- **CI gates the things that only bite after publication**: `cargo doc`
+  under `-D warnings` (which was failing), `cargo publish --dry-run`,
+  `cargo-deny` over a dependency tree that `#![forbid(unsafe_code)]`
+  says nothing about, the MSRV the manifest actually promises (1.96.0,
+  where the toolchain file pins 1.96.1), stable/beta as advisory, and
+  `cargo check` on macOS and Windows — `cpal` and `serialport` had only
+  ever been built against ALSA. `Cargo.lock` is now tracked, since the
+  crate ships a binary.
+
 - **Chapter 13 telemetry definition messages are typed.** `PARM.`,
   `UNIT.`, `EQNS.` and `BITS.` say what a station's channels measure,
   in what units, scaled by what coefficients, with which digital
@@ -363,6 +385,69 @@ turned out to be, which approach was tried and abandoned.
   somewhere to connect anonymously.
 
 ### Fixed
+
+- **`warble decode ... | head` exits quietly instead of panicking.**
+  Rust ignores `SIGPIPE`, so the `print!` family turns a closed stdout
+  into `failed printing to stdout: Broken pipe` and exit 101. Every
+  subcommand that writes to stdout now goes through a buffered writer
+  that treats a closed downstream as "stop, successfully", which is what
+  every other filter in a Unix pipeline does. `decode` also stops
+  decoding at that point rather than grinding through a capture nobody
+  is reading.
+
+- **`warble aprsis ... | head` no longer reconnects to a volunteer
+  server.** The sink write shared an `io::Result` with the socket reads,
+  so a closed stdout was reported as "connection failed" and sent the
+  retry loop back to Tier 2 on a doubling backoff. A broken pipe
+  downstream now ends the run: there is nothing to reconnect *for*.
+
+- **`warble aprsis` bounds the line it will read.** `read_until` has no
+  upper limit, so a server that streamed bytes without a terminator grew
+  the buffer until the process died. Lines are now capped at the
+  512-byte APRS-IS maximum, which the specification already says a
+  reader should treat as a protocol violation rather than growing to
+  fit; an overlong line is dropped whole and the reader resynchronises
+  on the next one.
+
+- **`warble serve` survives a client that stops reading.** The broadcast
+  loop held the client-list mutex across a blocking `write_all`, so one
+  wedged peer could stall the accept loop and the shutdown sweep, which
+  need the same mutex. The list is now snapshotted under the lock and
+  written outside it, and admitted sockets carry a write timeout.
+
+- **`warble serve` gives a disconnected client its slot back.** Clients
+  were removed only by a *failed broadcast write*, so on a quiet band
+  with no traffic eight connect/disconnect cycles — an ordinary TNC
+  reconnect loop over a few days — left eight dead sockets holding every
+  slot and the server refused new clients until restarted.
+
+- **`warble serve` shuts down on a failing TX sink.** The decode loop
+  read its audio source to exhaustion and never consulted the shutdown
+  flag. A sound card or a piped PCM stream never reaches EOF, so a sink
+  failure (full disk, closed pipe) left the run blocked on a thread join
+  forever.
+
+- **`Coordinates::bearing_to` returns the nearest whole degree.** The
+  360-candidate search used the truncating sine lookup, so each
+  candidate sat up to 0.088 degrees below its nominal angle and every
+  half-degree decision boundary moved with it. MEASURED over 3240
+  directions, 28 came back as the neighbouring degree — and unlike the
+  documented `cos_q15` tilt, this happened at the equator too.
+
+- **The integer cosine no longer leans one way.** Its interpolation
+  arithmetic-shifted the product, which floors, and the delta keeps one
+  sign across a quarter turn — so the term cost up to 1 LSB
+  one-sidedly *down* and every east-west distance read short. MEASURED:
+  mean error −0.49 LSB, now centred; the east/north residual window
+  narrows from a swept [−2.314, +0.280] to [−0.838, +0.877].
+
+  This moves `distance_to`'s accuracy table both ways, because the old
+  bias had been cancelling part of the equirectangular projection error,
+  which over-estimates east-west distance. Short paths improve
+  (0.00554% → 0.00385% to 100 km below 45 degrees) and 300 km paths give
+  up to 0.002 percentage points back (0.01282% → 0.01496%). The
+  cancellation was luck rather than design, and it was worth least
+  exactly where this crate operates.
 
 - **A `{` or an `ack` prefix in message text is no longer a rejection.**
   Chapter 14 puts the message identifier at the end of the text and caps

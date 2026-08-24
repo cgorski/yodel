@@ -52,8 +52,9 @@ profiles / presets:
 CLI:
     bin/warble/            the `warble` binary: main.rs (clap tree +
                            dispatch), one module per subcommand
-                           (decode, encode, gen, bench, serve, wspr,
-                           ft8, m17), shared.rs (modem-flag plumbing)
+                           (decode, encode, gen, bench, serve, aprsis,
+                           level, ptt, wspr, ft8, m17), shared.rs
+                           (modem-flag plumbing and the stdout writer)
 ```
 
 Every layer is independently usable and independently feature-gated;
@@ -114,7 +115,7 @@ the arrows are plain function/type composition, not trait objects.
 | `src/tnc/tx.rs` | `TncTransmitter` and its lazy sample iterators. |
 | `src/asynk.rs` | `async`-gated tokio adapters: frame `Stream`s, the one-call KISS server, the many-feeds decoder. |
 | `src/embassy.rs` | `embassy`-gated no_std adapters: the `SampleSource` seam, an async chunk-drain decode loop, and a periodic-TX ticker. |
-| `src/bin/warble/` | The `cli`-gated binary: `main.rs` holds the clap command tree and dispatch; `decode.rs`/`encode.rs`/`gen.rs`/`bench.rs`/`serve.rs`/`wspr.rs`/`ft8.rs`/`m17.rs`/`ptt.rs` hold one subcommand each (`serve.rs` includes the transport-agnostic bridge core as its nested `serve` module); `json.rs` holds the JSON Lines projection of the library types; `shared.rs` holds the modem presets/overrides and WAV/PCM input plumbing. **`ptt.rs` is the only part of this crate that can put a signal on the air by itself**, so it is built the other way round from everything else here: the failure mode of every path through it, including a panic or a hung child, is to release the line. |
+| `src/bin/warble/` | The `cli`-gated binary: `main.rs` holds the clap command tree and dispatch; `decode.rs`/`encode.rs`/`gen.rs`/`bench.rs`/`serve.rs`/`aprsis.rs`/`level.rs`/`wspr.rs`/`ft8.rs`/`m17.rs`/`ptt.rs` hold one subcommand each (`serve.rs` includes the transport-agnostic bridge core as its nested `serve` module); `json.rs` holds the JSON Lines projection of the library types; `shared.rs` holds the modem presets/overrides and WAV/PCM input plumbing. **`ptt.rs` is the only part of this crate that can put a signal on the air by itself**, so it is built the other way round from everything else here: the failure mode of every path through it, including a panic or a hung child, is to release the line. |
 
 ## The PHY seam
 
@@ -359,7 +360,7 @@ answered first.
 | `ft8` | `ft8.rs`; the buffered receive engine (`ft8/rx.rs`) additionally needs `std` | — (standalone) | Sibling of `wspr`, same TX/no_std-math vs std-engine split. |
 | `m17` | `m17.rs` | — (standalone) | A baseband PAM modem with its own framing; shares nothing with the AFSK chain. Entirely no_std and alloc-free, so no std-gated half exists. |
 | `tnc` | `tnc.rs` | `aprs`, `mod`, `demod` | The orchestrator needs the full column. |
-| `cli` | `bin/warble/` | `wav`, `tnc`, `micE`, `kiss`, `fx25`, `il2p`, `wspr`, `ft8`, `m17`, `dep:clap` | Aggregate for the binary. `kiss` is exercised by `warble serve` (the KISS TNC server, described under "The serve shape and the async verdict" below). Note `g3ruh` is **not** in this list, so a `--features cli` build has no `--preset g3ruh`; `--all-features` does. |
+| `cli` | `bin/warble/` | `wav`, `tnc`, `micE`, `kiss`, `fx25`, `il2p`, `wspr`, `ft8`, `m17`, `ptt`, `dep:clap` | Aggregate for the binary. `kiss` is exercised by `warble serve` (the KISS TNC server, described under "The serve shape and the async verdict" below). Note `g3ruh` is **not** in this list, so a `--features cli` build has no `--preset g3ruh`; `--all-features` does. |
 | `capture` | `examples/live_capture.rs` only | `std`, `dep:cpal` | Sound-card input for ONE example; off by default, enabled by nothing else, never a library-consumer dependency (`cargo tree -e normal` is unchanged). `--all-features` compiles cpal, so tests must never OPEN a device. The example's plumbing is pure and proven with a fake source. |
 | `async` | `asynk/` (tokio adapters: frame `Stream`s, one-call KISS server, many-feeds decoder) | `std`, `tnc`, `kiss`, `dep:tokio`, `dep:futures-core`, `dep:tokio-stream` | Operator override of the async NO verdict (see below). Off by default, enabled by nothing else; default and embedded builds never compile it or its dependencies. |
 | `embassy` | `embassy.rs` (async chunk-drain decode loop over `SampleRing` + `TncReceiver`, embassy-time TX ticker) | `tnc`, `dep:embassy-time` | Operator override of the pattern-doc-only verdict (see "The embassy verdict" below). no_std-first: the feature does NOT imply `std`. Off by default, enabled by nothing else; default and embedded-matrix builds never compile it or its dependency. |
