@@ -499,16 +499,20 @@ fn the_two_axes_share_one_unit_at_every_latitude() {
     // integer the library holds the cosine in, and nothing more.
     //
     // That integer comes off a table of `round(sin * 32767)` (±0.5 LSB)
-    // and its interpolation term floors rather than rounds (a further
-    // 0 to 1 LSB, one-sidedly down), so the correct window is -1.5 to
-    // +0.5 LSB. Checked exhaustively against every representable
-    // latitude, the cosine itself lands in [-1.492, +0.495].
+    // and its interpolation ROUNDS (a further ±0.5 LSB), so the window
+    // is ±1 LSB and centred.
     //
-    // Scaling the north axis by `1 << 15` while the east axis gets the
-    // table's 32767 drags this window down by a further cos(latitude)
-    // LSB — to [-2.314, +0.280] over the sweep below, breaching the
-    // lower bound first at 27.25 degrees. That is the whole defect,
-    // stated as a ratio instead of as a distance.
+    // It was not always. The interpolation used to arithmetic-shift the
+    // product, which floors, and the delta keeps one sign across a
+    // quarter turn — so the term cost 0 to 1 LSB one-sidedly DOWN and
+    // the window was [-1.5, +0.5]. Scaling the north axis by `1 << 15`
+    // while the east axis gets the table's 32767 dragged that down by a
+    // further cos(latitude) LSB, to a swept [-2.314, +0.280] that
+    // breached its lower bound first at 27.25 degrees. Rounding the
+    // interpolation (see `types::sine_at_interpolated`) narrows the
+    // sweep to [-0.838, +0.877]: a third tighter, and no longer leaning
+    // one way. `geo::tests::cos_q15_is_not_biased` pins the centring at
+    // the source; this pins what it is worth downstream.
     const LSB: f64 = 1.0 / 32_767.0;
     let mut lowest = f64::MAX;
     let mut highest = f64::MIN;
@@ -536,7 +540,7 @@ fn the_two_axes_share_one_unit_at_every_latitude() {
             lowest = lowest.min(residual);
             highest = highest.max(residual);
             assert!(
-                (-1.75..=0.75).contains(&residual),
+                (-1.0..=1.0).contains(&residual),
                 "at {latitude} degrees over {separation} hundredths of an \
                  arc-minute: east/north is {ratio:.9}, cos is {:.9}, a residual \
                  of {residual:.4} Q15 LSB — outside the ±1.5 LSB the cosine \
@@ -549,7 +553,7 @@ fn the_two_axes_share_one_unit_at_every_latitude() {
     // The window is the documented accuracy term, so pin it as one
     // rather than only as 1364 separate spot checks.
     assert!(
-        lowest >= -1.75 && highest <= 0.75,
+        lowest >= -1.0 && highest <= 1.0,
         "east/north residual swept [{lowest:.4}, {highest:.4}] Q15 LSB"
     );
 }
@@ -563,13 +567,29 @@ fn distance_error_stays_inside_the_documented_latitude_bands() {
     // away towards the poles. Hence bands.
     //
     // (band in whole degrees, bound to 100 km, bound to 300 km); the
-    // sweep's measured worst cases at the time of writing were 0.00554 /
-    // 0.01282, 0.00787 / 0.03332, 0.01618 / 0.14820 and 0.14817 /
-    // 1.47839 percent respectively.
+    // sweep's measured worst cases are 0.00385 / 0.01496, 0.00728 /
+    // 0.03496, 0.02129 / 0.14835 and 0.15064 / 1.47891 percent
+    // respectively.
+    //
+    // These moved when `cos_q15`'s interpolation started rounding
+    // instead of flooring. The old one-sided bias made the cosine read
+    // LOW, which shortened the east component -- and the
+    // equirectangular model OVER-estimates east-west distance, because
+    // a great circle bows poleward. The two errors were cancelling by
+    // luck, not by design: the previous table's own comment called the
+    // flooring a defect, not a compensation.
+    //
+    // Removing it improved the near field at the latitudes VHF APRS
+    // actually works in (0.00554 -> 0.00385 percent to 100 km below 45
+    // degrees, 0.00787 -> 0.00728 below 60) and cost up to 0.002
+    // percentage points on the 300 km paths, where the projection error
+    // dominates and the cancellation had been worth most. The cosine
+    // itself is strictly better: see the swept residual window in
+    // `the_two_axes_share_one_unit_at_every_latitude`.
     const BANDS: &[(f64, f64, f64)] = &[
-        (45.0, 0.000_06, 0.000_14),
-        (60.0, 0.000_09, 0.000_35),
-        (75.0, 0.000_17, 0.001_6),
+        (45.0, 0.000_05, 0.000_16),
+        (60.0, 0.000_08, 0.000_36),
+        (75.0, 0.000_22, 0.001_5),
         (85.0, 0.001_6, 0.016),
     ];
     const NEAR_KM: &[i32] = &[1, 2, 5, 10, 25, 50, 100];

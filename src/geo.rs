@@ -404,11 +404,19 @@ impl Coordinates {
     ///   `tan φ`, and runs away towards the poles.
     /// * **The integer cosine.** `cos_q15` answers in Q15 against a
     ///   table whose unity is 32767, and its absolute error is about
-    ///   1.5 LSB, or 4.6e-5. That is a `4.6e-5 / cos φ` error in the
+    ///   1 LSB, or 3.1e-5. That is a `3.1e-5 / cos φ` error in the
     ///   east-west component — a floor that does **not** shrink with
     ///   separation, and the dominant term at short range and at high
-    ///   latitude. It is 4.6e-5 at the equator, 9e-5 at 60 degrees and
-    ///   5e-4 at 85.
+    ///   latitude. It is 3.1e-5 at the equator, 6e-5 at 60 degrees and
+    ///   3.5e-4 at 85.
+    ///
+    ///   This term used to be 1.5 LSB and one-sided (always low),
+    ///   because the interpolation floored. It is now centred, which
+    ///   shortened the short-range column below and lengthened the
+    ///   300 km one: the old bias had been cancelling part of the
+    ///   projection error, which over-estimates east-west distance.
+    ///   The cancellation was luck, not design, and it was worth least
+    ///   exactly where this crate operates.
     ///
     /// Worst-case relative error against an `f64` haversine on the same
     /// sphere, swept over azimuth, latitude and separation. The bands
@@ -420,9 +428,9 @@ impl Coordinates {
     ///
     /// | latitude | to 100 km | to 300 km |
     /// |---|---|---|
-    /// | 0–45° | 0.006% | 0.014% |
-    /// | 0–60° | 0.009% | 0.035% |
-    /// | 0–75° | 0.017% | 0.16% |
+    /// | 0–45° | 0.005% | 0.016% |
+    /// | 0–60° | 0.008% | 0.036% |
+    /// | 0–75° | 0.022% | 0.15% |
     /// | 0–85° | 0.16% | 1.6% |
     ///
     /// So: better than **0.05% over any path a VHF APRS station can
@@ -499,11 +507,22 @@ impl Coordinates {
     /// model*, because the result is found by searching the 360 whole
     /// degrees rather than by an `atan2` approximation — with one
     /// caveat: the east-west component carries `cos_q15`'s
-    /// `4.6e-5 / cos φ` error (see [`Coordinates::distance_to`]), which
-    /// tilts the direction by about 0.03 degrees even at 85 degrees of
+    /// `3.1e-5 / cos φ` error (see [`Coordinates::distance_to`]), which
+    /// tilts the direction by about 0.02 degrees even at 85 degrees of
     /// latitude. That is far inside the one-degree quantum, but it can
-    /// pick the other neighbour for a direction sitting within 0.03
+    /// pick the other neighbour for a direction sitting within 0.02
     /// degrees of a half-degree boundary.
+    ///
+    /// "Exact" is a recent claim. The candidate vectors came from the
+    /// private `sine_at` helper, which truncates the phase to a table
+    /// index, so candidate `d` sat up to 0.088 degrees below its
+    /// nominal angle. Sin and cos share that index, so each candidate
+    /// stayed a coherent unit vector — simply at the wrong angle — and
+    /// every half-degree decision boundary moved with it. Measured over
+    /// 3240 directions, 28 came back as the neighbouring degree, and
+    /// unlike the `cos_q15` tilt above it happened at the equator too.
+    /// The search now interpolates;
+    /// `geo::tests::bearing_to_returns_the_nearest_whole_degree` pins it.
     ///
     /// The model itself, however, yields the **mean** course over the
     /// path rather than the **initial** great-circle bearing, and the
@@ -537,10 +556,19 @@ impl Coordinates {
             let phase = (u64::from(degrees) << 32) / 360;
             #[allow(clippy::cast_possible_truncation)] // masked to 32 bits
             let phase = phase as u32;
-            let sin = i128::from(crate::types::sine_at(phase));
+            // Interpolated, not the bare table lookup: truncating the
+            // phase to a table index would place each candidate up to
+            // 0.088 degrees below its nominal angle, which shifts every
+            // half-degree decision boundary and hands back the
+            // neighbouring degree for roughly one direction in a
+            // hundred. `bearing_to_returns_the_nearest_whole_degree`
+            // pins it.
+            let sin = i128::from(crate::types::sine_at_interpolated(phase));
             // cos θ = sin(θ + 90°), and 90 degrees is a quarter of the
             // phase accumulator's full turn.
-            let cos = i128::from(crate::types::sine_at(phase.wrapping_add(1 << 30)));
+            let cos = i128::from(crate::types::sine_at_interpolated(
+                phase.wrapping_add(1 << 30),
+            ));
             let dot = east * sin + north * cos;
             if dot > best_dot {
                 best_dot = dot;
@@ -643,8 +671,9 @@ impl Latitude {
     /// The value in degrees, as a convenience `f64` conversion.
     ///
     /// The only floating point in this module, and additive: the
-    /// integer path ([`Self::new`], [`Self::hundredths_of_minute`]) is
-    /// complete, so nothing forces a no-FPU target through soft float.
+    /// integer path ([`Self::new`], [`Self::units`],
+    /// [`Self::from_degrees_minutes`]) is complete, so nothing forces a
+    /// no-FPU target through soft float.
     #[must_use]
     #[allow(clippy::cast_precision_loss)] // 149x under f64's exact range
     pub fn to_degrees(self) -> f64 {
@@ -894,15 +923,21 @@ const fn degrees_minutes(units: i64) -> DegreesMinutes {
 ///
 /// **Output quantisation, irreducible.** What interpolation cannot fix is
 /// that the answer is an integer. The table entries are themselves
-/// `round(sin · 32767)`, so ±0.5 LSB, and the interpolation term
-/// `((b - a) · fraction) >> fraction_bits` floors rather than rounds,
-/// costing up to another 1 LSB one-sidedly. About **1.5 LSB, or 4.6e-5
-/// absolute** — over a hundred times the interpolation residual above,
-/// and therefore the term that matters. Because it is absolute, the
-/// *relative* error is `4.6e-5 / cos φ`: negligible at the equator,
-/// 9e-5 at 60 degrees, 5e-4 at 85. It is what sets the high-latitude
-/// floor in [`Coordinates::distance_to`]'s accuracy table, and no amount
-/// of care in the interpolation removes it — only a wider output would.
+/// `round(sin · 32767)`, so ±0.5 LSB, and the rounded interpolation in
+/// [`crate::types::sine_at_interpolated`] adds at most another half.
+/// About **1 LSB, or 3.1e-5 absolute** — still far above the
+/// interpolation residual, and therefore the term that matters. Because
+/// it is absolute, the *relative* error is `3.1e-5 / cos φ`: negligible
+/// at the equator, 6e-5 at 60 degrees, 3.5e-4 at 85. It is what sets the
+/// high-latitude floor in [`Coordinates::distance_to`]'s accuracy table,
+/// and no amount of care in the interpolation removes it — only a wider
+/// output would.
+///
+/// The interpolation used to arithmetic-shift the product, which floors.
+/// The delta keeps one sign across a quarter turn, so that cost was
+/// one-sided: a measured mean of -0.49 LSB, which read as a short
+/// east-west distance every time rather than as noise. `cos_q15_is_not_biased`
+/// pins the centred version.
 fn cos_q15(latitude_units: i64) -> i64 {
     // cos is even, so the sign of the latitude does not matter.
     let turn = 360 * UNITS_PER_DEGREE.unsigned_abs();
@@ -913,13 +948,7 @@ fn cos_q15(latitude_units: i64) -> i64 {
         ((u128::from(latitude_units.unsigned_abs() % turn) << 32) / u128::from(turn)) as u64;
     // A quarter turn of phase past the angle is its cosine.
     let phase = (phase as u32).wrapping_add(1 << 30);
-    let index = (phase >> (32 - crate::types::TABLE_BITS)) as usize & crate::types::TABLE_MASK;
-    let next = (index + 1) & crate::types::TABLE_MASK;
-    let a = i64::from(crate::types::sine_table_at(index));
-    let b = i64::from(crate::types::sine_table_at(next));
-    let fraction_bits = 32 - crate::types::TABLE_BITS;
-    let fraction = i64::from(phase & ((1 << fraction_bits) - 1));
-    a + (((b - a) * fraction) >> fraction_bits)
+    i64::from(crate::types::sine_at_interpolated(phase))
 }
 
 /// Rounds `degrees * 6000` to the nearest integer without `std`.
@@ -1266,6 +1295,112 @@ impl core::fmt::Display for MaidenheadGrid {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// `cos_q15` must not lean one way.
+    ///
+    /// The interpolation term `((b - a) * fraction) >> bits`
+    /// arithmetic-shifts a NEGATIVE delta: cos over 0..90 degrees maps
+    /// onto sin over 90..180, which decreases. `>>` floors, so the term
+    /// rounded away from zero every time, and the chord of a concave
+    /// arc already sits below the curve. Both pushed the same way, so
+    /// the result was systematically low and every east-west distance
+    /// read short.
+    ///
+    /// Rounding the interpolation leaves the table's own half-LSB and
+    /// the curvature residual, neither of which shares a sign.
+    ///
+    /// Needs `std` for the reference cosine; the function under test is
+    /// integer-only either way.
+    #[cfg(feature = "std")]
+    #[test]
+    fn cos_q15_is_not_biased() {
+        let mut total_lsb = 0.0f64;
+        let mut worst_lsb = 0.0f64;
+        let mut samples = 0u32;
+        // Tenths of a degree over the whole quarter turn. 0 and 90 are
+        // exact by construction and would only dilute the mean.
+        for tenth in 1..900u32 {
+            let degrees = f64::from(tenth) / 10.0;
+            #[allow(clippy::cast_possible_truncation)]
+            let units = (degrees * UNITS_PER_DEGREE as f64) as i64;
+            let got = cos_q15(units) as f64;
+            let want = (degrees * core::f64::consts::PI / 180.0).cos() * 32_767.0;
+            let error_lsb = got - want;
+            total_lsb += error_lsb;
+            worst_lsb = worst_lsb.max(error_lsb.abs());
+            samples += 1;
+        }
+        let mean_lsb = total_lsb / f64::from(samples);
+        assert!(
+            mean_lsb.abs() < 0.2,
+            "cos_q15 is biased: mean error {mean_lsb:.3} LSB over {samples} samples \
+             (worst {worst_lsb:.3} LSB); a rounding interpolation should centre this"
+        );
+        assert!(
+            worst_lsb < 1.2,
+            "cos_q15 worst-case error {worst_lsb:.3} LSB exceeds the table's own \
+             half-LSB plus one rounding step"
+        );
+    }
+
+    /// `bearing_to` must actually return the nearest whole degree.
+    ///
+    /// The 360-candidate search used [`crate::types::sine_at`], which
+    /// truncates the phase to a table index. Candidate `d` therefore
+    /// sat at an angle up to 0.088 degrees BELOW its nominal one, and
+    /// since sin and cos share that index the candidate stayed a
+    /// coherent unit vector -- just at the wrong angle. That shifted
+    /// every half-degree decision boundary, so a few percent of
+    /// directions came back as the neighbouring degree. Unlike the
+    /// `cos_q15` tilt the docs describe, this was present at the
+    /// equator.
+    ///
+    /// The reference here is `atan2` of the SAME displacement the
+    /// implementation uses, so this measures only the candidate search,
+    /// not the equirectangular projection around it.
+    #[cfg(feature = "std")]
+    #[test]
+    fn bearing_to_returns_the_nearest_whole_degree() {
+        let origin = Coordinates::new(Latitude::new(0).unwrap(), Longitude::new(0).unwrap());
+        // A tenth of a degree: big enough that the storage-unit
+        // rounding is nothing, small enough that the mean-latitude
+        // cosine stays within a hair of unity.
+        let radius = (UNITS_PER_DEGREE / 10) as f64;
+
+        let mut mismatches = 0u32;
+        let mut checked = 0u32;
+        for tenth in 0..3600u32 {
+            let angle = f64::from(tenth) / 10.0;
+            let radians = angle * core::f64::consts::PI / 180.0;
+            #[allow(clippy::cast_possible_truncation)]
+            let north = (radius * radians.cos()) as i64;
+            #[allow(clippy::cast_possible_truncation)]
+            let east = (radius * radians.sin()) as i64;
+            let target =
+                Coordinates::new(Latitude::new(north).unwrap(), Longitude::new(east).unwrap());
+
+            // Reference angle from the displacement the implementation
+            // itself derives, so the projection cancels out.
+            let (e, n) = origin.displacement(target);
+            let want = (e as f64).atan2(n as f64).to_degrees().rem_euclid(360.0);
+            // A direction sitting on a half-degree boundary may round
+            // either way; those are ties, not errors.
+            let fraction = want - want.floor();
+            if (fraction - 0.5).abs() < 0.02 {
+                continue;
+            }
+            #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+            let nearest = (want.round() as i64).rem_euclid(360) as u16;
+            checked += 1;
+            if origin.bearing_to(target).degrees() != nearest {
+                mismatches += 1;
+            }
+        }
+        assert_eq!(
+            mismatches, 0,
+            "{mismatches} of {checked} directions returned the wrong whole degree"
+        );
+    }
 
     #[test]
     fn coordinate_range_checks() {

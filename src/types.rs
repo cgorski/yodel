@@ -87,6 +87,43 @@ pub(crate) fn sine_at(phase: u32) -> i16 {
     SINE_I16.get(idx).copied().unwrap_or(0)
 }
 
+/// Looks up the i16-scale sine of a 32-bit phase, linearly interpolated
+/// between neighbouring entries and rounded.
+///
+/// [`sine_at`] truncates the phase to a table index, quantising the
+/// angle to 0.088 degrees. That is far below the noise for waveform
+/// synthesis, where the phase names a *moment*. It is the dominant
+/// error term wherever the phase names a *direction* instead, which is
+/// why both of `geo`'s users — `cos(latitude)` and the bearing search —
+/// come here rather than to [`sine_at`].
+///
+/// The interpolation **rounds**. Arithmetic-shifting the product floors
+/// instead, which biases the result one way whenever the delta keeps a
+/// consistent sign, as it does across any quarter turn. Rounding leaves
+/// the table's own half-LSB and the curvature residual, neither of
+/// which shares a sign.
+///
+/// The result carries the same q15 scale as [`sine_at`] but is returned
+/// as `i32`: interpolation between two `i16` endpoints stays inside
+/// their range, so the value always fits, and an `i32` saves every
+/// caller a widening.
+pub(crate) fn sine_at_interpolated(phase: u32) -> i32 {
+    let index = (phase >> (32 - TABLE_BITS)) as usize & TABLE_MASK;
+    let next = (index + 1) & TABLE_MASK;
+    let a = i64::from(sine_table_at(index));
+    let b = i64::from(sine_table_at(next));
+    let fraction_bits = 32 - TABLE_BITS;
+    let fraction = i64::from(phase & ((1 << fraction_bits) - 1));
+    // Half an LSB before the shift is what turns a floor into a round.
+    let value = a + (((b - a) * fraction + (1 << (fraction_bits - 1))) >> fraction_bits);
+    // Between two i16 endpoints, so inside i16's range and far inside
+    // i32's.
+    #[allow(clippy::cast_possible_truncation)]
+    {
+        value as i32
+    }
+}
+
 /// Looks up the f32 sine of a 32-bit phase with linear interpolation.
 #[cfg(feature = "mod")]
 pub(crate) fn sine_at_f32(phase: u32) -> f32 {
