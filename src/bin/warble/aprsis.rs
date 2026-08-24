@@ -54,7 +54,7 @@
 //! many different operators' machines and a tight retry loop hammers
 //! all of them.
 
-use std::io::{BufRead, BufReader, Write};
+use std::io::{BufRead, BufReader, Read, Write};
 use std::net::{TcpStream, ToSocketAddrs};
 use std::time::{Duration, Instant};
 
@@ -144,6 +144,94 @@ struct Stats {
     lines: u64,
     server_lines: u64,
     sessions: u64,
+    oversized: u64,
+}
+
+/// Why [`read_bounded_line`] stopped.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum LineOutcome {
+    /// A complete line; the terminator is still on the buffer.
+    Line,
+    /// The cap was reached with no terminator. The buffer holds nothing
+    /// usable and the rest of the offending line has been discarded, so
+    /// the next read starts at a line boundary.
+    Oversized,
+    /// The peer closed the connection.
+    Eof,
+}
+
+/// How many `max`-sized chunks are discarded while resynchronising
+/// before the session is abandoned.
+///
+/// A peer that streams bytes and never sends a terminator would
+/// otherwise spin here until the read timeout; 64 chunks is far past
+/// any real protocol violation and well short of a busy loop.
+const DRAIN_CHUNKS: usize = 64;
+
+/// One `read_until` capped at `max` bytes, sharing `reader` by
+/// reborrow.
+///
+/// Spelled with UFCS because `reader.take(..)` resolves through the
+/// auto-deref to `R::take`, which moves the reader out of the `&mut`.
+fn bounded_chunk<R: BufRead>(
+    reader: &mut R,
+    buf: &mut Vec<u8>,
+    max: usize,
+) -> std::io::Result<usize> {
+    Read::take(Read::by_ref(reader), max as u64).read_until(b'\n', buf)
+}
+
+/// Reads one newline-terminated line, refusing to grow past `max`.
+///
+/// [`BufRead::read_until`] has no upper bound: a server that streams
+/// bytes and never sends a terminator grows the buffer until the
+/// process is killed. [`LINE_MAX`] is the APRS-IS cap, and the
+/// specification says a reader "should treat anything longer as a
+/// protocol violation rather than growing a buffer to fit it" — so an
+/// overlong line is dropped, not truncated into a fake packet.
+pub(crate) fn read_bounded_line<R: BufRead>(
+    reader: &mut R,
+    buf: &mut Vec<u8>,
+    max: usize,
+) -> std::io::Result<LineOutcome> {
+    if bounded_chunk(reader, buf, max)? == 0 {
+        return Ok(LineOutcome::Eof);
+    }
+    if buf.last() == Some(&b'\n') {
+        return Ok(LineOutcome::Line);
+    }
+    // `max` bytes and no terminator. Discard the remainder so the next
+    // call resynchronises on the following line instead of on the
+    // middle of this one. The scratch buffer is reused, so this costs
+    // no memory however long the offending line is.
+    buf.clear();
+    let mut scratch = Vec::new();
+    for _ in 0..DRAIN_CHUNKS {
+        scratch.clear();
+        let n = bounded_chunk(reader, &mut scratch, max)?;
+        if n == 0 {
+            return Ok(LineOutcome::Eof);
+        }
+        if scratch.last() == Some(&b'\n') {
+            return Ok(LineOutcome::Oversized);
+        }
+    }
+    Err(std::io::Error::other(format!(
+        "peer sent more than {} bytes with no line terminator",
+        max * DRAIN_CHUNKS
+    )))
+}
+
+/// Whether `e` means the consumer of *our output* went away.
+///
+/// `run_session` writes packets to `sink` (stdout, or `--out`) inside
+/// the same [`std::io::Result`] as its socket reads, so
+/// `warble aprsis ... | head -5` surfaced as "connection failed" and
+/// sent the retry loop back to a volunteer Tier 2 server on a doubling
+/// backoff. There is nothing to reconnect *for* once the reader has
+/// gone, and hammering shared infrastructure over it is rude.
+pub(crate) fn downstream_closed(e: &std::io::Error) -> bool {
+    matches!(e.kind(), std::io::ErrorKind::BrokenPipe)
 }
 
 pub fn aprsis(args: &AprsIsArgs) -> Result<(), String> {
@@ -194,6 +282,10 @@ pub fn aprsis(args: &AprsIsArgs) -> Result<(), String> {
         match run_session(args, &server, &mut sink, &mut stats, started, attempt) {
             Ok(Done::Finished) => break,
             Ok(Done::Disconnected) => eprintln!("server closed the connection"),
+            // Our own reader went away (`... | head -5`). Reconnecting
+            // would put load on a volunteer server for output nobody
+            // is going to read.
+            Err(e) if downstream_closed(&e) => break,
             Err(e) => eprintln!("connection failed: {e}"),
         }
         if args.no_reconnect || reached_bound(args, &stats, started) {
@@ -220,6 +312,12 @@ pub fn aprsis(args: &AprsIsArgs) -> Result<(), String> {
         stats.server_lines,
         stats.sessions,
     );
+    if stats.oversized > 0 {
+        eprintln!(
+            "{} line(s) over the {LINE_MAX}-byte APRS-IS cap were dropped",
+            stats.oversized
+        );
+    }
     Ok(())
 }
 
@@ -286,10 +384,13 @@ fn run_session(
         // fields carry bare Latin-1, so the stream is not valid UTF-8
         // and decoding it here would corrupt packets before they are
         // written.
-        match reader.read_until(b'\n', &mut raw) {
-            Ok(0) => return Ok(Done::Disconnected),
-            Ok(_) => {}
-            Err(e) => return Err(e),
+        match read_bounded_line(&mut reader, &mut raw, LINE_MAX)? {
+            LineOutcome::Eof => return Ok(Done::Disconnected),
+            LineOutcome::Line => {}
+            LineOutcome::Oversized => {
+                stats.oversized += 1;
+                continue;
+            }
         }
         while matches!(raw.last(), Some(b'\r' | b'\n')) {
             raw.pop();
