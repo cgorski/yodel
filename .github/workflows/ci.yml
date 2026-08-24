@@ -1,9 +1,18 @@
-# Minimal CI: the same gates CONTRIBUTING.md asks for locally.
+# Minimal CI: the same gates CONTRIBUTING.md asks for locally, plus the
+# publish-readiness gates that only bite once the crate is on crates.io.
 name: CI
 
 on:
   push:
+    branches: [main]
   pull_request:
+
+# A force-push while the matrix is still running should not leave the
+# old run burning minutes: the feature matrix alone is ~30 cargo
+# invocations.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 env:
   CARGO_TERM_COLOR: always
@@ -22,6 +31,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: rustup component add clippy
+      - uses: Swatinem/rust-cache@v2
       - run: cargo clippy --all-features --all-targets -- -D warnings
 
   test:
@@ -29,7 +39,118 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      # `--all-features` turns on `capture`, which builds cpal, which
+      # needs the ALSA headers. It has been working off whatever the
+      # runner image happened to ship; make the dependency explicit so a
+      # base-image change cannot break the build mysteriously.
+      - run: sudo apt-get update && sudo apt-get install -y libasound2-dev
+      - uses: Swatinem/rust-cache@v2
       - run: cargo test --all-features
+
+  # rustdoc is a separate compiler with its own lint set, and
+  # `#![deny(missing_docs)]` plus intra-doc links mean it can break while
+  # `cargo build` and `cargo clippy` both stay green. Without this job the
+  # first sign of a broken doc build is a red badge on the published
+  # crate, because docs.rs builds on nightly and CI pins 1.96.1.
+  doc:
+    name: rustdoc (-D warnings)
+    runs-on: ubuntu-latest
+    env:
+      RUSTDOCFLAGS: -D warnings
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update && sudo apt-get install -y libasound2-dev
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo doc --all-features --no-deps
+
+  # Cargo.toml claims `rust-version = "1.96"`, but rust-toolchain.toml
+  # pins 1.96.1, so 1.96.0 -- the version the manifest actually promises
+  # -- is never exercised. RUSTUP_TOOLCHAIN overrides the toolchain file.
+  msrv:
+    name: MSRV 1.96.0
+    runs-on: ubuntu-latest
+    env:
+      RUSTUP_TOOLCHAIN: 1.96.0
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update && sudo apt-get install -y libasound2-dev
+      - run: rustup toolchain install 1.96.0 --profile minimal
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo check --all-features --all-targets
+
+  # docs.rs builds on current nightly and ignores rust-toolchain.toml.
+  # Nothing else in CI ever compiles this crate on a compiler newer than
+  # the pin, so a lint that tightens upstream lands as a surprise.
+  # Advisory only: a nightly regression must not block a PR.
+  stable:
+    name: stable + beta (advisory)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    strategy:
+      matrix:
+        channel: [stable, beta]
+    env:
+      RUSTUP_TOOLCHAIN: ${{ matrix.channel }}
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update && sudo apt-get install -y libasound2-dev
+      - run: rustup toolchain install ${{ matrix.channel }} --profile minimal
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo check --all-features
+
+  # `cpal` and `serialport` are the platform-specific dependencies and
+  # have only ever been compiled against ALSA. A check-only job on the
+  # other two hosts is cheap next to finding out from a bug report.
+  cross-os:
+    name: check (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo check --all-features --all-targets
+
+  # `cargo publish` runs a verify build of the packaged tree, which is
+  # not the same tree as the working copy: `exclude` in Cargo.toml drops
+  # the corpora, and cargo auto-excludes the nested examples/esp32-riscv
+  # crate while still packaging tests/esp32_examples.rs. Find that out
+  # now rather than on release day.
+  package:
+    name: cargo publish --dry-run
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update && sudo apt-get install -y libasound2-dev
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo publish --dry-run --all-features
+
+  # docs/COVERAGE.md cites a few hundred tests by name and says they are
+  # checked mechanically. This is what does the checking; without it the
+  # claim decays into a few hundred hand-maintained rows that read as
+  # evidence after the tests behind them are renamed away.
+  coverage-citations:
+    name: docs/COVERAGE.md citations
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update && sudo apt-get install -y libasound2-dev
+      - uses: Swatinem/rust-cache@v2
+      - run: scripts/check-coverage-citations.sh
+
+  # #![forbid(unsafe_code)] covers this crate only. The CLI pulls cpal,
+  # serialport and the tokio stack, all of which are unsafe FFI, and the
+  # LICENSE story in third_party/ is documented but unenforced.
+  deny:
+    name: cargo-deny
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: EmbarkStudios/cargo-deny-action@v2
+        with:
+          command: check
 
   embedded:
     name: embedded no_std matrix
@@ -42,6 +163,7 @@ jobs:
       # argument skips the host test-compilation pass, which the
       # feature-matrix job below runs in parallel instead.
       - run: rustup target add riscv32imac-unknown-none-elf riscv32imc-unknown-none-elf thumbv7em-none-eabihf
+      - uses: Swatinem/rust-cache@v2
       - run: scripts/check-embedded.sh embedded
 
   feature-matrix:
@@ -56,4 +178,5 @@ jobs:
       # tests for a PARTIAL feature set, which is how unresolved imports and
       # alloc-dependent unit tests used to rot unnoticed. No rustup targets
       # needed: this pass never leaves the host.
+      - uses: Swatinem/rust-cache@v2
       - run: scripts/check-embedded.sh tests

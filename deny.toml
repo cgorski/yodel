@@ -1,0 +1,52 @@
+# cargo-deny configuration.
+#
+# `#![forbid(unsafe_code)]` in src/lib.rs covers THIS crate. It says
+# nothing about the dependency tree, which for the CLI includes cpal,
+# serialport and the tokio stack -- all unsafe FFI. This file is where
+# that tree gets a policy.
+
+[graph]
+# Check the dependency tree for every host the CI matrix builds on, so a
+# Windows-only or macOS-only advisory cannot hide behind a Linux run.
+targets = [
+    { triple = "x86_64-unknown-linux-gnu" },
+    { triple = "aarch64-apple-darwin" },
+    { triple = "x86_64-pc-windows-msvc" },
+    # The bare-metal targets the embedded matrix builds for.
+    { triple = "riscv32imac-unknown-none-elf" },
+    { triple = "thumbv7em-none-eabihf" },
+]
+all-features = true
+
+[advisories]
+version = 2
+# Fail on any RUSTSEC advisory. Add explicit `ignore = ["RUSTSEC-..."]`
+# entries with a comment when one is genuinely not reachable from here.
+yanked = "deny"
+
+[licenses]
+version = 2
+# The crate is "MIT OR Apache-2.0"; everything it links must be
+# compatible with that. Unicode-3.0 arrives via icu/tinystr through the
+# tokio/url stack and is a permissive Unicode licence.
+allow = [
+    "MIT",
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "Unicode-3.0",
+    "Zlib",
+    "MPL-2.0",
+]
+confidence-threshold = 0.93
+
+[bans]
+multiple-versions = "warn"
+wildcards = "deny"
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]
