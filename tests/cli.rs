@@ -202,6 +202,36 @@ fn txdelay_lengthens_the_preamble_and_still_decodes() {
     );
 }
 
+/// A WAV handed to the TNC2 text reader is refused, not parsed.
+///
+/// `--tnc2` runs no modem: the bytes go to a line parser, and a
+/// `SRC>DEST:info` shape needs only a `>` before a `:`, which PCM
+/// supplies by chance. Before this was refused, a real capture yielded
+/// four confident-looking packets of pure noise and exit status 0 --
+/// a mistyped flag inventing traffic that was never on the air.
+#[test]
+fn tnc2_refuses_audio_instead_of_inventing_packets() {
+    let wav = scratch("tnc2-audio");
+    let path = wav.to_string_lossy().into_owned();
+    let (ok, _, stderr) = run(&[
+        "encode", "--out", &path, "--from", "N0CALL", "--to", "APRS", "position", "--lat", "40.0",
+        "--lon", "-105.0",
+    ]);
+    assert!(ok, "encode failed: {stderr}");
+
+    let (ok, stdout, stderr) = run(&["decode", &path, "--tnc2"]);
+    assert!(!ok, "a WAV given to --tnc2 should fail, got: {stdout}");
+    assert!(
+        stderr.contains("WAV") && stderr.contains("--tnc2"),
+        "the error should name the file kind and the flag: {stderr}"
+    );
+
+    // The same file without the flag is still perfectly decodable, so
+    // the guard rejects the mode mismatch rather than the input.
+    let (ok, stdout, _) = run(&["decode", &path]);
+    assert!(ok && stdout.contains("N0CALL>APRS"), "got: {stdout}");
+}
+
 /// Encodes a beacon with `--txtail ms`, chops `cut_ms` off the end of the
 /// audio, and reports whether the frame still decodes.
 ///

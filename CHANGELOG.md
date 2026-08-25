@@ -11,6 +11,21 @@ turned out to be, which approach was tried and abandoned.
 
 ## [Unreleased]
 
+### Fixed
+
+- **`decode --tnc2` invented packets when handed audio.** That flag
+  means "the input is TNC2 monitor text", so no modem runs and the bytes
+  go straight to a line parser. A `SRC>DEST:info` shape needs only a
+  `>` before a `:` on a line, which PCM supplies by chance: a real
+  capture yielded **four** confident-looking packets of pure noise, with
+  a zero exit status. Random bytes produce none, so the failure was
+  quietest exactly where it was most convincing.
+
+  A WAV given to `--tnc2` is now refused by name. Detection is
+  deliberately narrow -- a RIFF/WAVE header, not a guess at whether
+  input "looks binary" -- because the realistic mistake is passing the
+  file you meant to decode as audio.
+
 ## [0.1.1] - 2026-08-25
 
 ### Fixed

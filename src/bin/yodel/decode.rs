@@ -229,6 +229,41 @@ pub fn decode(args: &DecodeArgs) -> Result<(), String> {
 /// continuously until EOF so live pipes work.
 /// Decodes TNC2 monitor text: one packet per line, no modem involved.
 ///
+/// Refuses a WAV file handed to the TNC2 *text* reader.
+///
+/// `--tnc2` means "the input is monitor text", so no modem runs and the
+/// bytes go straight to a line parser. Audio fed to that parser does
+/// not fail: a `SRC>DEST:info` shape needs only a `>` before a `:` on a
+/// line, and PCM contains those by chance often enough that a real
+/// capture here yielded four confident-looking packets of pure noise,
+/// with a zero exit status. Random bytes produce none, so the failure
+/// is quiet exactly where it is most convincing.
+///
+/// Inventing packets from a mistyped flag is the sort of silent wrong
+/// answer this CLI refuses elsewhere, so the one realistic mistake --
+/// passing the WAV you meant to decode as audio -- is named and
+/// rejected. Detection is deliberately narrow: a RIFF/WAVE header, not
+/// a guess at whether input "looks binary".
+fn reject_audio_input(path: &str) -> Result<(), String> {
+    use std::io::Read;
+
+    let Ok(mut f) = std::fs::File::open(path) else {
+        // Let the real open below report it, with its own message.
+        return Ok(());
+    };
+    let mut head = [0u8; 12];
+    if f.read_exact(&mut head).is_err() {
+        return Ok(());
+    }
+    if &head[0..4] == b"RIFF" && &head[8..12] == b"WAVE" {
+        return Err(format!(
+            "'{path}' is a WAV file, but --tnc2 reads TNC2 monitor TEXT, not audio (no modem \
+             runs in that mode). Drop --tnc2 to decode it as audio."
+        ));
+    }
+    Ok(())
+}
+
 /// The addresses stay as text because APRS-IS traffic is not bound by
 /// AX.25 address rules; see [`yodel::aprs::monitor`]. Input is read as
 /// bytes rather than as a string, because Mic-E reports are binary and
@@ -239,6 +274,7 @@ fn decode_tnc2(args: &DecodeArgs) -> Result<(), String> {
     let input: Box<dyn BufRead> = if args.input == "-" {
         Box::new(BufReader::new(std::io::stdin()))
     } else {
+        reject_audio_input(&args.input)?;
         Box::new(BufReader::new(
             std::fs::File::open(&args.input)
                 .map_err(|e| format!("cannot open {}: {e}", args.input))?,
