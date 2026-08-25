@@ -4,8 +4,8 @@
 //! and demodulation on both sample paths and multiple sample rates.
 #![cfg(feature = "ax25")]
 
-use warble::Bit;
-use warble::ax25::{Address, Ax25Error, HdlcDeframer, UiFrame, crc16_x25, hdlc};
+use yodel::Bit;
+use yodel::ax25::{Address, Ax25Error, HdlcDeframer, UiFrame, crc16_x25, hdlc};
 
 fn addr(call: &[u8], ssid: u8) -> Address {
     Address::new(call, ssid).unwrap()
@@ -103,12 +103,12 @@ fn hdlc_round_trip_without_dsp() {
     let len = frame.build(&mut buf).unwrap();
     let mut deframer = HdlcDeframer::<330>::new();
     let mut recovered = Vec::new();
-    for line in warble::nrzi::encode_iter(hdlc::frame_bits(&buf[..len], 8, 2)) {
+    for line in yodel::nrzi::encode_iter(hdlc::frame_bits(&buf[..len], 8, 2)) {
         // NRZI decode is folded into the receiver in the DSP tests; here
         // exercise the layers separately.
         recovered.push(line);
     }
-    let mut dec = warble::NrziDecoder::default();
+    let mut dec = yodel::NrziDecoder::default();
     let mut frames = Vec::new();
     for line in recovered {
         if let Some(Ok(f)) = deframer.push(dec.decode(line)) {
@@ -121,10 +121,10 @@ fn hdlc_round_trip_without_dsp() {
 #[cfg(all(feature = "mod", feature = "demod"))]
 mod pipeline {
     use super::*;
-    use warble::SampleRate;
-    use warble::ax25::{FrameReceiver, tx_f32, tx_i16};
-    use warble::demodulator::DemodulatorConfig;
-    use warble::modulator::{Modulator, ModulatorConfig};
+    use yodel::SampleRate;
+    use yodel::ax25::{FrameReceiver, tx_f32, tx_i16};
+    use yodel::demodulator::DemodulatorConfig;
+    use yodel::modulator::{Modulator, ModulatorConfig};
 
     const RATES: [u32; 3] = [22_050, 44_100, 48_000];
     const BUF: usize = 330;
@@ -136,7 +136,7 @@ mod pipeline {
 
     fn receiver(sr_hz: u32) -> FrameReceiver<BUF> {
         let sr = SampleRate::new(sr_hz).unwrap();
-        let demod = warble::AfskDemodulator::new(DemodulatorConfig::bell_202(sr).unwrap()).unwrap();
+        let demod = yodel::AfskDemodulator::new(DemodulatorConfig::bell_202(sr).unwrap()).unwrap();
         FrameReceiver::new(demod)
     }
 

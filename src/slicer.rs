@@ -65,7 +65,7 @@ use crate::types::{BaudRate, Bit, SampleRate};
 /// instant — positive ⇒ mark ⇒ [`Bit::One`]:
 ///
 /// ```
-/// use warble::{BaudRate, Bit, SampleRate, Slicer};
+/// use yodel::{BaudRate, Bit, SampleRate, Slicer};
 ///
 /// let mut slicer = Slicer::new(SampleRate::new(48_000)?, BaudRate::new(1_200)?)?;
 /// let mut decisions = [Bit::Zero; 20];
@@ -85,7 +85,7 @@ use crate::types::{BaudRate, Bit, SampleRate};
 /// for pair in decisions[4..n].windows(2) {
 ///     assert_ne!(pair[0], pair[1]);
 /// }
-/// # Ok::<(), warble::ConfigError>(())
+/// # Ok::<(), yodel::ConfigError>(())
 /// ```
 #[derive(Debug, Clone)]
 pub struct Slicer {

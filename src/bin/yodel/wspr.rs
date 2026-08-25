@@ -1,4 +1,4 @@
-//! `warble wspr`: WSPR beacon generation and capture decoding.
+//! `yodel wspr`: WSPR beacon generation and capture decoding.
 //!
 //! Two subcommands mirroring the library split: `gen` runs the TX
 //! pipeline (message → 162 symbols → continuous-phase 4-FSK WAV) and
@@ -6,12 +6,12 @@
 
 use clap::{Args, Subcommand};
 
-use warble::wspr::{WsprConfig, WsprDecoder, WsprDecoderConfig, WsprMessage, WsprModulator};
-use warble::{MaidenheadGrid, SampleRate};
+use yodel::wspr::{WsprConfig, WsprDecoder, WsprDecoderConfig, WsprMessage, WsprModulator};
+use yodel::{MaidenheadGrid, SampleRate};
 
 use crate::shared::{Output, check_wav_spec};
 
-/// Arguments of `warble wspr`: WSPR beacon TX and capture RX.
+/// Arguments of `yodel wspr`: WSPR beacon TX and capture RX.
 #[derive(Args)]
 pub struct WsprArgs {
     #[command(subcommand)]
@@ -62,7 +62,7 @@ enum WsprCommand {
     },
 }
 
-/// Runs `warble wspr`.
+/// Runs `yodel wspr`.
 pub fn wspr(args: &WsprArgs) -> Result<(), String> {
     match &args.command {
         WsprCommand::Gen {

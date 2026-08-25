@@ -127,7 +127,7 @@ impl DemodulatorConfig {
 /// preamble region is PLL settling time):
 ///
 /// ```
-/// use warble::{AfskDemodulator, Bit, DemodulatorConfig, Modulator,
+/// use yodel::{AfskDemodulator, Bit, DemodulatorConfig, Modulator,
 ///              ModulatorConfig, SampleRate};
 ///
 /// let sr = SampleRate::new(48_000)?;
@@ -154,7 +154,7 @@ impl DemodulatorConfig {
 /// assert!(n >= 36, "only {n} bits");
 /// // The payload follows the settling region exactly.
 /// assert!(recovered[..n].windows(payload.len()).any(|w| w == payload));
-/// # Ok::<(), warble::ConfigError>(())
+/// # Ok::<(), yodel::ConfigError>(())
 /// ```
 #[derive(Debug, Clone)]
 pub struct Demodulator<D> {

@@ -37,17 +37,17 @@
 //! labeled as self-derived. The RX slice will close the loop end to end.
 #![cfg(feature = "ft8")]
 
-use warble::ft8::{
+use yodel::ft8::{
     self, CODEWORD_LEN, COSTAS, CRC_POLY, Ft8Config, Ft8Error, Ft8Message, Ft8Modulator, Ft8Tail,
     GRAY_MAP, MAXGRID4, MESSAGE_LEN, PAYLOAD_LEN, SYMBOL_COUNT, add_crc, crc14, gfsk_pulse,
     ldpc_check, ldpc_encode, pack_c28, pack_g15, symbols_from_codeword, unpack_free_text,
 };
-use warble::geo::GeoError;
-use warble::{MaidenheadGrid, SampleRate};
+use yodel::geo::GeoError;
+use yodel::{MaidenheadGrid, SampleRate};
 
 /// A grid trailer from locator text, panicking on invalid input: these
 /// tests are about the FT8 encoding, and locator parsing has its own
-/// suite in `warble::geo`.
+/// suite in `yodel::geo`.
 fn grid(text: &str) -> Ft8Tail {
     Ft8Tail::grid(text).expect("valid locator")
 }
@@ -160,7 +160,7 @@ fn g15_specials_sit_above_maxgrid4() {
 /// the dominant implementation's packer tests "is this a valid
 /// four-character locator?" before consulting the token list, and
 /// `RR73` is one, so that is what real traffic carries. Matching it
-/// makes a warble transmission bit-identical rather than just
+/// makes a yodel transmission bit-identical rather than just
 /// intelligible; `tests/ft8_differential.rs` is what proves it against
 /// an independent encoder, and this test is the tier-2 statement of
 /// the same fact so a contributor without that binary still sees it.
@@ -172,7 +172,7 @@ fn rr73_packs_as_a_grid_square_not_as_a_token() {
     // empty mid-Pacific", which is the right argument about the wrong
     // ocean, and is precisely the kind of unchecked claim this project
     // keeps finding in its own code.
-    let square = warble::geo::Coordinates::from_maidenhead(MaidenheadGrid::new("RR73").unwrap());
+    let square = yodel::geo::Coordinates::from_maidenhead(MaidenheadGrid::new("RR73").unwrap());
     assert_eq!(square.latitude.to_degrees(), 83.5);
     assert_eq!(square.longitude.to_degrees(), 175.0);
 

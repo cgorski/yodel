@@ -3,7 +3,7 @@
 //! agreement between the push API and the iterator adapters.
 #![cfg(feature = "nrzi")]
 
-use warble::{Bit, NrziDecoder, NrziEncoder};
+use yodel::{Bit, NrziDecoder, NrziEncoder};
 
 fn toggle(bit: Bit) -> Bit {
     match bit {
@@ -127,6 +127,6 @@ fn iterator_adapters_agree_with_push_api() {
 fn free_function_adapters_roundtrip_with_default_state() {
     let data = pseudo_random_bits(5, 256);
     let back: Vec<Bit> =
-        warble::nrzi::decode_iter(warble::nrzi::encode_iter(data.iter().copied())).collect();
+        yodel::nrzi::decode_iter(yodel::nrzi::encode_iter(data.iter().copied())).collect();
     assert_eq!(back, data);
 }

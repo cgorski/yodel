@@ -33,17 +33,17 @@
 
 use std::time::Instant;
 
-use warble::aprs::{AprsPacket, Status};
-use warble::ax25::Address;
-use warble::demodulator::{AfskDemodulator, DemodulatorConfig};
-use warble::fx25::{Fx25Receiver, WRAP_MAX, byte_bits, stuff_frame, wrap};
-use warble::modulator::{Modulator, ModulatorConfig};
-use warble::nrzi::{self, NrziDecoder};
-use warble::rs::{RsCodec, RsParity};
-use warble::tnc::{
+use yodel::aprs::{AprsPacket, Status};
+use yodel::ax25::Address;
+use yodel::demodulator::{AfskDemodulator, DemodulatorConfig};
+use yodel::fx25::{Fx25Receiver, WRAP_MAX, byte_bits, stuff_frame, wrap};
+use yodel::modulator::{Modulator, ModulatorConfig};
+use yodel::nrzi::{self, NrziDecoder};
+use yodel::rs::{RsCodec, RsParity};
+use yodel::tnc::{
     DefaultTncReceiver, MAX_FRAME_BYTES, SpaceGainSweep, TncConfig, TncReceiver, TncTransmitter,
 };
-use warble::{ModemProfile, SampleRate};
+use yodel::{ModemProfile, SampleRate};
 
 /// Target duration of synthesized audio per mode, in seconds of the
 /// mode's own sample rate. Long enough that per-run overhead vanishes,
@@ -58,7 +58,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         text: b"throughput benchmark payload",
     });
 
-    println!("warble i16-path throughput (HOST measurement; machine-dependent)");
+    println!("yodel i16-path throughput (HOST measurement; machine-dependent)");
     println!("build: --release required; see the header for the exact command");
     println!();
     println!(

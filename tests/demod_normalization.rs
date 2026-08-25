@@ -6,11 +6,11 @@
 //! a full frame with either tone ~5 dB down, and a frame decodable by
 //! several chains at once must be emitted exactly once.
 
-use warble::SampleRate;
-use warble::aprs::{AprsPacket, Latitude, Longitude, Position, Symbol};
-use warble::ax25::Address;
-use warble::geo::Ambiguity;
-use warble::tnc::{DefaultTncReceiver, SpaceGainSweep, TncConfig, TncReceiver, TncTransmitter};
+use yodel::SampleRate;
+use yodel::aprs::{AprsPacket, Latitude, Longitude, Position, Symbol};
+use yodel::ax25::Address;
+use yodel::geo::Ambiguity;
+use yodel::tnc::{DefaultTncReceiver, SpaceGainSweep, TncConfig, TncReceiver, TncTransmitter};
 
 const SR: u32 = 48_000;
 

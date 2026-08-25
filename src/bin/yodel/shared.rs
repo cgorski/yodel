@@ -1,4 +1,4 @@
-//! Shared plumbing of the `warble` subcommands: the modem presets and
+//! Shared plumbing of the `yodel` subcommands: the modem presets and
 //! per-knob overrides (`--preset`/`--baud`/`--mark`/`--space`/`--fx25`/
 //! `--il2p`), address parsing/formatting, WAV-header validation,
 //! raw-PCM sample iteration, the FX.25/IL2P transmit wrappers used by
@@ -9,20 +9,20 @@ use std::io::Write;
 
 use clap::{Args, ValueEnum};
 
-use warble::ax25::Address;
-use warble::fx25::{WRAP_MAX, byte_bits, stuff_frame, wrap};
-use warble::il2p::{self, ENCODED_MAX, Il2pParity};
-use warble::modulator::{Modulator, ModulatorConfig};
-use warble::nrzi;
-use warble::tnc::{MAX_FRAME_BYTES, TncConfig, TncTransmitter};
-use warble::wav::{SniffedPcm, WavError, sniff_pcm};
-use warble::{BaudRate, ModemProfile, SampleRate, TonePair};
+use yodel::ax25::Address;
+use yodel::fx25::{WRAP_MAX, byte_bits, stuff_frame, wrap};
+use yodel::il2p::{self, ENCODED_MAX, Il2pParity};
+use yodel::modulator::{Modulator, ModulatorConfig};
+use yodel::nrzi;
+use yodel::tnc::{MAX_FRAME_BYTES, TncConfig, TncTransmitter};
+use yodel::wav::{SniffedPcm, WavError, sniff_pcm};
+use yodel::{BaudRate, ModemProfile, SampleRate, TonePair};
 
 /// The named modem presets (baud rate + mark/space tone pair).
 ///
 /// These are *mode* presets — they name a dialect on the air and map
 /// 1:1 onto the library's [`ModemProfile`] constants. They are distinct
-/// from the library's [`warble::DevicePreset`], which names a target
+/// from the library's [`yodel::DevicePreset`], which names a target
 /// *chip* (ESP32-C3/C6/H2/P4) and resolves to a full `TncConfig` sized
 /// to that chip's CPU budget; a device preset is not meaningful as a
 /// CLI flag on a desktop host, so the two are not merged.
@@ -111,7 +111,7 @@ impl ModemArgs {
     ///
     /// `--il2p` is shared plumbing, so every subcommand parses it, but
     /// only `gen` and `decode` act on it. Accepting and ignoring it
-    /// meant `warble encode --il2p …` wrote a plain AX.25 WAV with no
+    /// meant `yodel encode --il2p …` wrote a plain AX.25 WAV with no
     /// warning — the operator gets a file they believe is IL2P and
     /// discovers otherwise on the air. Refusing is the correct
     /// behaviour: an unimplemented flag is an error, not a no-op.
@@ -214,11 +214,11 @@ pub const SUPPORTED_RATES: &str = "8000..=48000 Hz";
 
 /// Validates a WAV header (16-bit mono integer PCM at a supported
 /// rate); `source` names the input in error messages. Thin wrapper over
-/// the library's [`warble::wav::check_spec`], mapping its typed error
+/// the library's [`yodel::wav::check_spec`], mapping its typed error
 /// into the CLI's source-labelled message.
 pub fn check_wav_spec(spec: &hound::WavSpec, source: &str) -> Result<SampleRate, String> {
-    warble::wav::check_spec(spec).map_err(|e| match e {
-        warble::wav::WavError::UnsupportedFormat { .. } => format!(
+    yodel::wav::check_spec(spec).map_err(|e| match e {
+        yodel::wav::WavError::UnsupportedFormat { .. } => format!(
             "unsupported WAV format in '{source}': got {} channel(s), {} bits, {:?} samples; \
              16-bit mono integer PCM is required",
             spec.channels, spec.bits_per_sample, spec.sample_format
@@ -252,7 +252,7 @@ pub type SniffedSamples = (
 /// a RIFF header means WAV (rate from the header, checked against any
 /// `--sample-rate` the user also passed), anything else is raw s16le
 /// PCM at the required `--sample-rate`. Thin CLI wrapper over the
-/// library's [`warble::wav::sniff_pcm`], mapping its typed errors into
+/// library's [`yodel::wav::sniff_pcm`], mapping its typed errors into
 /// flag-level messages.
 pub fn sniff_stdin_samples<R>(reader: R, sample_rate: Option<u32>) -> Result<SniffedSamples, String>
 where
@@ -336,7 +336,7 @@ impl<R: std::io::Read> Iterator for S16leSamples<R> {
 pub fn fx25_samples(
     tx: &TncTransmitter,
     config: TncConfig,
-    packet: &warble::aprs::AprsPacket<'_>,
+    packet: &yodel::aprs::AprsPacket<'_>,
     dest: Address,
     src: Address,
     path: &[Address],
@@ -375,7 +375,7 @@ pub const IL2P_PARITY: Il2pParity = Il2pParity::Sixteen;
 pub fn il2p_samples(
     tx: &TncTransmitter,
     config: TncConfig,
-    packet: &warble::aprs::AprsPacket<'_>,
+    packet: &yodel::aprs::AprsPacket<'_>,
     dest: Address,
     src: Address,
     path: &[Address],
@@ -385,7 +385,7 @@ pub fn il2p_samples(
     let len = tx
         .build_frame(packet, dest, src, path, &mut info_buf, &mut frame_buf)
         .map_err(|e| format!("building the packet: {e}"))?;
-    let ui = warble::ax25::UiFrame::parse(&frame_buf[..len])
+    let ui = yodel::ax25::UiFrame::parse(&frame_buf[..len])
         .map_err(|e| format!("building the packet: {e}"))?;
     let mut encoded = [0u8; ENCODED_MAX];
     let len = il2p::encode_ui_frame(&ui, IL2P_PARITY, &mut encoded)
@@ -410,7 +410,7 @@ pub fn il2p_samples(
 /// Rust ignores `SIGPIPE`, so the `print!` family turns a closed stdout
 /// into a panic — `failed printing to stdout: Broken pipe`, exit 101.
 /// Every other filter in a Unix pipeline stops quietly instead, which is
-/// what `warble decode ... | head -5` should do.
+/// what `yodel decode ... | head -5` should do.
 ///
 /// Once the downstream reader goes away this writer latches [`closed`],
 /// discards the rest of the output, and still reports success: the run
@@ -472,7 +472,7 @@ impl Output {
     ///
     /// Call this before returning from a subcommand: `BufWriter`'s own
     /// `Drop` flush discards the error, which would hide a genuinely
-    /// full disk on `warble decode > file`.
+    /// full disk on `yodel decode > file`.
     pub fn finish(&mut self) -> Result<(), String> {
         match self.out.flush() {
             Ok(()) => Ok(()),

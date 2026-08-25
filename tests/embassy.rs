@@ -1,5 +1,5 @@
 //! `embassy`-feature adapter tests: frames flowing through
-//! `warble::embassy::run_decoder` must match the sync core's decode
+//! `yodel::embassy::run_decoder` must match the sync core's decode
 //! exactly (the adapter is orchestration only), and the yield/backstop
 //! behavior must hold. Host-runnable: `embassy-futures::block_on` is a
 //! dependency-free busy-poll executor and `embassy-time`'s `std`
@@ -7,12 +7,12 @@
 #![cfg(feature = "embassy")]
 
 use embassy_futures::block_on;
-use warble::SampleRate;
-use warble::aprs::{AprsPacket, Status};
-use warble::ax25::Address;
-use warble::embassy::{SampleSource, TxTicker, run_decoder};
-use warble::ring::SampleRing;
-use warble::tnc::{DefaultTncReceiver, OwnedFrame, TncConfig, TncReceiver, TncTransmitter};
+use yodel::SampleRate;
+use yodel::aprs::{AprsPacket, Status};
+use yodel::ax25::Address;
+use yodel::embassy::{SampleSource, TxTicker, run_decoder};
+use yodel::ring::SampleRing;
+use yodel::tnc::{DefaultTncReceiver, OwnedFrame, TncConfig, TncReceiver, TncTransmitter};
 
 /// Two beacons' worth of PCM, with silence padding between them.
 fn test_samples(cfg: TncConfig) -> Vec<i16> {

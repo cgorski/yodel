@@ -1,6 +1,6 @@
 //! Runtime proof of allocation-freedom for the core paths.
 //!
-//! `warble` claims its core is allocation-free; until now that claim
+//! `yodel` claims its core is allocation-free; until now that claim
 //! rested on build-only evidence (the embedded cross-build matrix links
 //! without an allocator). This test makes it a runtime theorem: a
 //! counting `#[global_allocator]` wraps the system allocator, and the
@@ -60,11 +60,11 @@ fn allocations_during<R>(f: impl FnOnce() -> R) -> (usize, R) {
     (after - before, result)
 }
 
-use warble::SampleRate;
-use warble::ax25::{Address, UiFrame};
-use warble::fx25::{Fx25Receiver, WRAP_MAX, byte_bits, stuff_frame, wrap};
-use warble::kiss::{KissCommand, KissDeframer, KissPort, encode_into};
-use warble::tnc::{DefaultTncReceiver, TncConfig, TncTransmitter};
+use yodel::SampleRate;
+use yodel::ax25::{Address, UiFrame};
+use yodel::fx25::{Fx25Receiver, WRAP_MAX, byte_bits, stuff_frame, wrap};
+use yodel::kiss::{KissCommand, KissDeframer, KissPort, encode_into};
+use yodel::tnc::{DefaultTncReceiver, TncConfig, TncTransmitter};
 
 /// Full modem path — build AX.25 UI frame, modulate to i16 samples,
 /// demodulate, recover the frame — performs ZERO heap allocations.

@@ -2,7 +2,7 @@
 //!
 //! * **Scenario** — not an application but an **API demonstration**: the
 //!   exact calls an embedded user makes, with every buffer owned by the
-//!   caller and no allocation on any warble path.
+//!   caller and no allocation on any yodel path.
 //! * **Hardware** — written for a `no_std` MCU with no allocator
 //!   (ESP32-C3 class, Cortex-M). Runs on a host because the code is the
 //!   same either way — that is the point being made.
@@ -18,7 +18,7 @@
 //! frame from the receiver's internal buffer.
 //!
 //! This is compiled as a normal host binary for convenience, but every
-//! `warble` call below is available under `#![no_std]` without `alloc`
+//! `yodel` call below is available under `#![no_std]` without `alloc`
 //! — the same feature set is cross-built for thumbv7em-none-eabihf and
 //! riscv32imac-unknown-none-elf by `scripts/check-embedded.sh`.
 //!
@@ -28,10 +28,10 @@
 //! cargo run --example embedded_modem --features tnc
 //! ```
 
-use warble::SampleRate;
-use warble::aprs::{AprsPacket, Status};
-use warble::ax25::Address;
-use warble::tnc::{DefaultTncReceiver, MAX_FRAME_BYTES, TncConfig, TncReceiver, TncTransmitter};
+use yodel::SampleRate;
+use yodel::aprs::{AprsPacket, Status};
+use yodel::ax25::Address;
+use yodel::tnc::{DefaultTncReceiver, MAX_FRAME_BYTES, TncConfig, TncReceiver, TncTransmitter};
 
 /// Enough samples for one short UI frame at 48 kHz / 1200 baud
 /// (~40 samples per bit, frame < 2000 bits).
@@ -44,7 +44,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // --- Transmit: frame -> i16 samples into a fixed array ---------
 
     let packet = AprsPacket::Status(Status {
-        text: b"embedded warble",
+        text: b"embedded yodel",
     });
 
     // All working storage is caller-provided, fixed-size, and could be
@@ -95,7 +95,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 core::str::from_utf8(frame.src().callsign.as_bytes())?,
                 frame.info().len()
             );
-            assert_eq!(frame.info(), b">embedded warble");
+            assert_eq!(frame.info(), b">embedded yodel");
             decoded += 1;
         }
     }

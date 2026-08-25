@@ -49,7 +49,7 @@
 //! # Common path: named constants
 //!
 //! ```
-//! use warble::aprs::{Symbol, SymbolDescription};
+//! use yodel::aprs::{Symbol, SymbolDescription};
 //!
 //! let sym = Symbol::CAR;
 //! assert_eq!(sym.describe(), SymbolDescription::Known("Car"));
@@ -58,7 +58,7 @@
 //! # Power user: fully typed construction and exhaustive matching
 //!
 //! ```
-//! use warble::aprs::{AprsError, OverlayId, Symbol, SymbolCode, SymbolTable};
+//! use yodel::aprs::{AprsError, OverlayId, Symbol, SymbolCode, SymbolTable};
 //!
 //! // A digipeater glyph with a 'W' overlay on the alternate table.
 //! let wide_digi = Symbol::new(
@@ -79,7 +79,7 @@
 //! # Raw hatch: out-of-spec bytes are preserved, never rejected
 //!
 //! ```
-//! use warble::aprs::{Symbol, SymbolDescription};
+//! use yodel::aprs::{Symbol, SymbolDescription};
 //!
 //! // Bytes no spec blesses — some hardware emits them anyway.
 //! let odd = Symbol::from_wire(0x01, 0xFF);
@@ -221,7 +221,7 @@ enum SymbolRepr {
 /// through [`Symbol::to_wire`].
 ///
 /// ```
-/// use warble::aprs::{Symbol, SymbolDescription};
+/// use yodel::aprs::{Symbol, SymbolDescription};
 ///
 /// let sym = Symbol::WEATHER_STATION;
 /// assert_eq!(sym.to_wire(), (b'/', b'_'));
@@ -524,8 +524,8 @@ const fn mnemonic(x: u8, y: u8) -> Option<(bool, u8)> {
 /// # Examples
 ///
 /// ```
-/// use warble::aprs::symbol::from_destination;
-/// use warble::aprs::Symbol;
+/// use yodel::aprs::symbol::from_destination;
+/// use yodel::aprs::Symbol;
 ///
 /// // Chapter 20: GPSBM, SPCBM, SYMBM and GPSC12 are all "Boy Scouts".
 /// assert_eq!(from_destination(b"GPSBM").map(Symbol::to_wire), Some((b'/', b',')));
@@ -645,8 +645,8 @@ pub const fn from_destination(callsign: &[u8]) -> Option<Symbol> {
 /// # Examples
 ///
 /// ```
-/// use warble::aprs::symbol::from_source_ssid;
-/// use warble::aprs::Symbol;
+/// use yodel::aprs::symbol::from_source_ssid;
+/// use yodel::aprs::Symbol;
 ///
 /// assert_eq!(from_source_ssid(9), Some(Symbol::CAR));
 /// assert_eq!(from_source_ssid(14), Some(Symbol::TRUCK));
@@ -720,8 +720,8 @@ pub const fn from_source_ssid(ssid: u8) -> Option<Symbol> {
 /// # Examples
 ///
 /// ```
-/// use warble::aprs::symbol::resolve;
-/// use warble::aprs::Symbol;
+/// use yodel::aprs::symbol::resolve;
+/// use yodel::aprs::Symbol;
 ///
 /// // Chapter 20's three-symbol example: the information field wins.
 /// let jeep = Symbol::from_wire(b'/', b'j');

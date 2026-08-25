@@ -3,16 +3,16 @@
 //! additive backward-compatibility guarantee.
 #![cfg(all(feature = "fx25", feature = "ax25", feature = "mod", feature = "demod"))]
 
-use warble::ax25::{FrameReceiver, UiFrame};
-use warble::demodulator::{AfskDemodulator, DemodulatorConfig};
-use warble::fx25::{
+use yodel::ax25::{FrameReceiver, UiFrame};
+use yodel::demodulator::{AfskDemodulator, DemodulatorConfig};
+use yodel::fx25::{
     ByteBits, CorrelationTag, Fx25Receiver, TAG_BYTES, TAG_TOLERANCE, WRAP_MAX, byte_bits,
     stuff_frame, wrap, wrap_with,
 };
-use warble::modulator::{Modulator, ModulatorConfig};
-use warble::nrzi::{self, NrziDecoder};
-use warble::rs::{RsCodec, RsParity};
-use warble::{Bit, SampleRate};
+use yodel::modulator::{Modulator, ModulatorConfig};
+use yodel::nrzi::{self, NrziDecoder};
+use yodel::rs::{RsCodec, RsParity};
+use yodel::{Bit, SampleRate};
 
 const RATE: u32 = 48_000;
 const RX_CAP: usize = 330;
@@ -29,8 +29,8 @@ fn demodulator() -> AfskDemodulator {
     AfskDemodulator::new(DemodulatorConfig::bell_202(sample_rate()).unwrap()).unwrap()
 }
 
-fn addr(callsign: &[u8], ssid: u8) -> warble::ax25::Address {
-    warble::ax25::Address::new(callsign, ssid).unwrap()
+fn addr(callsign: &[u8], ssid: u8) -> yodel::ax25::Address {
+    yodel::ax25::Address::new(callsign, ssid).unwrap()
 }
 
 /// Builds an AX.25 UI frame body with the given info payload.
@@ -404,7 +404,7 @@ fn tag_hunter_rejects_beyond_tolerance() {
 fn plain_audio_decodes_through_fx25_receiver() {
     // Non-FX.25 traffic through the FX.25-aware path.
     let body = frame_body(b"!4903.50N/07201.75W-plain tx");
-    let audio: Vec<i16> = warble::ax25::tx_i16(&body, modulator()).collect();
+    let audio: Vec<i16> = yodel::ax25::tx_i16(&body, modulator()).collect();
     let got = receive_fx25(&audio);
     assert_eq!(got, vec![body]);
 }

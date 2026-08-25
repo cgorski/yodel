@@ -1,7 +1,7 @@
 //! Integration tests for the `fx25` Reed-Solomon `RS(255,k)` codec.
 #![cfg(feature = "fx25")]
 
-use warble::rs::{RsCodec, RsError, RsParity};
+use yodel::rs::{RsCodec, RsError, RsParity};
 
 const PARITIES: [RsParity; 3] = [RsParity::Sixteen, RsParity::ThirtyTwo, RsParity::SixtyFour];
 

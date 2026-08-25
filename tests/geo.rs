@@ -1,4 +1,4 @@
-//! Maidenhead locators and the integer-only geometry in `warble::geo`.
+//! Maidenhead locators and the integer-only geometry in `yodel::geo`.
 //!
 //! # How the geometry is judged
 //!
@@ -26,7 +26,7 @@
 
 use std::f64::consts::PI;
 
-use warble::geo::{
+use yodel::geo::{
     Ambiguity, Coordinates, GeoError, GridPrecision, Latitude, LatitudeHemisphere, Longitude,
     LongitudeHemisphere, MaidenheadGrid,
 };
@@ -35,7 +35,7 @@ use warble::geo::{
 /// in this file is written in. The storage unit is finer, so this
 /// rounds; anything asserting the finer value says so explicitly.
 fn hundredths(units: i64) -> i64 {
-    let step = warble::geo::UNITS_PER_HUNDREDTH_MINUTE;
+    let step = yodel::geo::UNITS_PER_HUNDREDTH_MINUTE;
     let half = if units < 0 { -step / 2 } else { step / 2 };
     (units + half) / step
 }
@@ -54,7 +54,7 @@ fn at(latitude: f64, longitude: f64) -> Coordinates {
 /// Builds coordinates from exact 1/100 arc-minutes, with no `f64` in the
 /// way — for the assertions that are meant to be exact.
 fn at_hundredths(latitude: i64, longitude: i64) -> Coordinates {
-    let step = warble::geo::UNITS_PER_HUNDREDTH_MINUTE;
+    let step = yodel::geo::UNITS_PER_HUNDREDTH_MINUTE;
     Coordinates::new(
         Latitude::new(latitude * step).expect("valid latitude"),
         Longitude::new(longitude * step).expect("valid longitude"),
@@ -414,14 +414,14 @@ fn one_arc_minute_of_latitude_is_one_nautical_mile() {
     let to = Coordinates::new(
         // One arc-minute, expressed through the constant rather than
         // as a literal so it follows the unit.
-        Latitude::new(warble::geo::UNITS_PER_MINUTE).expect("valid"),
+        Latitude::new(yodel::geo::UNITS_PER_MINUTE).expect("valid"),
         Longitude::new(0).expect("valid"),
     );
     assert_eq!(from.distance_to(to).meters(), 1852);
     assert_eq!(from.distance_to(to).nautical_miles(), 1);
     // ...and sixty of them are one degree.
     let degree = Coordinates::new(
-        Latitude::new(warble::geo::UNITS_PER_DEGREE).expect("valid"),
+        Latitude::new(yodel::geo::UNITS_PER_DEGREE).expect("valid"),
         Longitude::new(0).expect("valid"),
     );
     assert_eq!(from.distance_to(degree).meters(), 111_120);
@@ -789,7 +789,7 @@ fn degrees_minutes_reconstructs_the_original_value() {
     // representable coordinate.
     for hundredths in (-540_000..=540_000).step_by(719) {
         let lat =
-            Latitude::new(hundredths * warble::geo::UNITS_PER_HUNDREDTH_MINUTE).expect("in range");
+            Latitude::new(hundredths * yodel::geo::UNITS_PER_HUNDREDTH_MINUTE).expect("in range");
         let dm = lat.degrees_minutes();
         let magnitude = i64::from(dm.degrees) * 6000 + i64::from(dm.hundredths_of_minute);
         let signed = match lat.hemisphere() {
@@ -801,7 +801,7 @@ fn degrees_minutes_reconstructs_the_original_value() {
     }
     for hundredths in (-1_080_000..=1_080_000).step_by(1439) {
         let lon =
-            Longitude::new(hundredths * warble::geo::UNITS_PER_HUNDREDTH_MINUTE).expect("in range");
+            Longitude::new(hundredths * yodel::geo::UNITS_PER_HUNDREDTH_MINUTE).expect("in range");
         let dm = lon.degrees_minutes();
         let magnitude = i64::from(dm.degrees) * 6000 + i64::from(dm.hundredths_of_minute);
         let signed = match lon.hemisphere() {

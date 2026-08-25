@@ -82,7 +82,7 @@ pub use position::{
 };
 // The position primitives now live at the crate root, because grid
 // squares and coordinates are not APRS concepts (WSPR and FT8 use them
-// too). Re-exported here so `warble::aprs::Latitude` keeps resolving:
+// too). Re-exported here so `yodel::aprs::Latitude` keeps resolving:
 // dozens of call sites and every README doctest spell it that way.
 pub use crate::geo::{
     Ambiguity, Coordinates, DegreesMinutes, GeoError, GridPrecision, Latitude, LatitudeHemisphere,
@@ -664,7 +664,7 @@ pub enum AprsPacket<'a> {
 /// alone*", and nothing weaker is smuggled into it.
 ///
 /// ```
-/// use warble::aprs::{AprsPacket, Decoded, DecodedKind};
+/// use yodel::aprs::{AprsPacket, Decoded, DecodedKind};
 ///
 /// // A type we implement: fully parsed.
 /// let d = Decoded::decode(b">on the air");
@@ -681,8 +681,8 @@ pub enum AprsPacket<'a> {
 ///
 /// ```
 /// # #[cfg(feature = "micE")] {
-/// use warble::aprs::{Decoded, DecodedKind};
-/// use warble::ax25::Address;
+/// use yodel::aprs::{Decoded, DecodedKind};
+/// use yodel::ax25::Address;
 ///
 /// const INFO: &[u8] = b"`(_fn\"Oj/";
 ///
@@ -694,7 +694,7 @@ pub enum AprsPacket<'a> {
 /// let report = d.mic_e().expect("Mic-E needs only the destination");
 /// assert!((report.latitude.to_degrees() - 33.427_333).abs() < 1e-5);
 /// # }
-/// # Ok::<(), warble::ax25::Ax25Error>(())
+/// # Ok::<(), yodel::ax25::Ax25Error>(())
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct Decoded<'a> {
@@ -1198,7 +1198,7 @@ impl<'a> AprsPacket<'a> {
     ///
     /// ```
     /// # #[cfg(all(feature = "aprs", feature = "alloc"))] {
-    /// use warble::aprs::{AprsPacket, Latitude, Longitude, Position, Symbol};
+    /// use yodel::aprs::{AprsPacket, Latitude, Longitude, Position, Symbol};
     ///
     /// let packet = AprsPacket::Position(Position::new(
     ///     Latitude::from_degrees(49.0583)?,
@@ -1207,7 +1207,7 @@ impl<'a> AprsPacket<'a> {
     /// ));
     /// assert_eq!(packet.to_vec()?, b"!4903.50N/07201.75W>");
     /// # }
-    /// # Ok::<(), warble::aprs::AprsError>(())
+    /// # Ok::<(), yodel::aprs::AprsError>(())
     /// ```
     ///
     /// # Errors
@@ -1319,8 +1319,8 @@ pub fn build_ui_frame(
 ///
 /// ```
 /// # #[cfg(all(feature = "aprs", feature = "alloc"))] {
-/// use warble::aprs::{AprsPacket, Status, build_ui_frame_to_vec};
-/// use warble::ax25::Address;
+/// use yodel::aprs::{AprsPacket, Status, build_ui_frame_to_vec};
+/// use yodel::ax25::Address;
 ///
 /// let packet = AprsPacket::Status(Status { text: b"on the air" });
 /// let frame = build_ui_frame_to_vec(

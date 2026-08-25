@@ -57,8 +57,8 @@
 //! # Structure
 //!
 //! * **decode thread** — consumes the audio via the crate's stdin/WAV
-//!   sniffing intake (`warble::wav::sniff_pcm` + `decode_sniffed`, the
-//!   same path the `warble` CLI uses) and sends each FCS-valid frame
+//!   sniffing intake (`yodel::wav::sniff_pcm` + `decode_sniffed`, the
+//!   same path the `yodel` CLI uses) and sends each FCS-valid frame
 //!   over a channel as a self-contained `OwnedFrame`.
 //! * **sensor thread** — a simulated barometer read every 100 ms
 //!   (a real tracker does an I2C transaction here), publishing the
@@ -106,11 +106,11 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc;
 use std::time::Duration;
 
-use warble::SampleRate;
-use warble::aprs::{AprsPacket, Status};
-use warble::ax25::Address;
-use warble::tnc::{MAX_FRAME_BYTES, OwnedFrame, TncConfig, TncTransmitter};
-use warble::wav::{decode_sniffed, sniff_pcm};
+use yodel::SampleRate;
+use yodel::aprs::{AprsPacket, Status};
+use yodel::ax25::Address;
+use yodel::tnc::{MAX_FRAME_BYTES, OwnedFrame, TncConfig, TncTransmitter};
+use yodel::wav::{decode_sniffed, sniff_pcm};
 
 /// Sample rate assumed for raw PCM on stdin (WAV streams carry their
 /// own; the demo synthesizes at this rate too).
@@ -167,7 +167,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // ---- decode thread: audio in -> OwnedFrame out ------------------
     // The intake is the crate's own sniffing path: WAV files, WAV on
     // stdin, and raw s16le PCM on stdin all funnel through the same
-    // two calls the `warble` CLI uses.
+    // two calls the `yodel` CLI uses.
     let (frame_tx, frame_rx) = mpsc::channel::<OwnedFrame>();
     let decoder = std::thread::spawn(move || -> Result<u32, String> {
         let sink = |frame: OwnedFrame| frame_tx.send(frame).is_ok();

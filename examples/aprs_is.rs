@@ -56,8 +56,8 @@ use std::io::{BufRead, BufReader, Write};
 use std::net::{TcpStream, ToSocketAddrs};
 use std::time::{Duration, Instant};
 
-use warble::aprs::monitor::{LINE_MAX, MonitorLine};
-use warble::aprs::{AprsPacket, Decoded, DecodedKind};
+use yodel::aprs::monitor::{LINE_MAX, MonitorLine};
+use yodel::aprs::{AprsPacket, Decoded, DecodedKind};
 
 /// Tier 2 rotate address. Resolves to a different server each time,
 /// which is why the address is re-resolved on every connection.
@@ -141,13 +141,13 @@ fn run_session(
     // only correct form, because the feed is not filterable.
     let login = if opts.filter.is_empty() {
         format!(
-            "user {} pass {RECEIVE_ONLY} vers warble-example {}\r\n",
+            "user {} pass {RECEIVE_ONLY} vers yodel-example {}\r\n",
             opts.callsign,
             env!("CARGO_PKG_VERSION"),
         )
     } else {
         format!(
-            "user {} pass {RECEIVE_ONLY} vers warble-example {} filter {}\r\n",
+            "user {} pass {RECEIVE_ONLY} vers yodel-example {} filter {}\r\n",
             opts.callsign,
             env!("CARGO_PKG_VERSION"),
             opts.filter,

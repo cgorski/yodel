@@ -1,14 +1,14 @@
-//! `warble encode`: build an APRS packet and modulate it into a
+//! `yodel encode`: build an APRS packet and modulate it into a
 //! 16-bit mono WAV file.
 
 use clap::{Args, Subcommand};
 
-use warble::SampleRate;
-use warble::aprs::{
+use yodel::SampleRate;
+use yodel::aprs::{
     Addressee, AprsPacket, Latitude, Longitude, Message, MessageContent, Position, Symbol,
 };
-use warble::ax25::Address;
-use warble::tnc::{TncConfig, TncTransmitter};
+use yodel::ax25::Address;
+use yodel::tnc::{TncConfig, TncTransmitter};
 
 use crate::shared::{ModemArgs, fx25_samples, parse_address};
 
@@ -92,7 +92,7 @@ fn check_degrees(value: f64, flag: &str, max: f64) -> Result<f64, String> {
     Ok(value)
 }
 
-/// Runs `warble encode`: builds the packet and writes the WAV.
+/// Runs `yodel encode`: builds the packet and writes the WAV.
 pub fn encode(args: &EncodeArgs) -> Result<(), String> {
     let src = parse_address(&args.from)?;
     let dest = parse_address(&args.to)?;
@@ -131,7 +131,7 @@ pub fn encode(args: &EncodeArgs) -> Result<(), String> {
                 symbol: Symbol::from_wire(sym[0], sym[1]),
                 // The CLI takes decimal degrees, so the caller is
                 // stating a position, not blanking one.
-                ambiguity: warble::geo::Ambiguity::EXACT,
+                ambiguity: yodel::geo::Ambiguity::EXACT,
                 messaging: false,
                 compressed: false,
                 extension: None,

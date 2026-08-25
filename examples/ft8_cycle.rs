@@ -17,8 +17,8 @@
 //! Writes `ft8_cycle.wav` (~15 s of 12 kHz mono PCM) into the current
 //! directory, then decodes it with the std-gated receive engine.
 
-use warble::SampleRate;
-use warble::ft8::{Ft8Config, Ft8Decoder, Ft8DecoderConfig, Ft8Message, Ft8Modulator, Ft8Tail};
+use yodel::SampleRate;
+use yodel::ft8::{Ft8Config, Ft8Decoder, Ft8DecoderConfig, Ft8Message, Ft8Modulator, Ft8Tail};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // 1. Encode: a CQ call with grid, at 1500 Hz in the audio band.

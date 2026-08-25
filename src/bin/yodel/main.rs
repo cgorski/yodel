@@ -1,4 +1,4 @@
-//! `warble` command-line tool: encode APRS packets to WAV files and
+//! `yodel` command-line tool: encode APRS packets to WAV files and
 //! decode APRS WAV files, on top of the library's TNC pipeline.
 //!
 //! Built only with the `cli` aggregate feature (`wav`, `tnc`, `micE`,
@@ -49,7 +49,7 @@ use wspr::WsprArgs;
 /// Decode 16-bit mono PCM WAV recordings into AX.25/APRS frames, or
 /// build an APRS packet and modulate it into a WAV file.
 #[derive(Parser)]
-#[command(name = "warble", version, about, max_term_width = 100)]
+#[command(name = "yodel", version, about, max_term_width = 100)]
 struct Cli {
     #[command(subcommand)]
     command: Command,
@@ -68,7 +68,7 @@ enum Command {
     /// Generate a deterministic multi-frame test signal with seeded
     /// impairments (noise SNR, amplitude, inter-frame gaps): a WAV
     /// file, or raw s16le PCM on stdout with `--out -`. Feeds decoders
-    /// and benchmarks without a radio; pairs with `warble bench`.
+    /// and benchmarks without a radio; pairs with `yodel bench`.
     Gen(GenArgs),
     /// Measure decode accuracy over one or more WAV recordings (or
     /// directories of them): per-file and aggregate frame counts, with
@@ -107,7 +107,7 @@ enum Command {
     /// stream. Clipping is reported separately because rms hides it.
     Level(level::LevelArgs),
     /// Key a transmitter over a serial control line (RTS or DTR) while
-    /// a player sends the audio: `warble ptt --port /dev/ttyUSB0 --
+    /// a player sends the audio: `yodel ptt --port /dev/ttyUSB0 --
     /// sox packet.wav -t alsa default`. The player owns playback, so
     /// the line is held for exactly its lifetime; `--hold <MS>` keys
     /// for a fixed time instead, to check an interface before trusting

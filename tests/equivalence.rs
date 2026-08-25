@@ -14,7 +14,7 @@
 //! optimization to bit-exactness permanently.
 #![cfg(all(feature = "demod", feature = "mod"))]
 
-use warble::{BasebandDemodulator, BaudRate, SampleRate, Slicer};
+use yodel::{BasebandDemodulator, BaudRate, SampleRate, Slicer};
 
 /// Reference copy of the pre-optimization baseband filter (modulo ring
 /// indexing). Kept in sync with nothing: this is frozen.

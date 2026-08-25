@@ -1,4 +1,4 @@
-//! `warble bench`: decode-accuracy measurement over WAV recordings
+//! `yodel bench`: decode-accuracy measurement over WAV recordings
 //! with CI-friendly thresholds.
 //!
 //! (`bench` was chosen over `accuracy` for brevity and because "decode
@@ -7,15 +7,15 @@
 
 use clap::Args;
 
-use warble::ax25::UiFrame;
-use warble::demodulator::{AfskDemodulator, DemodulatorConfig};
-use warble::fx25::Fx25Receiver;
-use warble::nrzi::NrziDecoder;
-use warble::tnc::{DefaultTncReceiver, MAX_FRAME_BYTES};
+use yodel::ax25::UiFrame;
+use yodel::demodulator::{AfskDemodulator, DemodulatorConfig};
+use yodel::fx25::Fx25Receiver;
+use yodel::nrzi::NrziDecoder;
+use yodel::tnc::{DefaultTncReceiver, MAX_FRAME_BYTES};
 
 use crate::shared::{ModemArgs, Output, check_wav_spec, wav_samples};
 
-/// Arguments of `warble bench`: decode-accuracy measurement over WAV
+/// Arguments of `yodel bench`: decode-accuracy measurement over WAV
 /// recordings with CI-friendly thresholds.
 #[derive(Args)]
 pub struct BenchArgs {
@@ -25,7 +25,7 @@ pub struct BenchArgs {
     inputs: Vec<String>,
 
     /// Expected frame count per file. Without it, the expectation is
-    /// recovered from the `[i/N]` counter that `warble gen` embeds in
+    /// recovered from the `[i/N]` counter that `yodel gen` embeds in
     /// its frames (when at least one frame decodes).
     #[arg(long, value_name = "N")]
     expect: Option<u32>,
@@ -52,7 +52,7 @@ struct FileResult {
     path: String,
     decoded: u32,
     /// Expected frame count: `--expect` if given, otherwise recovered
-    /// from the `[i/N]` counter `warble gen` embeds; `None` if neither.
+    /// from the `[i/N]` counter `yodel gen` embeds; `None` if neither.
     expected: Option<u32>,
 }
 
@@ -116,7 +116,7 @@ fn expand_inputs(inputs: &[String]) -> Result<Vec<String>, String> {
 }
 
 /// Recovers the total `N` from a trailing `[i/N]` counter in a frame's
-/// info field (the shape `warble gen` emits), if present.
+/// info field (the shape `yodel gen` emits), if present.
 fn counter_total(info: &[u8]) -> Option<u32> {
     let text = std::str::from_utf8(info).ok()?.trim_end();
     let body = text.strip_suffix(']')?;
@@ -184,7 +184,7 @@ fn json_string(s: &str) -> String {
     out
 }
 
-/// Runs `warble bench`: decodes every input, prints the per-file and
+/// Runs `yodel bench`: decodes every input, prints the per-file and
 /// aggregate report, and fails (exit 1) when the aggregate decoded
 /// count falls below `--min`.
 pub fn bench(args: &BenchArgs) -> Result<(), String> {
@@ -208,7 +208,7 @@ pub fn bench(args: &BenchArgs) -> Result<(), String> {
         Some(Threshold::Percent(pct)) => {
             let total = total_expected.ok_or(
                 "--min with a percentage needs an expected frame count for every file: \
-                 pass --expect <N>, or bench recordings made by `warble gen` (whose \
+                 pass --expect <N>, or bench recordings made by `yodel gen` (whose \
                  frames carry their own counter)",
             )?;
             Some(total == 0 || total_decoded as f64 * 100.0 >= pct * total as f64)

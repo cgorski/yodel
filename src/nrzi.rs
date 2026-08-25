@@ -41,7 +41,7 @@
 //! initial state), mirroring the modulator/demodulator adapter style.
 //!
 //! ```
-//! use warble::{Bit, NrziEncoder, NrziDecoder};
+//! use yodel::{Bit, NrziEncoder, NrziDecoder};
 //!
 //! let data = [Bit::One, Bit::Zero, Bit::Zero, Bit::One];
 //! let line: Vec<Bit> = NrziEncoder::default()

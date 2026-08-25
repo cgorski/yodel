@@ -30,8 +30,8 @@
 //! pair outside the transcribed chart must decode to nothing.
 #![cfg(feature = "aprs")]
 
-use warble::aprs::Symbol;
-use warble::aprs::symbol::{from_destination, from_source_ssid, resolve};
+use yodel::aprs::Symbol;
+use yodel::aprs::symbol::{from_destination, from_source_ssid, resolve};
 
 // ---------------------------------------------------------------------
 // The oracle: APRS Symbols Appendix 2, transcribed

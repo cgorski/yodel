@@ -6,12 +6,12 @@
 //!    an ADC/I2S DMA buffer) into the same streaming decoder as
 //!    [`demod`](crate::demod).
 //! 2. For every FCS-valid UI frame, asks the LIBRARY's digipeater core
-//!    — [`warble::digipeat::relay_decision`] — whether the frame's
+//!    — [`yodel::digipeat::relay_decision`] — whether the frame's
 //!    path addresses us: the served-alias table is our own callsign
 //!    (exact match) plus a WIDEn-N policy with a max-n limit
-//!    ([`warble::digipeat::WideLimit`], refuse `WIDE3+` floods).
+//!    ([`yodel::digipeat::WideLimit`], refuse `WIDE3+` floods).
 //! 3. Suppresses duplicates with the library's
-//!    [`warble::digipeat::DupeRing`]: the same transmission heard
+//!    [`yodel::digipeat::DupeRing`]: the same transmission heard
 //!    twice within the window (default 30 s) is relayed once. The ring
 //!    is timestamped with **caller-supplied monotonic milliseconds** —
 //!    see "YOUR TIMER HERE" below.
@@ -34,7 +34,7 @@
 //! with ONE radio, so it can never do both at once. When
 //! [`Digipeater::feed`] hands you rendered TX samples:
 //!
-//! 1. **Wait for a clear channel.** Seam note: warble's demodulator
+//! 1. **Wait for a clear channel.** Seam note: yodel's demodulator
 //!    does not expose a carrier-detect (DCD) signal today, so you have
 //!    three options, crudest first:
 //!      * **Just delay** a short random back-off (e.g. 200–800 ms)
@@ -70,13 +70,13 @@
 //! other HAL, a wrapping 64-bit tick counter works. Resolution is
 //! uncritical — the dupe window is tens of seconds.
 
-use warble::SampleRate;
-use warble::ax25::UiFrame;
-use warble::digipeat::{
+use yodel::SampleRate;
+use yodel::ax25::UiFrame;
+use yodel::digipeat::{
     Alias, DupeRing, ExactAliasAction, Freshness, RelayDecision, WideLimit, relay_decision,
 };
-use warble::tnc::{MAX_FRAME_BYTES, RxFrame, TncConfig, TncTransmitter};
-use warble::{ConfigError, ax25::Address};
+use yodel::tnc::{MAX_FRAME_BYTES, RxFrame, TncConfig, TncTransmitter};
+use yodel::{ConfigError, ax25::Address};
 
 use crate::demod::AprsDecoder;
 
@@ -220,7 +220,7 @@ impl Digipeater {
 
     /// Receive-side statistics from the underlying decoder.
     #[must_use]
-    pub fn rx_stats(&self) -> warble::tnc::TncStats {
+    pub fn rx_stats(&self) -> yodel::tnc::TncStats {
         self.decoder.stats()
     }
 }
@@ -248,8 +248,8 @@ fn relay_one(
     // --- 1. The library's relay decision -----------------------------
     // Collect the received per-hop H bits into a fixed array (the path
     // is at most MAX_DIGIPEATERS hops; `hops()` cannot yield more).
-    use warble::ax25::frame::MAX_DIGIPEATERS;
-    let mut heard = [warble::ax25::PathHop::unused(my_call); MAX_DIGIPEATERS];
+    use yodel::ax25::frame::MAX_DIGIPEATERS;
+    let mut heard = [yodel::ax25::PathHop::unused(my_call); MAX_DIGIPEATERS];
     let mut hop_count = 0usize;
     for hop in frame.ui_frame().hops() {
         if let Some(slot) = heard.get_mut(hop_count) {
@@ -324,9 +324,9 @@ fn relay_one(
 // #![no_main]
 //
 // use esp_hal::main;
-// use warble::ax25::Address;
-// use warble::digipeat::WideLimit;
-// use warble_esp32_riscv_examples::digipeater::{Digipeater, MAX_RELAY_SAMPLES};
+// use yodel::ax25::Address;
+// use yodel::digipeat::WideLimit;
+// use yodel_esp32_riscv_examples::digipeater::{Digipeater, MAX_RELAY_SAMPLES};
 //
 // // TX buffer in a static: 64 KiB is too big for the default stack.
 // static mut TX_PCM: [i16; MAX_RELAY_SAMPLES] = [0; MAX_RELAY_SAMPLES];

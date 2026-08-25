@@ -1,4 +1,4 @@
-# warble
+# yodel
 
 An amateur radio digital stack in Rust, from PCM samples up to decoded
 APRS, with the whole core `#![no_std]`, `#![forbid(unsafe_code)]`,
@@ -39,7 +39,7 @@ microcontroller and for a workstation:
   [RTIC](examples/balloon_tracker_rtic.rs), and a real
   [ESP32-C3 RISC-V board](examples/esp32-riscv/) with a hardware guide.
   `scripts/check-embedded.sh` cross-builds every `no_std` feature set.
-* **Desktop too.** A `warble` command-line tool decodes and encodes WAV
+* **Desktop too.** A `yodel` command-line tool decodes and encodes WAV
   files or live audio pipes, runs as a KISS TNC over TCP or stdio, keys a
   transmitter over a serial line, meters your receive level, reads the
   live APRS-IS feed, and generates seeded test signals for benchmarking.
@@ -75,16 +75,16 @@ information from one that chose a different legal spelling, and a written
 account of what each measurement cannot see.
 
 ```sh
-cargo add warble --features tnc          # library: samples to packets
-cargo install warble --features cli      # the command-line tool
+cargo add yodel --features tnc          # library: samples to packets
+cargo install yodel --features cli      # the command-line tool
 ```
 
 ```sh
 # Decode a recording, one line per frame.
-warble decode traffic.wav
+yodel decode traffic.wav
 
 # Build a position beacon and write it as audio.
-warble encode --from N0CALL-9 --lat 39.1 --lon -94.6 --out beacon.wav
+yodel encode --from N0CALL-9 --lat 39.1 --lon -94.6 --out beacon.wav
 ```
 
 ## Design
@@ -142,8 +142,8 @@ buffer or returns a collection.
 | `ft8`   | FT8: documented message subset (standard `i3=1` + free text) → CRC-14 → LDPC(174,91) → 79 Gray/Costas channel symbols → GFSK-shaped continuous-phase 8-FSK audio; no_std RX math (Gray-demap LLRs, hard-capped LDPC min-sum decoder, CRC verify, unpack); with `std` also the buffered `Ft8Decoder` receive engine | — (standalone; RX engine needs `std`) | TX + decode math | no      |
 | `m17`   | M17 **packet mode**: base-40 callsign addressing, Link Setup Frame + packet frames (CRC-16 0x5935), K=5 r=1/2 convolutional FEC with P1/P3 puncturing, QPP interleaver, decorrelator, Golay(24,12), and a 4-level RRC-shaped 4800 sym/s baseband modem (TX + RX). Voice (Codec2) is out of scope | — (standalone) | yes | no |
 | `tnc`   | High-level TNC pipeline: `AprsPacket` ⇄ PCM samples in one type each way | `aprs`, `mod`, `demod` | yes  | no      |
-| `ptt`   | Serial PTT for `warble ptt` — assert RTS or DTR to key a transmitter. The one feature that can put a signal on the air by itself, so its failure mode is deassert | `std` | no | no |
-| `cli`   | The `warble` command-line binary (encode/decode WAV files)              | `wav`, `tnc`, `micE`, `kiss`, `fx25`, `il2p`, `wspr`, `ft8`, `m17`, `ptt` | no | no    |
+| `ptt`   | Serial PTT for `yodel ptt` — assert RTS or DTR to key a transmitter. The one feature that can put a signal on the air by itself, so its failure mode is deassert | `std` | no | no |
+| `cli`   | The `yodel` command-line binary (encode/decode WAV files)              | `wav`, `tnc`, `micE`, `kiss`, `fx25`, `il2p`, `wspr`, `ft8`, `m17`, `ptt` | no | no    |
 | `capture` | Sound-card input via `cpal` for `examples/live_capture.rs` only — never a library dependency | `std` | no | no |
 | `async` | Tokio adapters (`asynk`): frame `Stream`s, one-call KISS server, concurrent many-feeds decoder | `std`, `tnc`, `kiss` | no | no |
 | `embassy` | Embassy adapters (`embassy`): an async chunk-drain decode loop over `SampleRing` + `TncReceiver`, and a periodic-TX ticker. Pulls only `embassy-time` | `tnc` | yes | no |
@@ -211,9 +211,9 @@ APRS payload            position / status / message / weather / telemetry
 
 Each layer is independently usable. With `aprs` plus the `mod` / `demod`
 DSP features, glue helpers wire the whole stack together:
-`warble::aprs::build_ui_frame` plus `warble::ax25::tx_i16` on the way
-down, and `warble::ax25::FrameReceiver` plus
-`warble::aprs::packet_from_ui` on the way up. All of it stays `no_std`
+`yodel::aprs::build_ui_frame` plus `yodel::ax25::tx_i16` on the way
+down, and `yodel::ax25::FrameReceiver` plus
+`yodel::aprs::packet_from_ui` on the way up. All of it stays `no_std`
 and allocation-free: builders serialize into caller-provided buffers,
 parsers borrow from the input, and the transmit path is a lazy iterator
 chain. The `tnc` feature packages both directions into two types,
@@ -227,10 +227,10 @@ generate `i16` PCM samples (requires the `tnc` feature):
 ```rust
 # #[cfg(feature = "tnc")]
 # fn main() -> Result<(), Box<dyn std::error::Error>> {
-use warble::SampleRate;
-use warble::aprs::{AprsPacket, Latitude, Longitude, Position, Symbol};
-use warble::ax25::Address;
-use warble::tnc::{TncConfig, TncTransmitter};
+use yodel::SampleRate;
+use yodel::aprs::{AprsPacket, Latitude, Longitude, Position, Symbol};
+use yodel::ax25::Address;
+use yodel::tnc::{TncConfig, TncTransmitter};
 
 // 49° 03.50' N, 072° 01.75' W, shown as a car on the map.
 let packet = AprsPacket::Position(
@@ -239,7 +239,7 @@ let packet = AprsPacket::Position(
         Longitude::from_degrees(-72.0292)?,
         Symbol::CAR,
     )
-    .with_comment(b"warble"),
+    .with_comment(b"yodel"),
 );
 
 let tx = TncTransmitter::new(TncConfig::bell_202(SampleRate::new(48_000)?)?);
@@ -277,7 +277,7 @@ from a decimal:
 ```rust
 # fn main() -> Result<(), Box<dyn std::error::Error>> {
 # #[cfg(feature = "aprs")] {
-use warble::aprs::{Latitude, Longitude, Position, Symbol};
+use yodel::aprs::{Latitude, Longitude, Position, Symbol};
 
 // Out-of-spec symbol bytes seen on air still round-trip exactly.
 let odd = Position::new(Latitude::new(0)?, Longitude::new(0)?, Symbol::from_wire(0x01, 0xFF));
@@ -292,15 +292,15 @@ assert_eq!(&buf[..len], b"!0000.00N/00000.00E>");
 ```
 
 Without the `tnc` glue, the same stack is available layer by layer:
-`warble::aprs::build_ui_frame` plus `warble::ax25::tx_i16` compose the
+`yodel::aprs::build_ui_frame` plus `yodel::ax25::tx_i16` compose the
 identical transmit chain (requires `aprs` and `mod`):
 
 ```rust
 # #[cfg(all(feature = "aprs", feature = "mod"))]
 # fn main() -> Result<(), Box<dyn std::error::Error>> {
-use warble::aprs::{AprsPacket, Latitude, Longitude, Position, Symbol, build_ui_frame};
-use warble::ax25::{Address, tx_i16};
-use warble::{Modulator, ModulatorConfig, SampleRate};
+use yodel::aprs::{AprsPacket, Latitude, Longitude, Position, Symbol, build_ui_frame};
+use yodel::ax25::{Address, tx_i16};
+use yodel::{Modulator, ModulatorConfig, SampleRate};
 
 // 49° 03.50' N, 072° 01.75' W, shown as a car on the map.
 let packet = AprsPacket::Position(
@@ -309,7 +309,7 @@ let packet = AprsPacket::Position(
         Longitude::from_degrees(-72.0292)?,
         Symbol::CAR,
     )
-    .with_comment(b"warble"),
+    .with_comment(b"yodel"),
 );
 
 let mut info_buf = [0u8; 64];
@@ -341,17 +341,17 @@ HDLC deframer, FCS check, UI-frame parse) and decode the APRS packet
 ```rust
 # #[cfg(feature = "tnc")]
 # fn main() -> Result<(), Box<dyn std::error::Error>> {
-use warble::SampleRate;
-use warble::aprs::{AprsPacket, Status};
-use warble::ax25::Address;
-use warble::tnc::{DefaultTncReceiver, TncConfig, TncReceiver, TncTransmitter};
+use yodel::SampleRate;
+use yodel::aprs::{AprsPacket, Status};
+use yodel::ax25::Address;
+use yodel::tnc::{DefaultTncReceiver, TncConfig, TncReceiver, TncTransmitter};
 
 let cfg = TncConfig::bell_202(SampleRate::new(48_000)?)?;
 let tx = TncTransmitter::new(cfg);
 
 // A minimal on-air signal: a status-report UI frame, modulated.
 let packet = AprsPacket::Status(Status {
-    text: b"warble on the air",
+    text: b"yodel on the air",
 });
 let mut info_buf = [0u8; 64];
 let mut frame_buf = [0u8; 330];
@@ -371,7 +371,7 @@ for sample in samples {
     if let Some(frame) = rx.push_i16(sample) {
         assert_eq!(frame.src().callsign.as_bytes(), b"N0CALL");
         match frame.aprs()? {
-            AprsPacket::Status(s) => assert_eq!(s.text, b"warble on the air"),
+            AprsPacket::Status(s) => assert_eq!(s.text, b"yodel on the air"),
             _ => panic!("expected a status report"),
         }
         packets += 1;
@@ -395,13 +395,13 @@ bits. Frames are therefore built from the encoded destination via
 ```rust
 # #[cfg(all(feature = "tnc", feature = "micE"))]
 # fn main() -> Result<(), Box<dyn std::error::Error>> {
-use warble::SampleRate;
-use warble::aprs::{
+use yodel::SampleRate;
+use yodel::aprs::{
     Latitude, LatitudeHemisphere, Longitude, LongitudeHemisphere, MicE, MicEFix, MicEMessage,
     Symbol,
 };
-use warble::ax25::Address;
-use warble::tnc::{DefaultTncReceiver, TncConfig, TncReceiver, TncTransmitter};
+use yodel::ax25::Address;
+use yodel::tnc::{DefaultTncReceiver, TncConfig, TncReceiver, TncTransmitter};
 
 let report = MicE::new(
     // Mic-E carries hundredths of an arc-minute, so the position is
@@ -452,7 +452,7 @@ and a streaming deframer with typed errors:
 ```rust
 # #[cfg(feature = "kiss")]
 # fn main() -> Result<(), Box<dyn std::error::Error>> {
-use warble::kiss::{KissCommand, KissDeframer, KissPort, encode_into};
+use yodel::kiss::{KissCommand, KissDeframer, KissPort, encode_into};
 
 // Encode an AX.25 frame body as a KISS data frame on port 0.
 let payload = [0x82, 0xC0, 0x7E]; // 0xC0 (FEND) gets escaped
@@ -479,14 +479,14 @@ assert_eq!(frames, 1);
 
 ## Command-line tool
 
-The `cli` feature builds the `warble` binary, which encodes APRS
+The `cli` feature builds the `yodel` binary, which encodes APRS
 packets into 16-bit mono PCM WAV files and decodes them back:
 
 ```sh
 # Encode a position report to a WAV file.
 cargo run --features cli -- encode --out beacon.wav \
     --from N0CALL-7 --to APRS --path WIDE1-1 --sample-rate 48000 \
-    position --lat 49.0583 --lon -72.0292 --symbol '/>' --comment 'warble'
+    position --lat 49.0583 --lon -72.0292 --symbol '/>' --comment 'yodel'
 
 # Encode a directed message.
 cargo run --features cli -- encode --out msg.wav \
@@ -499,7 +499,7 @@ cargo run --features cli -- decode beacon.wav
 ```
 
 The parser is clap-based: every subcommand has a detailed
-`--help` (e.g. `warble encode --help`) listing value ranges and
+`--help` (e.g. `yodel encode --help`) listing value ranges and
 defaults. Optional modem knobs on both `encode` and `decode`:
 
 - `--preset <bell202|hf300|bell103|bell103-answer|g3ruh>` selects the
@@ -535,33 +535,33 @@ values (out-of-range coordinate, unreadable WAV) exit with code 1.
 
 ### JSON Lines output (`decode --output-format jsonl`)
 
-`warble decode` prints a human monitor line by default. Pass
+`yodel decode` prints a human monitor line by default. Pass
 `--output-format jsonl` and it prints **JSON Lines** (NDJSON) instead:
 one self-contained JSON object per decoded frame, one per line, no
 enclosing array, so the stream pipes straight into `jq`, a log shipper
 or a database `COPY`. The feature adds no dependency: the writer lives
-in the binary (`src/bin/warble/json.rs`) and the library core remains
+in the binary (`src/bin/yodel/json.rs`) and the library core remains
 zero-dependency and `no_std`.
 
 ```sh
 # One JSON object per frame on stdout; statistics still on stderr.
-warble decode --output-format jsonl traffic.wav
+yodel decode --output-format jsonl traffic.wav
 
 # Every station that reported a position, with its coordinates.
-warble decode --output-format jsonl traffic.wav \
+yodel decode --output-format jsonl traffic.wav \
   | jq -r 'select(.kind=="position" or .kind=="mic_e")
            | [.src, .[.kind].lat_deg, .[.kind].lon_deg] | @tsv'
 
 # Which data types are on the channel, most common first.
-warble decode --output-format jsonl traffic.wav \
+yodel decode --output-format jsonl traffic.wav \
   | jq -r .kind | sort | uniq -c | sort -rn
 
 # Frames this crate could not parse, with the reason.
-warble decode --output-format jsonl traffic.wav \
+yodel decode --output-format jsonl traffic.wav \
   | jq -r 'select(.error) | [.src, .error, .info] | @tsv'
 
 # Rebuild the TNC2 monitor path from the structured one.
-warble decode --output-format jsonl traffic.wav \
+yodel decode --output-format jsonl traffic.wav \
   | jq -r '[.src, ">", .dst] + [.path[] | "," + .call + (if .repeated then "*" else "" end)]
            | add'
 ```
@@ -698,7 +698,7 @@ String escaping: `"` and `\`; the short forms `\b \t \n \f \r`; every
 other C0 control and DEL (0x7f) as `\u00xx`. Everything else, including
 non-ASCII, is emitted verbatim as UTF-8.
 
-`warble serve` has no `--output-format`. In `--stdio` mode its stdout
+`yodel serve` has no `--output-format`. In `--stdio` mode its stdout
 already carries the binary KISS frame stream, and in TCP mode frames go
 to the sockets, so interleaving NDJSON would corrupt the channel. Use
 `decode` for a readable stream and `serve` for a TNC.
@@ -761,7 +761,7 @@ N0CALL-7>APRS,WIDE1-1,qAR,IGATE-1:!4903.50N/07201.75W-hi
 └─src──┘ └dst┘ └───── path ─────┘ └────── information ──┘
 ```
 
-`warble::aprs::monitor::MonitorLine` parses that line, and `decoded()`
+`yodel::aprs::monitor::MonitorLine` parses that line, and `decoded()`
 hands the information field to the same total decoder the audio path
 uses. Addresses stay as text, because APRS-IS is not bound by AX.25
 rules and forcing them through `Address` would reject the traffic worth
@@ -770,7 +770,7 @@ the APRS layer.
 
 ```rust
 # #[cfg(feature = "aprs")] {
-use warble::aprs::monitor::MonitorLine;
+use yodel::aprs::monitor::MonitorLine;
 
 let line = MonitorLine::parse(b"N0CALL-7>APRS,WIDE1-1,qAR,IGATE-1:>hello")?;
 assert_eq!(line.source, b"N0CALL-7");
@@ -779,7 +779,7 @@ assert_eq!(line.q_construct(), Some(&b"qAR"[..]));  // how it entered APRS-IS
 assert_eq!(line.igate(), Some(&b"IGATE-1"[..]));    // which station gated it
 assert!(line.is_from_rf());                          // qAR means heard on a radio
 # }
-# Ok::<(), warble::aprs::AprsError>(())
+# Ok::<(), yodel::aprs::AprsError>(())
 ```
 
 Two examples build on this.
@@ -790,20 +790,20 @@ and decodes packets with no radio, sound card or network involved.
 
 ### Reading the live feed (`aprsis`)
 
-`warble aprsis` is the same connection as a subcommand, writing raw
+`yodel aprsis` is the same connection as a subcommand, writing raw
 TNC2 lines rather than statistics, so it composes with `decode --tnc2`:
 
 ```sh
 # A slice of the traffic: 250 km around Kansas City, 12 packets.
-warble aprsis --callsign N0CALL --filter 'r/39.1/-94.6/250' --count 12
+yodel aprsis --callsign N0CALL --filter 'r/39.1/-94.6/250' --count 12
 
 # The unfiltered feed for five minutes, into a capture file.
-warble aprsis --callsign N0CALL --full-feed --seconds 300 --out capture.txt
-warble decode --tnc2 --verify-rebuild capture.txt
+yodel aprsis --callsign N0CALL --full-feed --seconds 300 --out capture.txt
+yodel decode --tnc2 --verify-rebuild capture.txt
 
 # Or as one pipeline, with no file in between.
-warble aprsis --callsign N0CALL --full-feed --count 200 | \
-    warble decode --tnc2 --output-format jsonl -
+yodel aprsis --callsign N0CALL --full-feed --count 200 | \
+    yodel decode --tnc2 --output-format jsonl -
 ```
 
 The login passcode is the constant `-1`, which every server treats as
@@ -832,12 +832,12 @@ rotate addresses load-balance across many volunteers' servers.
 ### Setting the receive level (`level`)
 
 A radio's volume knob is the only receive-level control most interfaces
-have, and it gives no feedback. `warble level` reads the same stdin PCM
+have, and it gives no feedback. `yodel level` reads the same stdin PCM
 every other subcommand takes and reports what the modem will see:
 
 ```sh
 ffmpeg -f avfoundation -i ":2" -ar 44100 -f s16le - \
-  | warble level --rate 44100 --until-good 3 -
+  | yodel level --rate 44100 --until-good 3 -
 ```
 
 ```text
@@ -869,21 +869,21 @@ has to be asserted before the first sample reaches the air and released
 after the last one, and a process writing PCM into a pipe knows
 neither moment, because the player downstream buffers.
 
-So `warble ptt` runs the player and holds the line for exactly its
+So `yodel ptt` runs the player and holds the line for exactly its
 lifetime:
 
 ```sh
 # Build a packet, then transmit it: key, play, unkey.
-warble encode --out beacon.wav --from N0CALL --to APRS \
+yodel encode --out beacon.wav --from N0CALL --to APRS \
   position --lat 43.632334 --lon -70.230565 --comment "beacon"
 
-warble ptt --port /dev/ttyUSB0 -- sox beacon.wav -t alsa default
+yodel ptt --port /dev/ttyUSB0 -- sox beacon.wav -t alsa default
 
 # Check the interface keys at all, before trusting it with audio.
-warble ptt --port /dev/ttyUSB0 --hold 2000
+yodel ptt --port /dev/ttyUSB0 --hold 2000
 
 # Which ports can this machine see?
-warble ptt --list
+yodel ptt --list
 ```
 
 `--signal dtr` uses DTR instead of RTS, `--invert` keys on the line
@@ -897,12 +897,12 @@ kills a hung player and drops the line rather than let a stuck
 transmitter jam a shared channel. One hazard worth knowing about, since
 it bites silently: **some USB-serial drivers assert RTS the moment the
 port is opened**, which keys a wired-up radio before any program logic
-runs. `warble ptt` drops both control lines immediately after opening;
+runs. `yodel ptt` drops both control lines immediately after opening;
 other tools may not.
 
 ## Live decode from your sound card
 
-`warble decode -` reads audio from stdin instead of a WAV file, so any
+`yodel decode -` reads audio from stdin instead of a WAV file, so any
 capture tool that can write raw PCM to a pipe becomes a live front
 end. Two stdin forms are accepted:
 
@@ -913,7 +913,7 @@ end. Two stdin forms are accepted:
   is read continuously until EOF, so a live pipe works as it stands.
 - **WAV**: a stream starting with a `RIFF` header is decoded as a WAV
   file, taking rate and format from the header with no flags needed,
-  as in `warble decode - < beacon.wav`.
+  as in `yodel decode - < beacon.wav`.
 
 Pipe recipes, all capturing s16le mono at 48 kHz from the default
 input device (build the binary once with
@@ -921,15 +921,15 @@ input device (build the binary once with
 
 ```sh
 # ALSA capture (Linux): -t raw -f S16_LE -c 1, rate 48000.
-arecord -t raw -f S16_LE -c 1 -r 48000 | warble decode --sample-rate 48000 -
+arecord -t raw -f S16_LE -c 1 -r 48000 | yodel decode --sample-rate 48000 -
 
 # sox: record from the default device, convert to s16le mono on the fly.
 rec -t raw -b 16 -e signed-integer -L -c 1 -r 48000 - | \
-    warble decode --sample-rate 48000 -
+    yodel decode --sample-rate 48000 -
 
 # ffmpeg: any input it can open (here an ALSA device), downmixed to mono.
 ffmpeg -f alsa -i default -f s16le -ac 1 -ar 48000 - | \
-    warble decode --sample-rate 48000 -
+    yodel decode --sample-rate 48000 -
 ```
 
 **Sample-rate matching.** The audio on a radio's speaker or line
@@ -995,27 +995,27 @@ TNC. Each AX.25 frame is wrapped between `0xC0` delimiter bytes with a
 one-byte command header and two escape sequences, and the specification
 goes little further than that. The TNC does the modem work and the host
 does everything above it. KISS is the common language of APRS clients such as Xastir,
-YAAC and APRSdroid, so speaking it makes `warble` a drop-in modem for
-any of them. `warble serve` binds the crate's `kiss` framing layer to a
+YAAC and APRSdroid, so speaking it makes `yodel` a drop-in modem for
+any of them. `yodel serve` binds the crate's `kiss` framing layer to a
 transport and bridges it to audio:
 
 ```sh
 # TCP: serve KISS on a local port; decode replayed (or piped-in live)
 # audio to every connected client, modulate client frames to TX audio.
-warble serve --tcp 127.0.0.1:8001 --input rx.wav --output tx.wav
+yodel serve --tcp 127.0.0.1:8001 --input rx.wav --output tx.wav
 
 # Live RX audio via a pipe (same recipes as `decode -`), TX as raw
 # PCM on stdout into a playback tool. Stdin is sniffed exactly like
 # `decode -`: a WAV header sets the rate itself (no --sample-rate
 # needed); raw s16le PCM requires it.
 arecord -t raw -f S16_LE -c 1 -r 48000 | \
-    warble serve --tcp 127.0.0.1:8001 --sample-rate 48000 --input - --output - | \
+    yodel serve --tcp 127.0.0.1:8001 --sample-rate 48000 --input - --output - | \
     aplay -t raw -f S16_LE -c 1 -r 48000
 
 # stdio: one KISS stream on stdin/stdout (the classic direct-attach
 # shape — point a host application straight at the process). The
 # audio edges must be files in this mode.
-warble serve --stdio --input rx.wav --output tx.wav
+yodel serve --stdio --input rx.wav --output tx.wav
 ```
 
 To connect an APRS application, configure it for a "network KISS
@@ -1039,20 +1039,20 @@ setup failure; 2 for usage errors. The bridge is plain `std::net` and
 `std::thread` with bounded channels, and uses no async runtime. The
 next section covers the async option.
 
-### Using warble from async (tokio)
+### Using yodel from async (tokio)
 
 Enable the `async` feature and the plumbing is done for you:
 
 ```toml
 [dependencies]
-warble = { version = "0.1", features = ["async", "wav"] }
+yodel = { version = "0.1", features = ["async", "wav"] }
 tokio-stream = "0.1"
 ```
 
 ```rust,ignore
 use tokio_stream::StreamExt;
 
-let mut frames = std::pin::pin!(warble::asynk::decode_wav("rx.wav"));
+let mut frames = std::pin::pin!(yodel::asynk::decode_wav("rx.wav"));
 while let Some(frame) = frames.next().await {
     println!("{}", String::from_utf8_lossy(frame?.info()));
 }
@@ -1063,13 +1063,13 @@ frame tagged with the feed it came from:
 
 ```rust,ignore
 let cfg = TncConfig::bell_202(SampleRate::new(48_000)?)?;
-let mut frames = std::pin::pin!(warble::asynk::decode_many(feeds, cfg));
+let mut frames = std::pin::pin!(yodel::asynk::decode_many(feeds, cfg));
 while let Some((feed, frame)) = frames.next().await {
     database.insert(feed, frame?).await?; // slow sink stalls the decoders
 }
 ```
 
-`warble::asynk` also has `frames(reader, cfg)` for a single
+`yodel::asynk` also has `frames(reader, cfg)` for a single
 `AsyncRead` of raw s16le PCM and `serve_kiss(listener, frames)`, a
 one-call KISS-over-TCP broadcast server. Inside each adapter the DSP
 runs on `spawn_blocking` rather than on the reactor, and every channel
@@ -1084,7 +1084,7 @@ most capture tools emit, decodes with `asynk::frames` over
 
 ```rust,ignore
 let cfg = TncConfig::bell_202(SampleRate::new(48_000)?)?;
-let mut frames = std::pin::pin!(warble::asynk::frames(tokio::io::stdin(), cfg));
+let mut frames = std::pin::pin!(yodel::asynk::frames(tokio::io::stdin(), cfg));
 while let Some(frame) = frames.next().await {
     println!("{}", String::from_utf8_lossy(frame?.info()));
 }
@@ -1098,7 +1098,7 @@ contradicts a WAV header raises an error rather than a silent guess:
 
 ```rust,ignore
 let rate = SampleRate::new(48_000).ok(); // applies only if raw
-let mut frames = std::pin::pin!(warble::asynk::decode_stream(
+let mut frames = std::pin::pin!(yodel::asynk::decode_stream(
     tokio::io::stdin(),
     rate,
 ));
@@ -1110,7 +1110,7 @@ while let Some(frame) = frames.next().await {
 And without writing any code, the CLI does the same intake:
 
 ```sh
-your-capture-tool | warble decode - --sample-rate 48000
+your-capture-tool | yodel decode - --sample-rate 48000
 ```
 
 One crate therefore covers the whole stack, from a bare-metal `no_std`
@@ -1141,13 +1141,13 @@ Named presets:
 | `ModemProfile::G3RUH_9600` (`g3ruh` feature) | 9600 | scrambled baseband (no tones) | 9600-baud packet |
 
 ```rust
-use warble::{ModemProfile, SampleRate};
+use yodel::{ModemProfile, SampleRate};
 let rate = SampleRate::new(48_000)?;
 let profile = ModemProfile::HF_APRS_300;
 assert_eq!(profile.baud().bps(), 300);
 # #[cfg(feature = "tnc")]
-# { let _ = warble::tnc::TncConfig::from_profile(rate, profile)?; }
-# Ok::<(), warble::ConfigError>(())
+# { let _ = yodel::tnc::TncConfig::from_profile(rate, profile)?; }
+# Ok::<(), yodel::ConfigError>(())
 ```
 
 The CLI mirrors this with `--preset bell202|hf300|bell103|bell103-answer|g3ruh`
@@ -1233,12 +1233,12 @@ correlator, tolerating one bit error. It is kept separate from
 
 ```rust
 # #[cfg(all(feature = "il2p", feature = "mod", feature = "demod"))] {
-use warble::SampleRate;
-use warble::ax25::{Address, UiFrame};
-use warble::demodulator::{AfskDemodulator, DemodulatorConfig};
-use warble::il2p::{self, ENCODED_MAX, Il2pParity, Il2pReceiver};
-use warble::modulator::{Modulator, ModulatorConfig};
-use warble::nrzi::{self, NrziDecoder};
+use yodel::SampleRate;
+use yodel::ax25::{Address, UiFrame};
+use yodel::demodulator::{AfskDemodulator, DemodulatorConfig};
+use yodel::il2p::{self, ENCODED_MAX, Il2pParity, Il2pReceiver};
+use yodel::modulator::{Modulator, ModulatorConfig};
+use yodel::nrzi::{self, NrziDecoder};
 
 let rate = SampleRate::new(48_000)?;
 let frame = UiFrame::new(
@@ -1293,11 +1293,11 @@ Generate a beacon WAV and decode it back with the CLI (built with
 ```sh
 # One transmission: K1ABC in FN42 at 37 dBm (5 W), tone 0 at 1500 Hz,
 # written as a ~110.6 s 16-bit mono WAV at 12 kHz.
-warble wspr gen --callsign K1ABC --grid FN42 --power 37 -o beacon.wav
+yodel wspr gen --callsign K1ABC --grid FN42 --power 37 -o beacon.wav
 
 # Decode a 12 kHz capture (≥ ~110.6 s): one line per decoded signal
 # with frequency, time offset and quality metrics.
-warble wspr decode beacon.wav
+yodel wspr decode beacon.wav
 # K1ABC FN42 37 dBm | freq 1500.0 Hz | dt 0.00 s | snr 12 dB | sync 1.00
 ```
 
@@ -1312,9 +1312,9 @@ engine):
 ```rust
 # #[cfg(all(feature = "wspr", feature = "std"))]
 # fn main() -> Result<(), Box<dyn std::error::Error>> {
-use warble::SampleRate;
-use warble::geo::MaidenheadGrid;
-use warble::wspr::{
+use yodel::SampleRate;
+use yodel::geo::MaidenheadGrid;
+use yodel::wspr::{
     WsprConfig, WsprDecoder, WsprDecoderConfig, WsprMessage, WsprModulator,
 };
 
@@ -1407,14 +1407,14 @@ with `--features cli`):
 ```sh
 # One transmission: "CQ K1ABC FN42", tone 0 at 1500 Hz, written as a
 # ~12.64 s 16-bit mono WAV at 12 kHz.
-warble ft8 gen --message "CQ K1ABC FN42" -o cq.wav
+yodel ft8 gen --message "CQ K1ABC FN42" -o cq.wav
 
 # Free text instead of a standard exchange:
-warble ft8 gen --message "TNX BOB 73 GL" --free-text -o tnx.wav
+yodel ft8 gen --message "TNX BOB 73 GL" --free-text -o tnx.wav
 
 # Decode a 12 kHz capture (≥ ~12.64 s): one line per decoded signal
 # with frequency, time offset and quality metrics.
-warble ft8 decode cq.wav
+yodel ft8 decode cq.wav
 # CQ K1ABC FN42 | freq 1500.0 Hz | dt 0.00 s | snr 21 dB | sync 0.87
 ```
 
@@ -1429,8 +1429,8 @@ engine):
 ```rust
 # #[cfg(all(feature = "ft8", feature = "std"))]
 # fn main() -> Result<(), Box<dyn std::error::Error>> {
-use warble::SampleRate;
-use warble::ft8::{
+use yodel::SampleRate;
+use yodel::ft8::{
     Ft8Config, Ft8Decoder, Ft8DecoderConfig, Ft8Message, Ft8Modulator, Ft8Tail,
 };
 
@@ -1500,8 +1500,8 @@ yields; the RF 4FSK itself happens inside the radio.
 
 ```rust
 # #[cfg(feature = "m17")] {
-use warble::SampleRate;
-use warble::m17::{Address, Lsf, M17FrameEvent, M17PacketTx, M17Receiver, PacketAssembler};
+use yodel::SampleRate;
+use yodel::m17::{Address, Lsf, M17FrameEvent, M17PacketTx, M17Receiver, PacketAssembler};
 
 let lsf = Lsf::packet_data(Address::broadcast(), Address::from_callsign("N0CALL")?, 0);
 let sr = SampleRate::new(48_000)?;
@@ -1532,11 +1532,11 @@ support; `m17` rides the `cli` aggregate feature like `wspr`/`ft8`):
 
 ```sh
 # One packet transmission (preamble + LSF + frames + EOT), 48 kHz WAV:
-warble m17 gen --src N0CALL --dst BROADCAST --text "Hello, M17!" -o m17.wav
+yodel m17 gen --src N0CALL --dst BROADCAST --text "Hello, M17!" -o m17.wav
 
 # Decode a 48 kHz capture: LSF addresses + payload on stdout, FEC
 # statistics (LSF / packet-frame counts) on stderr.
-warble m17 decode m17.wav
+yodel m17 decode m17.wav
 # LSF: N0CALL -> @ALL | type 0x0002 | CAN 0
 # payload: Hello, M17!
 ```
@@ -1626,9 +1626,9 @@ cargo run --example aprs_offline --features std,aprs,micE
 
 **Copying one into your own crate?** The examples that read or write
 `.wav` files use the [`hound`](https://crates.io/crates/hound) crate
-directly for the file I/O. warble's own `wav` feature covers
-`warble::wav::{decode_frames, sniff_pcm, ...}`, but it does not
-re-export a WAV writer, so add `hound = "3"` alongside `warble` if you
+directly for the file I/O. yodel's own `wav` feature covers
+`yodel::wav::{decode_frames, sniff_pcm, ...}`, but it does not
+re-export a WAV writer, so add `hound = "3"` alongside `yodel` if you
 lift that part. Everything touching the modem itself needs only the
 features named in each command above, and the examples that work on raw
 PCM (`decode_pcm_tokio` and `embedded_modem`) have no such dependency.
@@ -1664,7 +1664,7 @@ silently is traced and explained at your desk, with no radio involved.
 Modulating bits into PCM samples:
 
 ```rust
-use warble::{Bit, Modulator, ModulatorConfig, SampleRate};
+use yodel::{Bit, Modulator, ModulatorConfig, SampleRate};
 
 let config = ModulatorConfig::bell_202(SampleRate::new(48_000)?)?;
 let bits = [Bit::One, Bit::Zero, Bit::One];
@@ -1672,13 +1672,13 @@ let samples: Vec<i16> = Modulator::new(config)
     .i16_samples(bits.into_iter())
     .collect();
 assert_eq!(samples.len(), 3 * 40); // 48000 / 1200 = 40 samples per bit
-# Ok::<(), warble::ConfigError>(())
+# Ok::<(), yodel::ConfigError>(())
 ```
 
 Demodulating PCM samples back into bits, one sample at a time:
 
 ```rust
-use warble::{AfskDemodulator, Bit, DemodulatorConfig, Modulator,
+use yodel::{AfskDemodulator, Bit, DemodulatorConfig, Modulator,
              ModulatorConfig, SampleRate};
 
 let sr = SampleRate::new(48_000)?;
@@ -1795,12 +1795,12 @@ ratchet floors are written against.
   reference WAV generator feeds our receive pipeline, and our transmit
   pipeline feeds its decoder. These tests are `#[ignore]`d by default
   because they need external binaries. To run them, set the environment
-  variables `WARBLE_REF_GEN` and `WARBLE_REF_DECODE` to the absolute
+  variables `YODEL_REF_GEN` and `YODEL_REF_DECODE` to the absolute
   paths of the reference generator and decoder, then run:
 
   ```sh
-  WARBLE_REF_GEN=/path/to/generator \
-  WARBLE_REF_DECODE=/path/to/decoder \
+  YODEL_REF_GEN=/path/to/generator \
+  YODEL_REF_DECODE=/path/to/decoder \
   cargo test -- --ignored
   ```
 
@@ -1827,11 +1827,11 @@ dependencies at all**, so nothing below applies unless you opt in.
 | `tokio`, `tokio-stream` | MIT | `async` |
 
 Two of these are worth knowing about. `serialport` is MPL-2.0, a
-file-level copyleft: linking it does not affect warble's own grant, but
+file-level copyleft: linking it does not affect yodel's own grant, but
 if you distribute a statically linked binary with the `ptt` feature on,
 MPL-2.0 section 3.2 asks you to make that dependency's source available.
 `hound` and `cpal` are Apache-2.0 only rather than dual-licensed, so
-picking the MIT branch for warble does not avoid Apache-2.0 terms if you
+picking the MIT branch for yodel does not avoid Apache-2.0 terms if you
 enable `wav` or `capture`.
 
 ### Third-party material

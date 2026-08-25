@@ -53,8 +53,8 @@ const PLACEHOLDER: Address = match Address::new(b"N0CALL", 0) {
 /// validates them back into an equal typed view borrowing the buffer:
 ///
 /// ```
-/// use warble::ax25::{Address, Ax25Error, UiFrame};
-/// use warble::ax25::frame::{CONTROL_UI, PID_NO_LAYER3};
+/// use yodel::ax25::{Address, Ax25Error, UiFrame};
+/// use yodel::ax25::frame::{CONTROL_UI, PID_NO_LAYER3};
 ///
 /// let frame = UiFrame::with_path(
 ///     Address::new(b"APRS", 0)?,   // destination tocall
@@ -151,7 +151,7 @@ impl<'a> UiFrame<'a> {
     /// all-clear transmit form.
     ///
     /// ```
-    /// use warble::ax25::{Address, Ax25Error, PathHop, UiFrame};
+    /// use yodel::ax25::{Address, Ax25Error, PathHop, UiFrame};
     ///
     /// let hops = [
     ///     PathHop { address: Address::new(b"N0CALL", 1)?, repeated: true },

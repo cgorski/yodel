@@ -21,7 +21,7 @@
 //! 4.7 kΩ + 10 nF ≈ 3.4 kHz cutoff, only needed for PWM) and a ~÷100
 //! divider down to mic level, then AC-couple into the radio's mic
 //! input. **PTT** is one plain GPIO: key it, wait the radio's TXDelay
-//! — which warble already models as `TncConfig`'s `preamble_flags`
+//! — which yodel already models as `TncConfig`'s `preamble_flags`
 //! (default 32 flags ≈ 213 ms of flag tone; raise it via
 //! `TncConfig::with_flags` for slow radios) — play the audio, unkey.
 //! Full schematic, example pin table, shopping list and gotchas: see
@@ -37,7 +37,7 @@
 //! * 48 kHz is natively supported by I2S codecs and is a comfortable
 //!   rate for the ESP32-C3/C6 I2S and SAR-ADC peripherals.
 //!
-//! Any rate giving ≥ 2 samples per bit works ([`warble::SampleRate`]
+//! Any rate giving ≥ 2 samples per bit works ([`yodel::SampleRate`]
 //! validates this): 9600, 11 025, 22 050, 44 100 Hz are all fine.
 //! Rates that divide evenly by 1200 (9600, 12 000, 24 000, 48 000) are
 //! the nicest; non-integer ratios (44 100/1200 = 36.75) still work —
@@ -65,17 +65,17 @@
 //! # Fixed point on a soft-float core (why `i16`, not `f32`)
 //!
 //! ESP32-C3/C6 (RV32IMC/IMAC) have no FPU: `f32` math is trapped into
-//! software emulation, 20–50× slower than integer ops. warble's
+//! software emulation, 20–50× slower than integer ops. yodel's
 //! `transmit_i16` path is integer-only end to end (sine table + phase
 //! accumulator), so this code runs at full native speed. The `i16`
 //! range (±32767) is also exactly what I2S codecs expect, so no
 //! conversion is needed at the output seam. (The RISC-V ESP32 parts
 //! have no internal DAC; audio goes out over I2S or LEDC PWM.)
 
-use warble::SampleRate;
-use warble::aprs::{AprsPacket, Latitude, Longitude, Position, Symbol};
-use warble::ax25::Address;
-use warble::tnc::{MAX_FRAME_BYTES, TncConfig, TncError, TncTransmitter};
+use yodel::SampleRate;
+use yodel::aprs::{AprsPacket, Latitude, Longitude, Position, Symbol};
+use yodel::ax25::Address;
+use yodel::tnc::{MAX_FRAME_BYTES, TncConfig, TncError, TncTransmitter};
 
 /// The sample rate used throughout these examples: 48 kHz. See the file
 /// header for why (exactly 40 samples per bit at 1200 Bd).
@@ -92,7 +92,7 @@ pub const MAX_BEACON_SAMPLES: usize = 32_768;
 /// rejected the inputs, or the output buffer was too small.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BeaconError {
-    /// A warble layer (APRS / AX.25 / DSP config) rejected the inputs.
+    /// A yodel layer (APRS / AX.25 / DSP config) rejected the inputs.
     Tnc(TncError),
     /// `pcm_out` filled up before the transmission ended; the required
     /// capacity is at most [`MAX_BEACON_SAMPLES`] for short beacons.
@@ -207,7 +207,7 @@ pub fn fill_position_beacon(
 // #![no_main]
 //
 // use esp_hal::{main, i2s::master::{I2s, Standard, DataFormat}};
-// use warble_esp32_riscv_examples::beacon;
+// use yodel_esp32_riscv_examples::beacon;
 //
 // // 64 KiB PCM buffer in a static: too big for the default stack.
 // static mut PCM: [i16; beacon::MAX_BEACON_SAMPLES] =
@@ -224,10 +224,10 @@ pub fn fill_position_beacon(
 //
 //     // 2. Render the beacon (pure computation, no peripherals):
 //     let n = beacon::fill_position_beacon(
-//         warble::ax25::Address::new(b"N0CALL", 9).unwrap(),
+//         yodel::ax25::Address::new(b"N0CALL", 9).unwrap(),
 //         294_350,  //  49.0583° N in 1/100 arc-minutes
 //         -432_175, // -72.0292° E (i.e. 72.0292° W)
-//         b"warble on ESP32-C6",
+//         b"yodel on ESP32-C6",
 //         unsafe { &mut PCM },
 //     ).unwrap();
 //

@@ -258,7 +258,7 @@ impl TonePair {
     /// (a 200 Hz shift centered near 1700 Hz, as used on 10.147 MHz).
     ///
     /// ```
-    /// use warble::TonePair;
+    /// use yodel::TonePair;
     /// assert_eq!(TonePair::HF_APRS.mark_hz(), 1_600);
     /// assert_eq!(TonePair::HF_APRS.space_hz(), 1_800);
     /// ```
@@ -270,7 +270,7 @@ impl TonePair {
     /// The Bell 103 *originate*-side tones: 1270 Hz mark, 1070 Hz space.
     ///
     /// ```
-    /// use warble::TonePair;
+    /// use yodel::TonePair;
     /// assert_eq!(TonePair::BELL_103_ORIGINATE.mark_hz(), 1_270);
     /// assert_eq!(TonePair::BELL_103_ORIGINATE.space_hz(), 1_070);
     /// ```
@@ -282,7 +282,7 @@ impl TonePair {
     /// The Bell 103 *answer*-side tones: 2225 Hz mark, 2025 Hz space.
     ///
     /// ```
-    /// use warble::TonePair;
+    /// use yodel::TonePair;
     /// assert_eq!(TonePair::BELL_103_ANSWER.mark_hz(), 2_225);
     /// assert_eq!(TonePair::BELL_103_ANSWER.space_hz(), 2_025);
     /// ```
@@ -339,7 +339,7 @@ impl TonePair {
 /// New to modems? Every named profile tells you its scheme:
 ///
 /// ```
-/// use warble::{ModemProfile, ModulationScheme};
+/// use yodel::{ModemProfile, ModulationScheme};
 /// assert_eq!(ModemProfile::BELL_202.scheme(), ModulationScheme::ToneAfsk);
 /// ```
 ///
@@ -379,7 +379,7 @@ impl ModemProfile {
     /// standard and this crate's default profile.
     ///
     /// ```
-    /// use warble::ModemProfile;
+    /// use yodel::ModemProfile;
     /// assert_eq!(ModemProfile::BELL_202.baud().bps(), 1_200);
     /// assert_eq!(ModemProfile::BELL_202.tones().mark_hz(), 1_200);
     /// assert_eq!(ModemProfile::BELL_202.tones().space_hz(), 2_200);
@@ -394,7 +394,7 @@ impl ModemProfile {
     /// convention for APRS on HF (e.g. 10.147 MHz).
     ///
     /// ```
-    /// use warble::ModemProfile;
+    /// use yodel::ModemProfile;
     /// assert_eq!(ModemProfile::HF_APRS_300.baud().bps(), 300);
     /// assert_eq!(ModemProfile::HF_APRS_300.tones().mark_hz(), 1_600);
     /// assert_eq!(ModemProfile::HF_APRS_300.tones().space_hz(), 1_800);
@@ -411,7 +411,7 @@ impl ModemProfile {
     /// side is [`ModemProfile::BELL_103_ANSWER`].
     ///
     /// ```
-    /// use warble::ModemProfile;
+    /// use yodel::ModemProfile;
     /// assert_eq!(ModemProfile::BELL_103_ORIGINATE.baud().bps(), 300);
     /// assert_eq!(ModemProfile::BELL_103_ORIGINATE.tones().mark_hz(), 1_270);
     /// assert_eq!(ModemProfile::BELL_103_ORIGINATE.tones().space_hz(), 1_070);
@@ -425,7 +425,7 @@ impl ModemProfile {
     /// Bell 103, answer side: 300 baud, 2225 Hz mark / 2025 Hz space.
     ///
     /// ```
-    /// use warble::ModemProfile;
+    /// use yodel::ModemProfile;
     /// assert_eq!(ModemProfile::BELL_103_ANSWER.baud().bps(), 300);
     /// assert_eq!(ModemProfile::BELL_103_ANSWER.tones().mark_hz(), 2_225);
     /// assert_eq!(ModemProfile::BELL_103_ANSWER.tones().space_hz(), 2_025);
@@ -439,7 +439,7 @@ impl ModemProfile {
     /// Bell 103 (originate side): 300 baud, 1270 Hz mark / 1070 Hz space.
     ///
     /// ```
-    /// use warble::ModemProfile;
+    /// use yodel::ModemProfile;
     /// assert_eq!(ModemProfile::BELL_103, ModemProfile::BELL_103_ORIGINATE);
     /// ```
     pub const BELL_103: Self = Self::BELL_103_ORIGINATE;
@@ -453,7 +453,7 @@ impl ModemProfile {
     /// the baseband front end and the LFSR scrambler for you:
     ///
     /// ```
-    /// use warble::{ModemProfile, ModulationScheme};
+    /// use yodel::{ModemProfile, ModulationScheme};
     /// assert_eq!(ModemProfile::G3RUH_9600.baud().bps(), 9_600);
     /// assert_eq!(
     ///     ModemProfile::G3RUH_9600.scheme(),
@@ -466,12 +466,12 @@ impl ModemProfile {
     ///
     /// ```
     /// # #[cfg(feature = "tnc")] {
-    /// use warble::tnc::TncConfig;
-    /// use warble::{ModemProfile, SampleRate};
+    /// use yodel::tnc::TncConfig;
+    /// use yodel::{ModemProfile, SampleRate};
     /// let cfg = TncConfig::from_profile(SampleRate::new(44_100)?, ModemProfile::G3RUH_9600)?;
     /// assert_eq!(cfg.baud().bps(), 9_600);
     /// # }
-    /// # Ok::<(), warble::ConfigError>(())
+    /// # Ok::<(), yodel::ConfigError>(())
     /// ```
     ///
     /// Note for the protocol-minded: the profile's [`TonePair`] is a
@@ -539,9 +539,9 @@ impl ModemProfile {
 ///
 /// ```
 /// # #[cfg(feature = "tnc")] {
-/// use warble::DevicePreset;
-/// use warble::ax25::Address;
-/// use warble::tnc::{DefaultTncReceiver, MAX_FRAME_BYTES, TncTransmitter};
+/// use yodel::DevicePreset;
+/// use yodel::ax25::Address;
+/// use yodel::tnc::{DefaultTncReceiver, MAX_FRAME_BYTES, TncTransmitter};
 ///
 /// // ESP32-C3: 1200-baud AFSK on the single balanced decision chain
 /// // (~390 ESTIMATED rv32 cycles/sample, ~12% of the 48 kHz budget at
@@ -574,7 +574,7 @@ impl ModemProfile {
 /// }
 /// assert_eq!(decoded, 1);
 /// # }
-/// # Ok::<(), warble::ConfigError>(())
+/// # Ok::<(), yodel::ConfigError>(())
 /// ```
 ///
 /// Distinct from the *mode* presets: [`ModemProfile`] names a

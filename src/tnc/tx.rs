@@ -100,10 +100,10 @@ impl Iterator for TxF32Samples<'_> {
 /// on demand.
 ///
 /// ```
-/// use warble::SampleRate;
-/// use warble::aprs::{AprsPacket, Status};
-/// use warble::ax25::Address;
-/// use warble::tnc::{TncConfig, TncTransmitter};
+/// use yodel::SampleRate;
+/// use yodel::aprs::{AprsPacket, Status};
+/// use yodel::ax25::Address;
+/// use yodel::tnc::{TncConfig, TncTransmitter};
 ///
 /// let tx = TncTransmitter::new(TncConfig::bell_202(SampleRate::new(48_000)?)?);
 /// let packet = AprsPacket::Status(Status { text: b"QRV" });

@@ -28,7 +28,7 @@
 //! and bare Latin-1. Nothing here decodes, trims or validates it.
 //!
 //! ```
-//! use warble::aprs::monitor::MonitorLine;
+//! use yodel::aprs::monitor::MonitorLine;
 //!
 //! let line = MonitorLine::parse(b"N0CALL-7>APRS,WIDE1-1,qAR,IGATE-1:>hello")?;
 //! assert_eq!(line.source, b"N0CALL-7");
@@ -37,7 +37,7 @@
 //! assert_eq!(line.q_construct(), Some(&b"qAR"[..]));
 //! assert_eq!(line.igate(), Some(&b"IGATE-1"[..]));
 //! assert!(line.is_from_rf());
-//! # Ok::<(), warble::aprs::AprsError>(())
+//! # Ok::<(), yodel::aprs::AprsError>(())
 //! ```
 
 use super::{AprsError, Decoded};
@@ -258,7 +258,7 @@ impl<'a> MonitorLine<'a> {
 ///
 /// ```
 /// # #[cfg(all(feature = "aprs", feature = "alloc"))] {
-/// use warble::aprs::monitor::{MonitorLine, format_line};
+/// use yodel::aprs::monitor::{MonitorLine, format_line};
 ///
 /// let line = format_line(b"N0CALL-7", b"APRS", b"WIDE1-1", b">hello");
 /// assert_eq!(line, b"N0CALL-7>APRS,WIDE1-1:>hello");
@@ -268,7 +268,7 @@ impl<'a> MonitorLine<'a> {
 /// assert_eq!(back.source, b"N0CALL-7");
 /// assert_eq!(back.info, b">hello");
 /// # }
-/// # Ok::<(), warble::aprs::AprsError>(())
+/// # Ok::<(), yodel::aprs::AprsError>(())
 /// ```
 #[cfg(feature = "alloc")]
 #[must_use]

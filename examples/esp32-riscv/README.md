@@ -1,4 +1,4 @@
-# warble on ESP32-class RISC-V
+# yodel on ESP32-class RISC-V
 
 Copy-paste APRS **beacon** (modulation), **decoder** (demodulation) and
 **digipeater** (store-and-forward relay) examples for riscv32
@@ -7,15 +7,15 @@ built around a soft-float RV32IMC/IMAC core.
 
 This is a detached `#![no_std]` library crate (its own `Cargo.toml`
 with an empty `[workspace]` table, so the main repository never builds
-it implicitly). It depends only on `warble` by path, with
+it implicitly). It depends only on `yodel` by path, with
 `default-features = false, features = ["tnc", "digipeat"]`. That is
 the minimal set: `tnc` pulls in `aprs` (→ `ax25` → `nrzi`), `mod` and
 `demod`, while `digipeat` adds the WIDEn-N relay-decision core and
 duplicate suppression used by the digipeater example.
 
-## What warble handles vs. what you wire
+## What yodel handles vs. what you wire
 
-| warble (this crate) | you (your HAL) |
+| yodel (this crate) | you (your HAL) |
 |---|---|
 | APRS payload building/parsing (typed positions, status, messages) | choosing and initializing the board/HAL (`esp-hal`, `riscv-rt`, …) |
 | AX.25 UI framing, FCS, HDLC bit stuffing, NRZI | ADC or I2S input at a fixed sample rate (mic / radio audio in) |
@@ -155,7 +155,7 @@ voltage against audio ground before you connect anything to it.
 
 1. drive the PTT GPIO active (key the transmitter);
 2. wait **TXDelay**, the time the radio needs to power up its
-   transmitter and the far receiver needs to lock. warble already
+   transmitter and the far receiver needs to lock. yodel already
    models this inside the audio: `TncConfig`'s **`preamble_flags`**
    field (default 32, settable via `TncConfig::with_flags`) prepends
    32 HDLC flags ≈ 213 ms of flag tone at 1200 Bd, which is the
@@ -270,7 +270,7 @@ the frame. A digi also answers to its **own callsign** as an exact
 alias (`via N0CALL-1`), and applies a **max-n policy**: `WIDE1-x` and
 `WIDE2-x` are normal; `WIDE3-x` and up are flood-abusive on busy
 channels, and a well-configured digi refuses them
-(`warble::digipeat::WideLimit` is that knob).
+(`yodel::digipeat::WideLimit` is that knob).
 
 ### H-bits: why packets don't loop forever
 
@@ -296,7 +296,7 @@ anything it has already relayed within a **dupe window**, customarily
 ~30 seconds. What it stores is a fingerprint of
 **source + destination + payload**, and the path is left out of it:
 the same beacon arriving via a different digi is still the same
-beacon. `warble::digipeat::DupeRing` is that memory: a fixed-size ring
+beacon. `yodel::digipeat::DupeRing` is that memory: a fixed-size ring
 of fingerprints, no heap, timestamped with a monotonic millisecond
 clock **you** supply (the library has no clock; see "YOUR TIMER HERE"
 in `digipeater.rs`).
@@ -311,7 +311,7 @@ then key up and retransmit it. That is exactly the shape of
 `Digipeater::feed`: RX samples in, a fully rendered TX buffer out, and
 *your* firmware decides when to play it. The half-duplex sequence is:
 
-1. **wait for a clear channel**. warble's demodulator does not expose
+1. **wait for a clear channel**. yodel's demodulator does not expose
    a carrier-detect (DCD) signal today, so gate on "no decode in
    progress + RX energy near the noise floor", or apply a short random
    delay after the decode (the station you just heard has, by
@@ -340,10 +340,10 @@ only (fill-in) unless your site needs wide coverage.
 
 1. Create your firmware crate as usual (e.g. `esp-generate` /
    `cargo generate esp-rs/esp-template` for `esp-hal`).
-2. Add warble to its `Cargo.toml`:
+2. Add yodel to its `Cargo.toml`:
 
    ```toml
-   warble = { version = "0.1", default-features = false, features = ["tnc", "digipeat"] }
+   yodel = { version = "0.1", default-features = false, features = ["tnc", "digipeat"] }
    ```
 
 3. Copy [`src/beacon.rs`](src/beacon.rs), [`src/demod.rs`](src/demod.rs)
@@ -360,7 +360,7 @@ only (fill-in) unless your site needs wide coverage.
    cargo build --target riscv32imac-unknown-none-elf
    ```
 
-   Both targets build cleanly today (warble's core is atomics-free, so
+   Both targets build cleanly today (yodel's core is atomics-free, so
    the `imc` target's lack of the A extension is not a problem); CI
    verifies both via `scripts/check-embedded.sh`.
 

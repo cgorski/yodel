@@ -1,4 +1,4 @@
-//! `warble decode`: WAV or raw-PCM audio in, one line per decoded
+//! `yodel decode`: WAV or raw-PCM audio in, one line per decoded
 //! AX.25/APRS frame on stdout, receive statistics on stderr.
 //!
 //! Two renderings of that line, selected by `--output-format`: the
@@ -8,18 +8,18 @@
 
 use clap::{Args, ValueEnum};
 
-use warble::SampleRate;
-use warble::aprs::monitor::MonitorLine;
-use warble::aprs::{
+use yodel::SampleRate;
+use yodel::aprs::monitor::MonitorLine;
+use yodel::aprs::{
     AprsPacket, Decoded, DecodedKind, MessageContent, NmeaSentence, TelemetryDefinition,
     WeatherReport, decoded_from_ui,
 };
-use warble::ax25::UiFrame;
-use warble::demodulator::{AfskDemodulator, DemodulatorConfig};
-use warble::fx25::{Fx25Error, Fx25Receiver};
-use warble::il2p::Il2pReceiver;
-use warble::nrzi::NrziDecoder;
-use warble::tnc::{DefaultTncReceiver, MAX_FRAME_BYTES, TncConfig};
+use yodel::ax25::UiFrame;
+use yodel::demodulator::{AfskDemodulator, DemodulatorConfig};
+use yodel::fx25::{Fx25Error, Fx25Receiver};
+use yodel::il2p::Il2pReceiver;
+use yodel::nrzi::NrziDecoder;
+use yodel::tnc::{DefaultTncReceiver, MAX_FRAME_BYTES, TncConfig};
 
 use crate::json::{self, StreamPos};
 use crate::shared::{
@@ -95,7 +95,7 @@ pub struct DecodeArgs {
     modem: ModemArgs,
 }
 
-/// How `warble decode` renders each frame on stdout.
+/// How `yodel decode` renders each frame on stdout.
 #[derive(ValueEnum, Clone, Copy, Debug, PartialEq, Eq)]
 pub enum OutputFormat {
     /// `SRC>DEST,PATH: <summary>`, one line per frame.
@@ -177,7 +177,7 @@ fn unix_time() -> f64 {
     }
 }
 
-/// Runs `warble decode`: dispatches on the input kind (WAV file path
+/// Runs `yodel decode`: dispatches on the input kind (WAV file path
 /// or `-` for stdin) and feeds the shared sample-decode core.
 pub fn decode(args: &DecodeArgs) -> Result<(), String> {
     if args.wall_clock && args.output_format != OutputFormat::Jsonl {
@@ -221,7 +221,7 @@ pub fn decode(args: &DecodeArgs) -> Result<(), String> {
 }
 
 /// Decodes audio arriving on stdin. The first four bytes are sniffed
-/// (shared with `warble serve --input -` via
+/// (shared with `yodel serve --input -` via
 /// [`crate::shared::sniff_stdin_samples`]): a `RIFF` header means WAV
 /// (rate and encoding from the header, checked against any
 /// `--sample-rate` also given), anything else is raw PCM
@@ -230,7 +230,7 @@ pub fn decode(args: &DecodeArgs) -> Result<(), String> {
 /// Decodes TNC2 monitor text: one packet per line, no modem involved.
 ///
 /// The addresses stay as text because APRS-IS traffic is not bound by
-/// AX.25 address rules; see [`warble::aprs::monitor`]. Input is read as
+/// AX.25 address rules; see [`yodel::aprs::monitor`]. Input is read as
 /// bytes rather than as a string, because Mic-E reports are binary and
 /// comment fields carry bare Latin-1, so a feed is not valid UTF-8.
 fn decode_tnc2(args: &DecodeArgs) -> Result<(), String> {
@@ -299,7 +299,7 @@ fn decode_stdin(args: &DecodeArgs) -> Result<(), String> {
 }
 
 /// Decodes an already-sniffed sample stream with the human output
-/// format, for `warble level --then-decode`.
+/// format, for `yodel level --then-decode`.
 ///
 /// Lives here rather than in `level` because `DecodeArgs` is private to
 /// this module: the alternative is making its fields public, which
@@ -397,7 +397,7 @@ fn decode_fx25(
                     }
                 }
             }
-            Some(Err(Fx25Error::Ax25(warble::ax25::Ax25Error::FcsMismatch { .. }))) => {
+            Some(Err(Fx25Error::Ax25(yodel::ax25::Ax25Error::FcsMismatch { .. }))) => {
                 fcs_errors += 1;
             }
             _ => {}

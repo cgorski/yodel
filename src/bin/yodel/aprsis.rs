@@ -1,4 +1,4 @@
-//! `warble aprsis`: read the live APRS-IS feed and write TNC2 lines.
+//! `yodel aprsis`: read the live APRS-IS feed and write TNC2 lines.
 //!
 //! APRS-IS is the internet side of APRS. Igates around the world hear
 //! packets on the radio and forward them to a server network, which
@@ -6,12 +6,12 @@
 //! [`crate::decode`] reads with `--tnc2`, so the two compose:
 //!
 //! ```text
-//! warble aprsis --callsign N0CALL --full-feed --seconds 300 --out capture.txt
-//! warble decode --tnc2 --verify-rebuild capture.txt
+//! yodel aprsis --callsign N0CALL --full-feed --seconds 300 --out capture.txt
+//! yodel decode --tnc2 --verify-rebuild capture.txt
 //!
 //! # or as one pipeline, with no file in between
-//! warble aprsis --callsign N0CALL --full-feed --seconds 60 | \
-//!     warble decode --tnc2 --output-format jsonl -
+//! yodel aprsis --callsign N0CALL --full-feed --seconds 60 | \
+//!     yodel decode --tnc2 --output-format jsonl -
 //! ```
 //!
 //! # Receive-only by construction
@@ -60,7 +60,7 @@ use std::time::{Duration, Instant};
 
 use clap::Args;
 
-use warble::aprs::monitor::LINE_MAX;
+use yodel::aprs::monitor::LINE_MAX;
 
 /// Receive-only passcode. Anything else requires a licensed callsign,
 /// and this tool has no reason to hold one.
@@ -226,7 +226,7 @@ pub(crate) fn read_bounded_line<R: BufRead>(
 ///
 /// `run_session` writes packets to `sink` (stdout, or `--out`) inside
 /// the same [`std::io::Result`] as its socket reads, so
-/// `warble aprsis ... | head -5` surfaced as "connection failed" and
+/// `yodel aprsis ... | head -5` surfaced as "connection failed" and
 /// sent the retry loop back to a volunteer Tier 2 server on a doubling
 /// backoff. There is nothing to reconnect *for* once the reader has
 /// gone, and hammering shared infrastructure over it is rude.
@@ -250,7 +250,7 @@ pub fn aprsis(args: &AprsIsArgs) -> Result<(), String> {
     }
     if args.seconds.is_none() && args.count.is_none() {
         eprintln!(
-            "warble aprsis: no --seconds or --count, so this runs until interrupted; \
+            "yodel aprsis: no --seconds or --count, so this runs until interrupted; \
              one bounded connection is the courteous shape"
         );
     }
@@ -360,11 +360,11 @@ fn run_session(
     let version = env!("CARGO_PKG_VERSION");
     let login = match &args.filter {
         Some(filter) => format!(
-            "user {} pass {RECEIVE_ONLY} vers warble {version} filter {filter}\r\n",
+            "user {} pass {RECEIVE_ONLY} vers yodel {version} filter {filter}\r\n",
             args.callsign,
         ),
         None => format!(
-            "user {} pass {RECEIVE_ONLY} vers warble {version}\r\n",
+            "user {} pass {RECEIVE_ONLY} vers yodel {version}\r\n",
             args.callsign,
         ),
     };

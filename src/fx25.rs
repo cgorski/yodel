@@ -43,7 +43,7 @@
 //! default TNC paths are untouched and remain byte-identical: FX.25 is
 //! not a `TncConfig` setting and no `TncConfig` field reaches this
 //! module. Callers opt in by composing the stages themselves, which is
-//! what the `warble` CLI does behind its `--fx25` flag. That
+//! what the `yodel` CLI does behind its `--fx25` flag. That
 //! composition gives up the receive-side tuning `TncReceiver` carries —
 //! see [`Fx25Receiver`] for the measured cost.
 //!
@@ -53,7 +53,7 @@
 //! automatically:
 //!
 //! ```
-//! use warble::fx25::{CorrelationTag, TAG_BYTES, WRAP_MAX, wrap};
+//! use yodel::fx25::{CorrelationTag, TAG_BYTES, WRAP_MAX, wrap};
 //!
 //! // A (toy) stuffed HDLC frame: flag, contents, flag.
 //! let stuffed = [0x7E, 0x82, 0xA0, 0xB4, 0x60, 0x61, 0x76, 0x7E];
@@ -65,7 +65,7 @@
 //!
 //! assert_eq!(wrapped.tag(), CorrelationTag::Rs48_32);
 //! assert_eq!(wrapped.len(), TAG_BYTES + 32 + 16); // tag + data + parity
-//! # Ok::<(), warble::fx25::Fx25Error>(())
+//! # Ok::<(), yodel::fx25::Fx25Error>(())
 //! ```
 //!
 //! # Practitioner: layout and flag padding
@@ -74,8 +74,8 @@
 //! flag octets; the RS parity protects data and padding alike:
 //!
 //! ```
-//! use warble::fx25::{TAG_BYTES, WRAP_MAX, wrap};
-//! use warble::rs::{BLOCK_MAX, RsCodec, RsParity};
+//! use yodel::fx25::{TAG_BYTES, WRAP_MAX, wrap};
+//! use yodel::rs::{BLOCK_MAX, RsCodec, RsParity};
 //!
 //! let stuffed = [0x7E, 0x03, 0xF0, 0x55, 0xAA, 0x7E];
 //! let mut out = [0u8; WRAP_MAX];
@@ -138,7 +138,7 @@
 //! per bit:
 //!
 //! ```
-//! use warble::fx25::{CorrelationTag, TAG_TOLERANCE};
+//! use yodel::fx25::{CorrelationTag, TAG_TOLERANCE};
 //!
 //! for a in CorrelationTag::ALL {
 //!     for b in CorrelationTag::ALL {
@@ -207,8 +207,8 @@ const FLAG_FILL: u8 = 0x7E;
 /// every constant below from exactly that description.
 ///
 /// ```
-/// use warble::fx25::CorrelationTag;
-/// use warble::rs::RsParity;
+/// use yodel::fx25::CorrelationTag;
+/// use yodel::rs::RsParity;
 ///
 /// let tag = CorrelationTag::Rs64_32;
 /// assert_eq!(tag.tag_value(), 0xDBF8_69BD_2DBB_1776);
@@ -434,13 +434,13 @@ impl Fx25Frame {
 /// [`Fx25Error::BufferTooSmall`] when `out` cannot hold the result.
 ///
 /// ```
-/// use warble::fx25::{TAG_BYTES, WRAP_MAX, wrap};
+/// use yodel::fx25::{TAG_BYTES, WRAP_MAX, wrap};
 ///
 /// let stuffed = [0x7E, 0x01, 0x02, 0x03, 0x7E];
 /// let mut out = [0u8; WRAP_MAX];
 /// let wrapped = wrap(&stuffed, &mut out)?;
 /// assert_eq!(wrapped.len(), TAG_BYTES + wrapped.tag().block_len());
-/// # Ok::<(), warble::fx25::Fx25Error>(())
+/// # Ok::<(), yodel::fx25::Fx25Error>(())
 /// ```
 pub fn wrap(stuffed: &[u8], out: &mut [u8]) -> Result<Fx25Frame, Fx25Error> {
     let tag = CorrelationTag::smallest_for(stuffed.len()).ok_or(Fx25Error::FrameTooLong {
@@ -473,13 +473,13 @@ pub fn wrap(stuffed: &[u8], out: &mut [u8]) -> Result<Fx25Frame, Fx25Error> {
 /// result.
 ///
 /// ```
-/// use warble::fx25::{CorrelationTag, WRAP_MAX, wrap_with};
+/// use yodel::fx25::{CorrelationTag, WRAP_MAX, wrap_with};
 ///
 /// let stuffed = [0x7E, 0x03, 0xF0, 0x7E];
 /// let mut out = [0u8; WRAP_MAX];
 /// let wrapped = wrap_with(CorrelationTag::Rs64_32, &stuffed, &mut out)?;
 /// assert_eq!(wrapped.tag(), CorrelationTag::Rs64_32);
-/// # Ok::<(), warble::fx25::Fx25Error>(())
+/// # Ok::<(), yodel::fx25::Fx25Error>(())
 /// ```
 pub fn wrap_with(
     tag: CorrelationTag,
@@ -543,7 +543,7 @@ pub fn wrap_with(
 /// frame.
 ///
 /// ```
-/// use warble::fx25::{WRAP_MAX, stuff_frame, wrap};
+/// use yodel::fx25::{WRAP_MAX, stuff_frame, wrap};
 ///
 /// // A minimal 16-byte AX.25 header as the frame body.
 /// let body: [u8; 16] = core::array::from_fn(|i| i as u8);
@@ -554,7 +554,7 @@ pub fn wrap_with(
 /// let mut out = [0u8; WRAP_MAX];
 /// let wrapped = wrap(&stuffed[..len], &mut out)?;
 /// assert!(wrapped.tag().data_len() >= len);
-/// # Ok::<(), warble::fx25::Fx25Error>(())
+/// # Ok::<(), yodel::fx25::Fx25Error>(())
 /// ```
 #[cfg(feature = "ax25")]
 pub fn stuff_frame(frame: &[u8], out: &mut [u8]) -> Result<usize, Fx25Error> {
@@ -693,7 +693,7 @@ enum RxState {
 /// allocation.
 ///
 /// ```
-/// use warble::fx25::{Fx25Receiver, WRAP_MAX, byte_bits, stuff_frame, wrap};
+/// use yodel::fx25::{Fx25Receiver, WRAP_MAX, byte_bits, stuff_frame, wrap};
 ///
 /// let body: [u8; 16] = core::array::from_fn(|i| (i as u8) << 1);
 /// let mut stuffed = [0u8; 64];
@@ -709,7 +709,7 @@ enum RxState {
 ///     }
 /// }
 /// assert_eq!(got.as_deref(), Some(&body[..]));
-/// # Ok::<(), warble::fx25::Fx25Error>(())
+/// # Ok::<(), yodel::fx25::Fx25Error>(())
 /// ```
 #[cfg(feature = "ax25")]
 #[derive(Debug, Clone)]

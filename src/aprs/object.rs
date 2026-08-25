@@ -58,7 +58,7 @@ impl Timestamp {
     /// [`AprsError::BadTimestamp`] on an out-of-range field.
     ///
     /// ```
-    /// use warble::aprs::{AprsError, Timestamp};
+    /// use yodel::aprs::{AprsError, Timestamp};
     ///
     /// let ts = Timestamp::dhm_zulu(9, 23, 45)?;
     /// assert_eq!(ts, Timestamp::DhmZulu { day: 9, hour: 23, minute: 45 });
@@ -213,7 +213,7 @@ fn check_hm(hour: i32, minute: i32) -> Result<(), AprsError> {
 /// # Common path: one line, valid by construction
 ///
 /// ```
-/// use warble::aprs::{AprsError, Latitude, Longitude, Object, Symbol, Timestamp};
+/// use yodel::aprs::{AprsError, Latitude, Longitude, Object, Symbol, Timestamp};
 ///
 /// let obj = Object::new(
 ///     b"LEADER",
@@ -232,7 +232,7 @@ fn check_hm(hour: i32, minute: i32) -> Result<(), AprsError> {
 /// # Power user: fully typed symbol, exhaustively matched
 ///
 /// ```
-/// use warble::aprs::{
+/// use yodel::aprs::{
 ///     AprsError, Latitude, Longitude, Object, OverlayId, Symbol, SymbolCode, SymbolTable,
 ///     Timestamp,
 /// };
@@ -254,7 +254,7 @@ fn check_hm(hour: i32, minute: i32) -> Result<(), AprsError> {
 /// # Raw hatch: out-of-spec wire bytes round-trip exactly
 ///
 /// ```
-/// use warble::aprs::{AprsError, Latitude, Longitude, Object, Symbol, Timestamp};
+/// use yodel::aprs::{AprsError, Latitude, Longitude, Object, Symbol, Timestamp};
 ///
 /// let obj = Object::new(
 ///     b"ODD",
@@ -539,7 +539,7 @@ impl<'a> Object<'a> {
 /// # Common path: one line, valid by construction
 ///
 /// ```
-/// use warble::aprs::{AprsError, Item, Latitude, Longitude, Symbol};
+/// use yodel::aprs::{AprsError, Item, Latitude, Longitude, Symbol};
 ///
 /// let item = Item::new(
 ///     b"AID#2",
@@ -557,7 +557,7 @@ impl<'a> Object<'a> {
 /// # Power user: fully typed symbol, exhaustively matched
 ///
 /// ```
-/// use warble::aprs::{
+/// use yodel::aprs::{
 ///     AprsError, Item, Latitude, Longitude, Symbol, SymbolCode, SymbolTable,
 /// };
 ///
@@ -577,7 +577,7 @@ impl<'a> Object<'a> {
 /// # Raw hatch: out-of-spec wire bytes round-trip exactly
 ///
 /// ```
-/// use warble::aprs::{AprsError, Item, Latitude, Longitude, Symbol};
+/// use yodel::aprs::{AprsError, Item, Latitude, Longitude, Symbol};
 ///
 /// let item = Item::new(
 ///     b"ODD",

@@ -188,7 +188,7 @@ impl<'a> MessageContent<'a> {
     /// cannot be put back together differently.
     ///
     /// ```
-    /// use warble::aprs::{AprsError, Message, MessageContent};
+    /// use yodel::aprs::{AprsError, Message, MessageContent};
     ///
     /// // "...happy Thanksgiving{Re}1j": message "Re", acking "1j".
     /// let msg = Message::parse(b":WA6LDQ   :Okay will do soon{Re}1j")?;
@@ -240,7 +240,7 @@ impl<'a> MessageContent<'a> {
     /// empty, and such an ack correctly matches nothing.
     ///
     /// ```
-    /// use warble::aprs::{AprsError, Message, MessageContent};
+    /// use yodel::aprs::{AprsError, Message, MessageContent};
     ///
     /// // Chapter 14's "pull out the MM": this acks message "Re".
     /// let new = Message::parse(b":WA6UVQ   :ackRe}1j")?;
@@ -274,7 +274,7 @@ impl<'a> MessageContent<'a> {
 /// a `{`. Build and parse are exact inverses:
 ///
 /// ```
-/// use warble::aprs::{Addressee, AprsError, Message, MessageContent};
+/// use yodel::aprs::{Addressee, AprsError, Message, MessageContent};
 ///
 /// let msg = Message {
 ///     addressee: Addressee::new(b"N0CALL")?,
@@ -337,7 +337,7 @@ impl<'a> Message<'a> {
     /// [`MessageContent::reply_ack`]: MessageContent::reply_ack
     ///
     /// ```
-    /// use warble::aprs::{Message, TelemetryDefinition};
+    /// use yodel::aprs::{Message, TelemetryDefinition};
     ///
     /// let m = Message::parse(b":N0QBF-11 :BITS.10110000,N0QBF's Big Balloon")?;
     /// let Some(TelemetryDefinition::BitSense(bits)) = m.telemetry_definition() else {
@@ -345,7 +345,7 @@ impl<'a> Message<'a> {
     /// };
     /// assert_eq!(bits.sense.map(|s| s[0]), Some(true));
     /// assert_eq!(bits.title, &b"N0QBF's Big Balloon"[..]);
-    /// # Ok::<(), warble::aprs::AprsError>(())
+    /// # Ok::<(), yodel::aprs::AprsError>(())
     /// ```
     #[must_use]
     pub fn telemetry_definition(&self) -> Option<TelemetryDefinition<'a>> {

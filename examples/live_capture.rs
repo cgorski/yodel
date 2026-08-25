@@ -38,8 +38,8 @@
 /// downmix, and the chunk-feed into the receiver. Pure so tests can
 /// prove it against synthesized audio.
 pub mod plumbing {
-    use warble::ax25::{Address, UiFrame};
-    use warble::tnc::DefaultTncReceiver;
+    use yodel::ax25::{Address, UiFrame};
+    use yodel::tnc::DefaultTncReceiver;
 
     /// The modem's supported rate window (see `SampleRate::new`).
     pub const MIN_RATE_HZ: u32 = 8_000;
@@ -87,7 +87,7 @@ pub mod plumbing {
              {MIN_RATE_HZ}..={MAX_RATE_HZ} Hz window and no integer-ratio decimation \
              reaches it; configure the device (or your OS sound settings) for a rate \
              in that window — 48000 Hz is the safe choice — or record with a capture \
-             tool that resamples and pipe it into `warble decode -`"
+             tool that resamples and pipe it into `yodel decode -`"
         ))
     }
 
@@ -233,8 +233,8 @@ pub mod plumbing {
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
     use plumbing::{ChunkFeed, plan_rate};
-    use warble::SampleRate;
-    use warble::tnc::{DefaultTncReceiver, TncConfig, TncReceiver};
+    use yodel::SampleRate;
+    use yodel::tnc::{DefaultTncReceiver, TncConfig, TncReceiver};
 
     let host = cpal::default_host();
     let device = host

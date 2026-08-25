@@ -1,4 +1,4 @@
-//! Error types for `warble`.
+//! Error types for `yodel`.
 //!
 //! All fallible constructors in this crate return [`ConfigError`]. Each
 //! variant records the offending value alongside the rule it violated so
@@ -19,7 +19,7 @@ use core::fmt;
 /// and the rendered message repeats both:
 ///
 /// ```
-/// use warble::{ConfigError, SampleRate};
+/// use yodel::{ConfigError, SampleRate};
 ///
 /// // 7000 Hz is below the supported 8000..=48000 Hz range.
 /// let err = SampleRate::new(7_000).unwrap_err();

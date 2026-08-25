@@ -37,8 +37,8 @@
 
 #![cfg(feature = "digipeat")]
 
-use warble::ax25::{Address, PathHop, UiFrame};
-use warble::digipeat::{Alias, ExactAliasAction, RelayDecision, WideLimit, relay_decision};
+use yodel::ax25::{Address, PathHop, UiFrame};
+use yodel::digipeat::{Alias, ExactAliasAction, RelayDecision, WideLimit, relay_decision};
 
 fn addr(call: &[u8], ssid: u8) -> Address {
     Address::new(call, ssid).expect("a valid address")

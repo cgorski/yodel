@@ -41,8 +41,8 @@
 //! If you have a heap, [`aprs_offline_alloc.rs`](aprs_offline_alloc.rs)
 //! shows the same work with the sizing done for you.
 
-use warble::aprs::monitor::MonitorLine;
-use warble::aprs::{
+use yodel::aprs::monitor::MonitorLine;
+use yodel::aprs::{
     Addressee, AprsPacket, Decoded, DecodedKind, Latitude, Longitude, Message, MessageContent,
     Position, Status, Symbol,
 };
@@ -73,7 +73,7 @@ fn build_packets() -> Result<(), Box<dyn std::error::Error>> {
         Longitude::from_degrees(-72.0292)?,
         Symbol::CAR,
     )
-    .with_comment(b"warble offline");
+    .with_comment(b"yodel offline");
     let n = position.build(&mut buf)?;
     println!("position   {}", show(&buf[..n]));
 

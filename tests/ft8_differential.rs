@@ -45,9 +45,9 @@
 //! hardcodes a path into `reference/` (see CONTRIBUTING.md):
 //!
 //! ```text
-//! WARBLE_REF_FT8_ENCODE=/path/to/symbol-printing encoder
-//! WARBLE_REF_FT8_GEN=/path/to/wav-writing generator
-//! WARBLE_REF_FT8_DECODE=/path/to/decoder
+//! YODEL_REF_FT8_ENCODE=/path/to/symbol-printing encoder
+//! YODEL_REF_FT8_GEN=/path/to/wav-writing generator
+//! YODEL_REF_FT8_DECODE=/path/to/decoder
 //!   cargo test --release --all-features --test ft8_differential -- --ignored --nocapture
 //! ```
 //!
@@ -58,8 +58,8 @@
 use std::path::PathBuf;
 use std::process::Command;
 
-use warble::SampleRate;
-use warble::ft8::{
+use yodel::SampleRate;
+use yodel::ft8::{
     CODEWORD_BITS, Ft8Config, Ft8Decoder, Ft8DecoderConfig, Ft8Message, Ft8Modulator, Ft8Tail,
     MESSAGE_BITS, PARITY_BITS, PAYLOAD_BITS, SYMBOL_COUNT, add_crc, ldpc_encode,
 };
@@ -281,10 +281,10 @@ fn run_reference(encoder: &PathBuf, text: &str) -> Reference {
 /// one value here, and no amount of internal round-tripping can see
 /// any of them.
 #[test]
-#[ignore = "requires WARBLE_REF_FT8_ENCODE"]
+#[ignore = "requires YODEL_REF_FT8_ENCODE"]
 fn channel_encoding_matches_the_reference_encoder() {
-    let Some(encoder) = ref_binary("WARBLE_REF_FT8_ENCODE") else {
-        eprintln!("WARBLE_REF_FT8_ENCODE not set — skipping");
+    let Some(encoder) = ref_binary("YODEL_REF_FT8_ENCODE") else {
+        eprintln!("YODEL_REF_FT8_ENCODE not set — skipping");
         return;
     };
 
@@ -414,10 +414,10 @@ const DECODER_ARGS: [&str; 2] = ["40", "2"];
 /// timing put the energy somewhere the other implementation does not
 /// look.
 #[test]
-#[ignore = "requires WARBLE_REF_FT8_DECODE"]
+#[ignore = "requires YODEL_REF_FT8_DECODE"]
 fn our_transmission_decodes_in_the_reference_decoder() {
-    let Some(decoder) = ref_binary("WARBLE_REF_FT8_DECODE") else {
-        eprintln!("WARBLE_REF_FT8_DECODE not set — skipping");
+    let Some(decoder) = ref_binary("YODEL_REF_FT8_DECODE") else {
+        eprintln!("YODEL_REF_FT8_DECODE not set — skipping");
         return;
     };
     let dir = scratch_subdir("ft8_ref_decode");
@@ -478,10 +478,10 @@ fn our_transmission_decodes_in_the_reference_decoder() {
 /// Our receive engine must recover the reference's message from the
 /// reference's audio.
 #[test]
-#[ignore = "requires WARBLE_REF_FT8_GEN"]
+#[ignore = "requires YODEL_REF_FT8_GEN"]
 fn we_decode_the_reference_transmission() {
-    let Some(generator) = ref_binary("WARBLE_REF_FT8_GEN") else {
-        eprintln!("WARBLE_REF_FT8_GEN not set — skipping");
+    let Some(generator) = ref_binary("YODEL_REF_FT8_GEN") else {
+        eprintln!("YODEL_REF_FT8_GEN not set — skipping");
         return;
     };
     let dir = scratch_subdir("ft8_ref_gen");

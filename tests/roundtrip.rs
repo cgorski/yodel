@@ -6,9 +6,9 @@
 //! recovery must be exact, at every supported sample rate, on both the i16
 //! and f32 sample paths.
 
-use warble::demodulator::{AfskDemodulator, DemodulatorConfig};
-use warble::modulator::{Modulator, ModulatorConfig};
-use warble::{
+use yodel::demodulator::{AfskDemodulator, DemodulatorConfig};
+use yodel::modulator::{Modulator, ModulatorConfig};
+use yodel::{
     BAUD_MAX, BAUD_MIN, BaudRate, Bit, ConfigError, SAMPLE_RATE_MAX, SAMPLE_RATE_MIN, SampleRate,
     TonePair,
 };
@@ -602,7 +602,7 @@ fn a_config_rechecks_its_tones_against_its_own_sample_rate() {
     // their tones sits below 4000 Hz, the Nyquist of the lowest sample
     // rate the crate accepts. Pin that, so a future constant with a
     // higher tone cannot be added without noticing.
-    let slowest = SampleRate::new(warble::SAMPLE_RATE_MIN).unwrap();
+    let slowest = SampleRate::new(yodel::SAMPLE_RATE_MIN).unwrap();
     for (name, pair) in [
         ("BELL_202", TonePair::BELL_202),
         ("BELL_103_ORIGINATE", TonePair::BELL_103_ORIGINATE),

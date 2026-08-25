@@ -56,8 +56,8 @@ while IFS= read -r citation; do
         # An integration test lives in the binary named after its file.
         tests/*) want_bin=$(basename "${file}" .rs) ;;
         # A `#[cfg(test)]` unit test is compiled into one of the two
-        # `warble-*` binaries (the library's and the binary's).
-        *) want_bin=warble ;;
+        # `yodel-*` binaries (the library's and the binary's).
+        *) want_bin=yodel ;;
     esac
     # A citation names either a test or a module holding several (the
     # doc's own preamble says so), and the listed name carries the full

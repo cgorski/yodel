@@ -1,4 +1,4 @@
-//! Tests of the `async` feature's tokio adapter layer (`warble::asynk`):
+//! Tests of the `async` feature's tokio adapter layer (`yodel::asynk`):
 //! stream decode of a synthesized signal, sync/async equivalence,
 //! many-feeds attribution, the KISS server over a loopback connection,
 //! and backpressure with a slow consumer. No devices, no fixed ports:
@@ -8,11 +8,11 @@
 use tokio::io::AsyncReadExt;
 use tokio_stream::StreamExt;
 
-use warble::SampleRate;
-use warble::aprs::{AprsPacket, Status};
-use warble::ax25::Address;
-use warble::kiss::KissDeframer;
-use warble::tnc::{DefaultTncReceiver, OwnedFrame, TncConfig, TncTransmitter};
+use yodel::SampleRate;
+use yodel::aprs::{AprsPacket, Status};
+use yodel::ax25::Address;
+use yodel::kiss::KissDeframer;
+use yodel::tnc::{DefaultTncReceiver, OwnedFrame, TncConfig, TncTransmitter};
 
 /// The shared Bell 202 configuration at 48 kHz.
 fn config() -> TncConfig {
@@ -60,7 +60,7 @@ async fn frames_decodes_synthesized_signal() {
             .unwrap();
         // Dropping `a` closes the pipe (EOF for the decoder).
     });
-    let mut frames = std::pin::pin!(warble::asynk::frames(b, config()));
+    let mut frames = std::pin::pin!(yodel::asynk::frames(b, config()));
     let frame = frames.next().await.expect("one frame").expect("no error");
     assert_eq!(frame.src().callsign.as_bytes(), b"N0CALL");
     assert_eq!(frame.info(), b">QRV async");
@@ -91,7 +91,7 @@ async fn async_decode_matches_sync_decode() {
             .await
             .unwrap();
     });
-    let got: Vec<OwnedFrame> = warble::asynk::frames(b, config())
+    let got: Vec<OwnedFrame> = yodel::asynk::frames(b, config())
         .map(|r| r.expect("no error"))
         .collect()
         .await;
@@ -118,7 +118,7 @@ async fn decode_wav_matches_sync_decode() {
     let expected = sync_decode(&samples);
     assert_eq!(expected.len(), 2);
 
-    let path = std::env::temp_dir().join(format!("warble-asynk-{}.wav", std::process::id()));
+    let path = std::env::temp_dir().join(format!("yodel-asynk-{}.wav", std::process::id()));
     let spec = hound::WavSpec {
         channels: 1,
         sample_rate: 48_000,
@@ -131,7 +131,7 @@ async fn decode_wav_matches_sync_decode() {
     }
     writer.finalize().unwrap();
 
-    let got: Vec<OwnedFrame> = warble::asynk::decode_wav(path.clone())
+    let got: Vec<OwnedFrame> = yodel::asynk::decode_wav(path.clone())
         .map(|r| r.expect("no error"))
         .collect()
         .await;
@@ -147,8 +147,8 @@ async fn decode_wav_matches_sync_decode() {
 #[cfg(feature = "wav")]
 #[tokio::test]
 async fn decode_wav_reports_open_error() {
-    let path = std::env::temp_dir().join("warble-asynk-does-not-exist.wav");
-    let mut frames = std::pin::pin!(warble::asynk::decode_wav(path));
+    let path = std::env::temp_dir().join("yodel-asynk-does-not-exist.wav");
+    let mut frames = std::pin::pin!(yodel::asynk::decode_wav(path));
     let item = frames.next().await.expect("an error item");
     assert!(item.is_err());
 }
@@ -170,7 +170,7 @@ async fn decode_many_attributes_frames_to_feeds() {
         }));
         readers.push(b);
     }
-    let got: Vec<(usize, OwnedFrame)> = warble::asynk::decode_many(readers, config())
+    let got: Vec<(usize, OwnedFrame)> = yodel::asynk::decode_many(readers, config())
         .map(|(feed, r)| (feed, r.expect("no error")))
         .collect()
         .await;
@@ -209,7 +209,7 @@ async fn serve_kiss_delivers_frames_to_client() {
     // cannot miss the broadcast.
     let (feed_tx, feed_rx) = tokio::sync::mpsc::channel::<OwnedFrame>(4);
     let feed = tokio_stream::wrappers::ReceiverStream::new(feed_rx);
-    let server = tokio::spawn(warble::asynk::serve_kiss(listener, feed));
+    let server = tokio::spawn(yodel::asynk::serve_kiss(listener, feed));
 
     let mut client = tokio::net::TcpStream::connect(addr).await.unwrap();
     // Client is connected; release the frame. The accept race is real:
@@ -247,7 +247,7 @@ async fn backpressure_slow_consumer_loses_nothing() {
             .await
             .unwrap();
     });
-    let mut frames = std::pin::pin!(warble::asynk::frames(b, config()));
+    let mut frames = std::pin::pin!(yodel::asynk::frames(b, config()));
     let mut got = Vec::new();
     while let Some(frame) = frames.next().await {
         // The slow sink: yield repeatedly so the decoder runs far ahead
@@ -272,7 +272,7 @@ async fn odd_trailing_byte_is_reported() {
         .await
         .unwrap();
     drop(a);
-    let mut frames = std::pin::pin!(warble::asynk::frames(b, config()));
+    let mut frames = std::pin::pin!(yodel::asynk::frames(b, config()));
     let item = frames.next().await.expect("an error item");
     assert!(item.is_err(), "odd byte count must surface as an error");
 }
@@ -299,15 +299,15 @@ fn wav_bytes(samples: &[i16]) -> Vec<u8> {
 #[cfg(feature = "wav")]
 async fn stream_decode(
     bytes: Vec<u8>,
-    rate: Option<warble::SampleRate>,
-) -> Vec<Result<warble::tnc::OwnedFrame, warble::wav::WavError>> {
+    rate: Option<yodel::SampleRate>,
+) -> Vec<Result<yodel::tnc::OwnedFrame, yodel::wav::WavError>> {
     let (mut a, b) = tokio::io::duplex(1024);
     let writer = tokio::spawn(async move {
         // A write error is fine: an early error item (bad rate, raw
         // without a rate) hangs up on the writer mid-stream.
         let _ = tokio::io::AsyncWriteExt::write_all(&mut a, &bytes).await;
     });
-    let got = warble::asynk::decode_stream(b, rate).collect().await;
+    let got = yodel::asynk::decode_stream(b, rate).collect().await;
     writer.await.unwrap();
     got
 }
@@ -345,7 +345,7 @@ async fn decode_stream_wav_header_sets_the_rate() {
     assert_eq!(no_hint.len(), 1);
     assert!(no_hint[0].is_ok(), "WAV without a hint decodes");
 
-    let agreeing = warble::SampleRate::new(48_000).ok();
+    let agreeing = yodel::SampleRate::new(48_000).ok();
     let hinted = stream_decode(bytes, agreeing).await;
     assert_eq!(hinted.len(), 1);
     assert!(hinted[0].is_ok(), "an agreeing hint is accepted");
@@ -357,7 +357,7 @@ async fn decode_stream_wav_header_sets_the_rate() {
 #[tokio::test]
 async fn decode_stream_raw_with_rate_decodes() {
     let samples = transmission("N0CALL", b"raw shape");
-    let rate = warble::SampleRate::new(48_000).ok();
+    let rate = yodel::SampleRate::new(48_000).ok();
     let got = stream_decode(pcm_bytes(&samples), rate).await;
     assert_eq!(got.len(), 1);
     let frame = got.into_iter().next().unwrap().expect("no error");
@@ -370,7 +370,7 @@ async fn decode_stream_raw_with_rate_decodes() {
 async fn decode_stream_raw_without_rate_errors() {
     let got = stream_decode(vec![0u8; 64], None).await;
     assert_eq!(got.len(), 1);
-    assert!(matches!(got[0], Err(warble::wav::WavError::RateRequired)));
+    assert!(matches!(got[0], Err(yodel::wav::WavError::RateRequired)));
 }
 
 /// A rate hint contradicting the WAV header is a single
@@ -379,12 +379,12 @@ async fn decode_stream_raw_without_rate_errors() {
 #[tokio::test]
 async fn decode_stream_rate_contradiction_errors() {
     let bytes = wav_bytes(&transmission("N0CALL", b"clash"));
-    let wrong = warble::SampleRate::new(44_100).ok();
+    let wrong = yodel::SampleRate::new(44_100).ok();
     let got = stream_decode(bytes, wrong).await;
     assert_eq!(got.len(), 1);
     assert!(matches!(
         got[0],
-        Err(warble::wav::WavError::RateContradiction {
+        Err(yodel::wav::WavError::RateContradiction {
             header_hz: 48_000,
             given_hz: 44_100,
         })

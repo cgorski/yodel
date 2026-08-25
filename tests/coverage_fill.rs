@@ -13,12 +13,10 @@
 //! reason returns just as promptly as one that is right.
 #![cfg(feature = "tnc")]
 
-use warble::aprs::{
-    AprsError, AprsPacket, GeoError, Latitude, Longitude, Position, Status, Symbol,
-};
-use warble::ax25::{Address, UiFrame};
-use warble::geo::Ambiguity;
-use warble::{Bit, Modulator, ModulatorConfig, SampleRate};
+use yodel::aprs::{AprsError, AprsPacket, GeoError, Latitude, Longitude, Position, Status, Symbol};
+use yodel::ax25::{Address, UiFrame};
+use yodel::geo::Ambiguity;
+use yodel::{Bit, Modulator, ModulatorConfig, SampleRate};
 
 fn bell(sr: u32) -> ModulatorConfig {
     ModulatorConfig::bell_202(SampleRate::new(sr).unwrap()).unwrap()
@@ -76,8 +74,8 @@ fn afsk_modulate_exact_pcm_prefix_44100() {
 fn nrzi_totality_no_invalid_inputs() {
     for initial in [Bit::Zero, Bit::One] {
         for line in [Bit::Zero, Bit::One] {
-            let mut enc = warble::NrziEncoder::new(initial);
-            let mut dec = warble::NrziDecoder::new(initial);
+            let mut enc = yodel::NrziEncoder::new(initial);
+            let mut dec = yodel::NrziDecoder::new(initial);
             // Both directions accept both inputs in both states.
             let _ = enc.encode(line);
             let out = dec.decode(line);
@@ -121,8 +119,8 @@ fn position_boundary_extremes_round_trip() {
         // uses; storage is finer.
         let packet = AprsPacket::Position(Position {
             ambiguity: Ambiguity::EXACT,
-            latitude: Latitude::new(la * warble::geo::UNITS_PER_HUNDREDTH_MINUTE).unwrap(),
-            longitude: Longitude::new(lo * warble::geo::UNITS_PER_HUNDREDTH_MINUTE).unwrap(),
+            latitude: Latitude::new(la * yodel::geo::UNITS_PER_HUNDREDTH_MINUTE).unwrap(),
+            longitude: Longitude::new(lo * yodel::geo::UNITS_PER_HUNDREDTH_MINUTE).unwrap(),
             symbol: Symbol::HOUSE,
             messaging: false,
             compressed: false,
@@ -135,19 +133,19 @@ fn position_boundary_extremes_round_trip() {
         assert_eq!(AprsPacket::parse(&buf[..len]).unwrap(), packet);
     }
     // One past either boundary is a typed constructor error. The
-    // coordinate primitives live in `warble::geo` and carry `GeoError`;
+    // coordinate primitives live in `yodel::geo` and carry `GeoError`;
     // `AprsError` still has the matching variants, and the conversion
     // between them is what keeps `?` working inside APRS parsers.
     assert_eq!(
-        Latitude::new((90 * 6000 + 1) * warble::geo::UNITS_PER_HUNDREDTH_MINUTE),
+        Latitude::new((90 * 6000 + 1) * yodel::geo::UNITS_PER_HUNDREDTH_MINUTE),
         Err(GeoError::BadLatitude {
-            got: (90 * 6000 + 1) * warble::geo::UNITS_PER_HUNDREDTH_MINUTE
+            got: (90 * 6000 + 1) * yodel::geo::UNITS_PER_HUNDREDTH_MINUTE
         })
     );
     assert_eq!(
-        Longitude::new(-(180 * 6000 + 1) * warble::geo::UNITS_PER_HUNDREDTH_MINUTE),
+        Longitude::new(-(180 * 6000 + 1) * yodel::geo::UNITS_PER_HUNDREDTH_MINUTE),
         Err(GeoError::BadLongitude {
-            got: -(180 * 6000 + 1) * warble::geo::UNITS_PER_HUNDREDTH_MINUTE
+            got: -(180 * 6000 + 1) * yodel::geo::UNITS_PER_HUNDREDTH_MINUTE
         })
     );
     assert_eq!(
@@ -214,8 +212,8 @@ fn ax25_empty_info_round_trip() {
 
 mod tnc_tx {
     use super::*;
-    use warble::ax25::Ax25Error;
-    use warble::tnc::{TncConfig, TncError, TncTransmitter};
+    use yodel::ax25::Ax25Error;
+    use yodel::tnc::{TncConfig, TncError, TncTransmitter};
 
     /// TNC TX known-answer: `build_frame` emits exactly the bytes the
     /// AX.25 layer builds for the same packet, address for address.
@@ -286,12 +284,12 @@ mod tnc_tx {
 /// than just executed.
 #[test]
 fn untested_public_builders_round_trip() {
-    use warble::aprs::extension::{DataExtension, Phg, PhgRate};
-    use warble::aprs::{PositionWeather, PositionlessWeather, Timestamp, WeatherReport};
-    use warble::units::Speed;
+    use yodel::aprs::extension::{DataExtension, Phg, PhgRate};
+    use yodel::aprs::{PositionWeather, PositionlessWeather, Timestamp, WeatherReport};
+    use yodel::units::Speed;
 
-    let lat = Latitude::new((49 * 6000 + 350) * warble::geo::UNITS_PER_HUNDREDTH_MINUTE).unwrap();
-    let lon = Longitude::new(-(72 * 6000 + 175) * warble::geo::UNITS_PER_HUNDREDTH_MINUTE).unwrap();
+    let lat = Latitude::new((49 * 6000 + 350) * yodel::geo::UNITS_PER_HUNDREDTH_MINUTE).unwrap();
+    let lon = Longitude::new(-(72 * 6000 + 175) * yodel::geo::UNITS_PER_HUNDREDTH_MINUTE).unwrap();
 
     // --- Position::with_extension --------------------------------
     let position = Position::new(lat, lon, Symbol::from_wire(b'/', b'#'))
@@ -392,15 +390,15 @@ fn untested_public_builders_round_trip() {
 /// the CLI binary, nothing called it.
 #[test]
 fn decoded_from_ui_reads_mic_e_where_packet_from_ui_cannot() {
-    use warble::aprs::mic_e::{MicE, MicEMessage};
-    use warble::aprs::{DecodedKind, decoded_from_ui, packet_from_ui};
+    use yodel::aprs::mic_e::{MicE, MicEMessage};
+    use yodel::aprs::{DecodedKind, decoded_from_ui, packet_from_ui};
 
     // 33 deg 25.64 min N, 112 deg 07.00 min W: exact in the hundredths
     // of an arc-minute Mic-E puts on the wire, so the decode must come
     // back bit-identical rather than merely close.
-    let latitude = Latitude::from_degrees_minutes(33, 2564, warble::LatitudeHemisphere::North)
+    let latitude = Latitude::from_degrees_minutes(33, 2564, yodel::LatitudeHemisphere::North)
         .expect("a valid latitude");
-    let longitude = Longitude::from_degrees_minutes(112, 700, warble::LongitudeHemisphere::West)
+    let longitude = Longitude::from_degrees_minutes(112, 700, yodel::LongitudeHemisphere::West)
         .expect("a valid longitude");
     let report = MicE::new(
         latitude,
@@ -453,7 +451,7 @@ fn decoded_from_ui_reads_mic_e_where_packet_from_ui_cannot() {
 /// from its own module.
 #[test]
 fn is_q_construct_accepts_exactly_the_q_forms() {
-    use warble::aprs::monitor::is_q_construct;
+    use yodel::aprs::monitor::is_q_construct;
 
     // The constructs actually seen on APRS-IS.
     for good in [
@@ -505,10 +503,10 @@ fn is_q_construct_accepts_exactly_the_q_forms() {
 /// when it returns the other variant.
 #[test]
 fn untested_public_accessors() {
-    use warble::aprs::mic_e::{MicE, MicEFix, MicEMessage};
-    use warble::aprs::ultimeter::{self, UltimeterRecord};
-    use warble::tnc::{ChainVoting, InputBandPass, TncConfig};
-    use warble::units::Speed;
+    use yodel::aprs::mic_e::{MicE, MicEFix, MicEMessage};
+    use yodel::aprs::ultimeter::{self, UltimeterRecord};
+    use yodel::tnc::{ChainVoting, InputBandPass, TncConfig};
+    use yodel::units::Speed;
 
     // --- MicEFix::type_byte: the two Mic-E data type identifiers ---
     assert_eq!(MicEFix::Current.type_byte(), b'`');
@@ -571,23 +569,23 @@ fn untested_public_accessors() {
     // My first guess at the 240-byte case was 4 bytes of parity and the
     // answer is 8, because 240 bytes is two blocks of 120 and a
     // 120-byte block takes 4 each.
-    assert_eq!(warble::il2p::payload_wire_len(0, false), 0);
-    assert_eq!(warble::il2p::payload_wire_len(1, false), 1 + 2);
-    assert_eq!(warble::il2p::payload_wire_len(1, true), 1 + 16);
+    assert_eq!(yodel::il2p::payload_wire_len(0, false), 0);
+    assert_eq!(yodel::il2p::payload_wire_len(1, false), 1 + 2);
+    assert_eq!(yodel::il2p::payload_wire_len(1, true), 1 + 16);
     // One baseline block, still the smallest parity at 61 bytes.
-    assert_eq!(warble::il2p::payload_wire_len(61, false), 61 + 2);
+    assert_eq!(yodel::il2p::payload_wire_len(61, false), 61 + 2);
     // 62 bytes is one block over the 61-byte threshold, so 4.
-    assert_eq!(warble::il2p::payload_wire_len(62, false), 62 + 4);
+    assert_eq!(yodel::il2p::payload_wire_len(62, false), 62 + 4);
     // 240 bytes is two blocks of 120: 4 parity each, 8 in total.
-    assert_eq!(warble::il2p::payload_wire_len(240, false), 240 + 8);
+    assert_eq!(yodel::il2p::payload_wire_len(240, false), 240 + 8);
     // The largest single baseline block, and the largest max-FEC one.
-    assert_eq!(warble::il2p::payload_wire_len(247, false), 247 + 8);
-    assert_eq!(warble::il2p::payload_wire_len(239, true), 239 + 16);
-    assert_eq!(warble::il2p::payload_wire_len(240, true), 240 + 2 * 16);
+    assert_eq!(yodel::il2p::payload_wire_len(247, false), 247 + 8);
+    assert_eq!(yodel::il2p::payload_wire_len(239, true), 239 + 16);
+    assert_eq!(yodel::il2p::payload_wire_len(240, true), 240 + 2 * 16);
     // Structural properties that must hold at every length.
     for len in 0..300 {
-        let baseline = warble::il2p::payload_wire_len(len, false);
-        let max_fec = warble::il2p::payload_wire_len(len, true);
+        let baseline = yodel::il2p::payload_wire_len(len, false);
+        let max_fec = yodel::il2p::payload_wire_len(len, true);
         assert!(baseline >= len, "{len}: wire shorter than payload");
         assert!(max_fec >= baseline, "{len}: max FEC cheaper than baseline");
     }
@@ -615,7 +613,7 @@ fn untested_public_accessors() {
     }
 }
 
-/// The caller-supplied [`warble::Discriminator`] seam.
+/// The caller-supplied [`yodel::Discriminator`] seam.
 ///
 /// `Demodulator::with_discriminator` is the crate's advertised PHY
 /// extension point — the one public door to the `Discriminator` trait —
@@ -633,7 +631,7 @@ fn untested_public_accessors() {
 /// recovers the same payload the built-in one does.
 mod caller_supplied_discriminator {
     use super::bell;
-    use warble::{
+    use yodel::{
         AfskDemodulator, Bit, Demodulator, DemodulatorConfig, Discriminator, Modulator, SampleRate,
     };
 
@@ -651,7 +649,7 @@ mod caller_supplied_discriminator {
     /// A delay-and-multiply (differential) FM discriminator.
     ///
     /// Not a reimplementation of anything in the crate:
-    /// [`warble::QuadratureCorrelator`] correlates against two reference
+    /// [`yodel::QuadratureCorrelator`] correlates against two reference
     /// oscillators and subtracts envelopes, while this multiplies the
     /// signal by a delayed copy of itself and averages over exactly one
     /// bit period. The boxcar length is a whole multiple of the 2400 Hz
@@ -844,8 +842,8 @@ mod caller_supplied_discriminator {
 /// the preamble count prepends (it does not).
 #[test]
 fn tnc_with_flags_distinguishes_preamble_from_tail() {
-    use warble::ax25::hdlc;
-    use warble::tnc::{TncConfig, TncTransmitter};
+    use yodel::ax25::hdlc;
+    use yodel::tnc::{TncConfig, TncTransmitter};
 
     /// One flag octet at 48 kHz / 1200 Bd: 8 bits × 40 samples per bit.
     const FLAG_SAMPLES: usize = 8 * 40;
@@ -946,8 +944,8 @@ fn tnc_with_flags_distinguishes_preamble_from_tail() {
 #[cfg(feature = "wspr")]
 #[test]
 fn wspr_fill_f32_tracks_fill_i16_and_fills_what_it_claims() {
-    use warble::MaidenheadGrid;
-    use warble::wspr::{WsprConfig, WsprMessage, WsprModulator};
+    use yodel::MaidenheadGrid;
+    use yodel::wspr::{WsprConfig, WsprMessage, WsprModulator};
 
     /// Outside the documented `-1.0..=1.0` output range.
     const SENTINEL: f32 = 7.5;
@@ -1015,7 +1013,7 @@ fn wspr_fill_f32_tracks_fill_i16_and_fills_what_it_claims() {
 #[cfg(feature = "ft8")]
 #[test]
 fn ft8_fill_f32_tracks_fill_i16_and_fills_what_it_claims() {
-    use warble::ft8::{Ft8Config, Ft8Message, Ft8Modulator, Ft8Tail};
+    use yodel::ft8::{Ft8Config, Ft8Message, Ft8Modulator, Ft8Tail};
 
     const SENTINEL: f32 = 7.5;
     const TOLERANCE: f32 = 64.0;
@@ -1086,7 +1084,7 @@ fn ft8_fill_f32_tracks_fill_i16_and_fills_what_it_claims() {
 #[cfg(feature = "m17")]
 #[test]
 fn m17_packet_assembler_reports_the_link_setup_frame() {
-    use warble::m17::{
+    use yodel::m17::{
         Address as M17Address, Lsf, M17FrameEvent, M17PacketTx, M17Receiver, PacketAssembler,
     };
 
@@ -1164,7 +1162,7 @@ fn m17_packet_assembler_reports_the_link_setup_frame() {
 /// IL2P draft v0.4 prints both a table (2/4/6/8 parity symbols, stepping
 /// every ~62 bytes) and a formula, `size / 32 + 2`, and they disagree.
 /// Worse, the formula yields 3, 5 and 7 for block sizes that occur in
-/// practice — parity lengths [`warble::il2p::Il2pParity`] does not have,
+/// practice — parity lengths [`yodel::il2p::Il2pParity`] does not have,
 /// so a receiver following it derives an on-air payload length no
 /// encoder produces. The function resolves this in favour of the table;
 /// that choice is a wire-compatibility decision, so it is pinned here
@@ -1172,7 +1170,7 @@ fn m17_packet_assembler_reports_the_link_setup_frame() {
 #[cfg(feature = "il2p")]
 #[test]
 fn il2p_baseline_parity_table_is_pinned_across_the_block_size_domain() {
-    use warble::il2p::{Il2pParity, MAX_BASELINE_BLOCK_DATA, block_count_for, payload_wire_len};
+    use yodel::il2p::{Il2pParity, MAX_BASELINE_BLOCK_DATA, block_count_for, payload_wire_len};
 
     /// Both edges of all four table rows, plus the degenerate and
     /// saturating ends. The array is *typed* with this length, so
@@ -1281,7 +1279,7 @@ fn il2p_baseline_parity_table_is_pinned_across_the_block_size_domain() {
 #[cfg(feature = "fx25")]
 #[test]
 fn fx25_frame_is_empty_agrees_with_len_over_the_whole_domain() {
-    use warble::fx25::{CorrelationTag, TAG_BYTES, WRAP_MAX, stuff_frame, wrap, wrap_with};
+    use yodel::fx25::{CorrelationTag, TAG_BYTES, WRAP_MAX, stuff_frame, wrap, wrap_with};
 
     /// Eleven tags × the explicit path, plus the smallest-fit path at
     /// several sizes. A floor, so the loops cannot pass over nothing.
@@ -1417,7 +1415,7 @@ fn mono_spec(hz: u32) -> hound::WavSpec {
 #[cfg(feature = "wav")]
 fn scratch_wav(tag: &str) -> std::path::PathBuf {
     std::env::temp_dir().join(format!(
-        "warble-coverage-fill-{}-{tag}.wav",
+        "yodel-coverage-fill-{}-{tag}.wav",
         std::process::id()
     ))
 }
@@ -1436,7 +1434,7 @@ fn scratch_wav(tag: &str) -> std::path::PathBuf {
 #[test]
 fn wav_check_spec_accepts_16_bit_mono_pcm_and_names_every_rejection() {
     use hound::{SampleFormat, WavSpec};
-    use warble::wav::{WavError, check_spec};
+    use yodel::wav::{WavError, check_spec};
 
     /// Both edges of the supported `8_000..=48_000` Hz range plus the
     /// four rates the crate's own fixtures use, out of that continuum.
@@ -1671,7 +1669,7 @@ fn wav_check_spec_accepts_16_bit_mono_pcm_and_names_every_rejection() {
 ///    decoding the same two-frame fixture from a 48 kHz *and* a
 ///    22.05 kHz WAV — a hardcoded rate would decode one of them to
 ///    nothing;
-/// 3. the returned [`warble::tnc::TncStats`] are the receiver's real
+/// 3. the returned [`yodel::tnc::TncStats`] are the receiver's real
 ///    counters (all four fields pinned, not just `frames_ok`);
 /// 4. the sink contract: returning `false` stops delivery *and*
 ///    decoding, so the sink is never called again and the statistics
@@ -1679,8 +1677,8 @@ fn wav_check_spec_accepts_16_bit_mono_pcm_and_names_every_rejection() {
 #[cfg(feature = "wav")]
 #[test]
 fn wav_decode_frames_recovers_frames_reports_stats_and_honors_the_sink() {
-    use warble::tnc::{DefaultTncReceiver, OwnedFrame, TncConfig, TncStats, TncTransmitter};
-    use warble::wav::decode_frames;
+    use yodel::tnc::{DefaultTncReceiver, OwnedFrame, TncConfig, TncStats, TncTransmitter};
+    use yodel::wav::decode_frames;
 
     /// Sample rates the fixture is built and decoded at. Typed at this
     /// length so dropping one is a compile error: with a single rate,
@@ -1807,7 +1805,7 @@ fn wav_decode_frames_recovers_frames_reports_stats_and_honors_the_sink() {
 #[cfg(feature = "wav")]
 #[test]
 fn wav_decode_frames_surfaces_open_and_header_failures() {
-    use warble::wav::{WavError, decode_frames};
+    use yodel::wav::{WavError, decode_frames};
 
     /// One IO failure plus the two `check_spec` rejections that a real
     /// file can carry into `decode_frames`. Typed arrays below hold the
@@ -1905,7 +1903,7 @@ fn wav_decode_frames_surfaces_open_and_header_failures() {
 #[cfg(feature = "ft8")]
 #[test]
 fn ft8_llrs_from_energies_known_answers() {
-    use warble::ft8::{
+    use yodel::ft8::{
         CODEWORD_BITS, CODEWORD_LEN, Ft8Message, Ft8Tail, GRAY_MAP, add_crc, ldpc_decode,
         ldpc_encode, llrs_from_energies, symbols_from_codeword,
     };
@@ -2143,7 +2141,7 @@ fn ft8_llrs_from_energies_known_answers() {
 /// So the positive direction is swept directly: for eight content
 /// lengths up to the receiver's 330-byte `MAX_FRAME_BYTES`, flip every
 /// bit of every byte in turn, compute the real syndrome with
-/// [`warble::ax25::fcs::crc16_x25`], and demand the function name
+/// [`yodel::ax25::fcs::crc16_x25`], and demand the function name
 /// exactly that position — then apply the `(index, mask)` it reported
 /// and demand the frame and its FCS come back. Because every one of the
 /// 5416 flips gets its own position back, the sweep also proves the
@@ -2173,7 +2171,7 @@ fn ft8_llrs_from_energies_known_answers() {
 #[cfg(feature = "ax25")]
 #[test]
 fn ax25_locate_single_bit_error_names_every_flipped_bit() {
-    use warble::ax25::fcs::{SingleBitError, crc16_x25, locate_single_bit_error};
+    use yodel::ax25::fcs::{SingleBitError, crc16_x25, locate_single_bit_error};
 
     /// Content lengths swept: the shortest frame, a few small ones, and
     /// the receiver's `MAX_FRAME_BYTES` ceiling. The array is typed at

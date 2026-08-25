@@ -36,7 +36,7 @@
 /// appended low byte first:
 ///
 /// ```
-/// use warble::ax25::fcs::{Fcs, crc16_x25};
+/// use yodel::ax25::fcs::{Fcs, crc16_x25};
 ///
 /// assert_eq!(crc16_x25(b"123456789"), 0x906E);
 ///

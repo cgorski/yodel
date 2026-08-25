@@ -12,9 +12,9 @@
 //!
 //! ```sh
 //! # Any file of TNC2 monitor lines: an APRS-IS capture, a TNC log.
-//! warble decode --tnc2 --output-format jsonl corpus.txt > before.jsonl
+//! yodel decode --tnc2 --output-format jsonl corpus.txt > before.jsonl
 //! # ... change the parser, rebuild ...
-//! warble decode --tnc2 --output-format jsonl corpus.txt > after.jsonl
+//! yodel decode --tnc2 --output-format jsonl corpus.txt > after.jsonl
 //!
 //! cargo run --release --example corpus_diff --features std,aprs -- \
 //!     before.jsonl after.jsonl

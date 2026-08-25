@@ -49,7 +49,7 @@
 //!
 //! # Try it
 //!
-//! Generate a triggering message WAV first (the `warble` CLI `encode`
+//! Generate a triggering message WAV first (the `yodel` CLI `encode`
 //! command can build one, or adapt `examples/encode_wav.rs` to send
 //! `AprsPacket::Message`), then run:
 //!
@@ -59,10 +59,10 @@
 //! cargo run --example decode_to_log --features tnc,wav -- reply.wav
 //! ```
 
-use warble::SampleRate;
-use warble::aprs::{Addressee, AprsPacket, Message, MessageContent};
-use warble::ax25::Address;
-use warble::tnc::{DefaultTncReceiver, MAX_FRAME_BYTES, TncConfig, TncReceiver, TncTransmitter};
+use yodel::SampleRate;
+use yodel::aprs::{Addressee, AprsPacket, Message, MessageContent};
+use yodel::ax25::Address;
+use yodel::tnc::{DefaultTncReceiver, MAX_FRAME_BYTES, TncConfig, TncReceiver, TncTransmitter};
 
 // ---------------------------------------------------------------------
 // Station configuration — edit these.
@@ -76,7 +76,7 @@ pub const MYCALL: &[u8] = b"N0CALL";
 /// `N0CALL-10` should set [`MYCALL`] to `b"N0CALL-10"` too.
 pub const MYCALL_SSID: u8 = 0;
 /// The canned reply text sent to whoever messaged us.
-pub const REPLY_TEXT: &[u8] = b"QSL - automated warble station";
+pub const REPLY_TEXT: &[u8] = b"QSL - automated yodel station";
 /// The APRS destination "tocall" for everything we transmit.
 pub const TOCALL: &[u8] = b"APRS";
 /// Sample rate for the generated reply audio.
@@ -150,7 +150,7 @@ pub fn decide(mycall: &[u8], src: &Address, info: &[u8]) -> Option<ResponsePlan>
 /// Propagates `AprsError` when the addressee or id is invalid (cannot
 /// happen for ids that parsed off the air, but the types require the
 /// check anyway).
-pub fn build_responses(plan: &ResponsePlan) -> Result<Vec<Vec<u8>>, warble::aprs::AprsError> {
+pub fn build_responses(plan: &ResponsePlan) -> Result<Vec<Vec<u8>>, yodel::aprs::AprsError> {
     let addressee = Addressee::new(&plan.to)?;
     let mut out = Vec::new();
     let mut buf = [0u8; 128];

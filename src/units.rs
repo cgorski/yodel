@@ -263,7 +263,7 @@ impl core::error::Error for UnitError {}
 /// limits.
 ///
 /// ```
-/// use warble::units::Distance;
+/// use yodel::units::Distance;
 ///
 /// // A GPS gives meters; the `/A=` comment field wants feet.
 /// let altitude = Distance::from_meters(376);
@@ -399,7 +399,7 @@ impl Distance {
 /// pass is 2.76 × 10¹⁰ mm/h, some thirteen times what `i32` holds.
 ///
 /// ```
-/// use warble::units::Speed;
+/// use yodel::units::Speed;
 ///
 /// let speed = Speed::from_knots(36);
 /// assert_eq!(speed.mph(), 41);
@@ -523,7 +523,7 @@ impl Speed {
 /// interchanged.
 ///
 /// ```
-/// use warble::units::Rainfall;
+/// use yodel::units::Rainfall;
 ///
 /// // The APRS `r`/`p`/`P` fields are hundredths of an inch.
 /// let rain = Rainfall::from_hundredths_inch(254);
@@ -599,7 +599,7 @@ impl Rainfall {
 /// arithmetic.
 ///
 /// ```
-/// use warble::units::Temperature;
+/// use yodel::units::Temperature;
 ///
 /// // A BME280 reads Celsius; the APRS `t` field wants Fahrenheit.
 /// assert_eq!(Temperature::from_celsius(100).fahrenheit(), 212);
@@ -675,7 +675,7 @@ impl Temperature {
     /// eventually carries it can round at the point it is written.
     ///
     /// ```
-    /// use warble::units::Temperature;
+    /// use yodel::units::Temperature;
     ///
     /// assert_eq!(Temperature::from_tenths_fahrenheit(725).fahrenheit(), 73);
     /// assert_eq!(Temperature::from_tenths_fahrenheit(320), Temperature::FREEZING);
@@ -742,7 +742,7 @@ impl Temperature {
 /// under 10⁹ of the available 9.2 × 10¹⁸.
 ///
 /// ```
-/// use warble::units::Pressure;
+/// use yodel::units::Pressure;
 ///
 /// // The APRS `b` field is tenths of a hectopascal.
 /// let slp = Pressure::from_tenths_hpa(10132);
@@ -838,7 +838,7 @@ impl Pressure {
 /// A transmitter power, stored as `i64` microwatts.
 ///
 /// ```
-/// use warble::units::Power;
+/// use yodel::units::Power;
 ///
 /// // APRS PHG encodes power as the square of a digit, in watts.
 /// assert_eq!(Power::from_watts(49).watts(), 49);
@@ -975,7 +975,7 @@ impl Power {
 /// there is nothing for extra width to hold.
 ///
 /// ```
-/// use warble::units::{Bearing, CompassPoint};
+/// use yodel::units::{Bearing, CompassPoint};
 ///
 /// let heading = Bearing::new(88)?;
 /// assert_eq!(heading.compass_point(), CompassPoint::East);
@@ -983,7 +983,7 @@ impl Power {
 ///
 /// // 360 is the same direction as 0, and is accepted as such.
 /// assert_eq!(Bearing::new(360)?.degrees(), 0);
-/// # Ok::<(), warble::units::UnitError>(())
+/// # Ok::<(), yodel::units::UnitError>(())
 /// ```
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default, Hash)]
 pub struct Bearing {
@@ -1145,13 +1145,13 @@ impl CompassPoint {
 /// here, and no caller sees it again.
 ///
 /// ```
-/// use warble::units::Humidity;
+/// use yodel::units::Humidity;
 ///
 /// // `h00` on the wire means 100%, not 0%.
 /// assert_eq!(Humidity::from_wire_percent(0)?.percent(), 100);
 /// assert_eq!(Humidity::new(100)?.wire_percent(), 0);
 /// assert_eq!(Humidity::new(55)?.wire_percent(), 55);
-/// # Ok::<(), warble::units::UnitError>(())
+/// # Ok::<(), yodel::units::UnitError>(())
 /// ```
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Humidity {

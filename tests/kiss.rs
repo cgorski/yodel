@@ -2,7 +2,7 @@
 
 #![cfg(feature = "kiss")]
 
-use warble::kiss::{
+use yodel::kiss::{
     FEND, FESC, KissCommand, KissDeframer, KissError, KissFrameIter, KissPort, TFEND, TFESC,
     encode_into, encoded_len, frame_iter,
 };

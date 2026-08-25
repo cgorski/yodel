@@ -1170,23 +1170,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "warble"
-version = "0.1.0"
-dependencies = [
- "clap",
- "cpal",
- "embassy-futures",
- "embassy-time",
- "futures-core",
- "hound",
- "serialport",
- "tokio",
- "tokio-stream",
- "tracing",
- "tracing-subscriber",
-]
-
-[[package]]
 name = "wasi"
 version = "0.11.1+wasi-snapshot-preview1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1456,4 +1439,21 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0592e1c9d151f854e6fd382574c3a0855250e1d9b2f99d9281c6e6391af352f1"
 dependencies = [
  "memchr",
+]
+
+[[package]]
+name = "yodel"
+version = "0.1.0"
+dependencies = [
+ "clap",
+ "cpal",
+ "embassy-futures",
+ "embassy-time",
+ "futures-core",
+ "hound",
+ "serialport",
+ "tokio",
+ "tokio-stream",
+ "tracing",
+ "tracing-subscriber",
 ]

@@ -32,7 +32,7 @@
 //!   half-buffers of receiver audio into a shared `SampleRing` on a
 //!   real-time cadence (on a target this is the DMA half/full-complete
 //!   ISR; here a timer task simulates it).
-//! * **decode** — `warble::embassy::run_decoder` drains the ring in
+//! * **decode** — `yodel::embassy::run_decoder` drains the ring in
 //!   128-sample chunks through a `TncReceiver`, yielding between
 //!   chunks, and prints every FCS-valid frame heard.
 //! * **sensors** — reads the (simulated) barometer/GPS every 200 ms.
@@ -85,12 +85,12 @@ use core::cell::{Cell, RefCell};
 use embassy_futures::block_on;
 use embassy_futures::join::join4;
 use embassy_time::{Duration, Ticker, Timer};
-use warble::SampleRate;
-use warble::aprs::{AprsPacket, Status};
-use warble::ax25::Address;
-use warble::embassy::{SampleSource, TxTicker, run_decoder};
-use warble::ring::SampleRing;
-use warble::tnc::{DefaultTncReceiver, TncConfig, TncReceiver, TncTransmitter};
+use yodel::SampleRate;
+use yodel::aprs::{AprsPacket, Status};
+use yodel::ax25::Address;
+use yodel::embassy::{SampleSource, TxTicker, run_decoder};
+use yodel::ring::SampleRing;
+use yodel::tnc::{DefaultTncReceiver, TncConfig, TncReceiver, TncTransmitter};
 
 /// How long the simulated flight runs.
 /// Telemetry beacon period: 45 s, the middle of the 30-60 s convention

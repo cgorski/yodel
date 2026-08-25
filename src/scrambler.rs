@@ -59,7 +59,7 @@
 //! adapters.
 //!
 //! ```
-//! use warble::{Bit, Descrambler, Scrambler};
+//! use yodel::{Bit, Descrambler, Scrambler};
 //!
 //! let data = [Bit::One, Bit::Zero, Bit::Zero, Bit::One];
 //! let channel: Vec<Bit> = Scrambler::default()
@@ -109,7 +109,7 @@ const fn shift_in(state: u32, bit: Bit) -> u32 {
 /// perfect wire — whatever bits go in come back out:
 ///
 /// ```
-/// use warble::{Bit, Descrambler, Scrambler};
+/// use yodel::{Bit, Descrambler, Scrambler};
 ///
 /// let mut tx = Scrambler::new();
 /// let mut rx = Descrambler::new();
@@ -124,7 +124,7 @@ const fn shift_in(state: u32, bit: Bit) -> u32 {
 /// adapter:
 ///
 /// ```
-/// use warble::{Bit, Scrambler};
+/// use yodel::{Bit, Scrambler};
 ///
 /// let nrzi_bits = [Bit::Zero, Bit::One, Bit::One, Bit::Zero];
 /// let channel: Vec<Bit> = Scrambler::default()
@@ -140,7 +140,7 @@ const fn shift_in(state: u32, bit: Bit) -> u32 {
 /// guarantee:
 ///
 /// ```
-/// use warble::{Bit, Scrambler};
+/// use yodel::{Bit, Scrambler};
 ///
 /// let mut lfsr = Scrambler::with_state(1);
 /// let first: Vec<Bit> = (0..17).map(|_| lfsr.scramble(Bit::Zero)).collect();
@@ -206,7 +206,7 @@ impl Scrambler {
 /// original data falls out:
 ///
 /// ```
-/// use warble::{Bit, Descrambler, Scrambler};
+/// use yodel::{Bit, Descrambler, Scrambler};
 ///
 /// let data = [Bit::Zero, Bit::Zero, Bit::One, Bit::One];
 /// let mut tx = Scrambler::new();
@@ -220,7 +220,7 @@ impl Scrambler {
 /// the HDLC deframer, most conveniently as an iterator adapter:
 ///
 /// ```
-/// use warble::{Bit, Descrambler, Scrambler};
+/// use yodel::{Bit, Descrambler, Scrambler};
 ///
 /// let channel: Vec<Bit> = Scrambler::default()
 ///     .scramble_iter([Bit::One, Bit::Zero, Bit::One].into_iter())
@@ -238,7 +238,7 @@ impl Scrambler {
 /// corrupts exactly the output bits at offsets 0, 12 and 17.
 ///
 /// ```
-/// use warble::{Bit, Descrambler, Scrambler};
+/// use yodel::{Bit, Descrambler, Scrambler};
 ///
 /// let mut tx = Scrambler::with_state(0b1_0101_0101_0101_0101);
 /// let mut rx = Descrambler::new(); // mismatched state on purpose

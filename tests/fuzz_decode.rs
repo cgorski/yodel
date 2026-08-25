@@ -11,17 +11,17 @@
 
 #![cfg(feature = "tnc")]
 
-use warble::SampleRate;
-use warble::aprs::{
+use yodel::SampleRate;
+use yodel::aprs::{
     Addressee, AprsError, AprsPacket, Capabilities, CompressedCs, CompressionType, DataExtension,
     Item, Latitude, Longitude, Message, MessageContent, Object, Position, PositionCs,
     PositionTimestamped, PositionWeather, PositionlessWeather, Status, Symbol, Telemetry,
     Timestamp, WeatherReport,
 };
-use warble::ax25::{Address, UiFrame};
-use warble::geo::Ambiguity;
-use warble::tnc::{DefaultTncReceiver, TncConfig, TncReceiver, TncTransmitter};
-use warble::units::{Humidity, Pressure, Rainfall, Speed, Temperature};
+use yodel::ax25::{Address, UiFrame};
+use yodel::geo::Ambiguity;
+use yodel::tnc::{DefaultTncReceiver, TncConfig, TncReceiver, TncTransmitter};
+use yodel::units::{Humidity, Pressure, Rainfall, Speed, Temperature};
 
 /// 64-bit LCG (MMIX constants). Deterministic, allocation-free.
 struct Lcg(u64);
@@ -277,7 +277,7 @@ fn fuzz_aprs_subparsers_random() {
 #[cfg(feature = "micE")]
 #[test]
 fn fuzz_mic_e_decode_random() {
-    use warble::aprs::mic_e;
+    use yodel::aprs::mic_e;
     let mut rng = Lcg::new(0xA905_2024_0003);
     for _ in 0..3000 {
         let dest = rng.bytes(10);
@@ -306,7 +306,7 @@ fn fuzz_mic_e_decode_random() {
 #[cfg(feature = "kiss")]
 #[test]
 fn fuzz_kiss_deframer_and_command() {
-    use warble::kiss::{FEND, FESC, KissCommand, KissDeframer, TFEND, TFESC};
+    use yodel::kiss::{FEND, FESC, KissCommand, KissDeframer, TFEND, TFESC};
 
     // Command-byte parse is total over all 256 bytes.
     for byte in 0..=255u8 {
@@ -363,8 +363,8 @@ fn fuzz_ax25_frame_parse_random() {
 /// flag bytes to open/close frames around garbage.
 #[test]
 fn fuzz_hdlc_deframer_random_bits() {
-    use warble::Bit;
-    use warble::ax25::HdlcDeframer;
+    use yodel::Bit;
+    use yodel::ax25::HdlcDeframer;
 
     let mut rng = Lcg::new(0xA905_2024_0006);
     let mut deframer = HdlcDeframer::<64>::new();
@@ -398,11 +398,11 @@ fn fuzz_hdlc_deframer_random_bits() {
 }
 
 fn lat(v: i64) -> Latitude {
-    Latitude::new(v * warble::geo::UNITS_PER_HUNDREDTH_MINUTE).unwrap()
+    Latitude::new(v * yodel::geo::UNITS_PER_HUNDREDTH_MINUTE).unwrap()
 }
 
 fn lon(v: i64) -> Longitude {
-    Longitude::new(v * warble::geo::UNITS_PER_HUNDREDTH_MINUTE).unwrap()
+    Longitude::new(v * yodel::geo::UNITS_PER_HUNDREDTH_MINUTE).unwrap()
 }
 
 /// Floor on [`corpus`]: at least one encoding per `AprsPacket` variant,
@@ -654,7 +654,7 @@ fn fuzz_corrupted_valid_encodings() {
 /// (with FCS appended) cut at every length and randomly mutated.
 #[test]
 fn fuzz_ax25_truncation_and_corruption() {
-    use warble::ax25::crc16_x25;
+    use yodel::ax25::crc16_x25;
 
     let sr = SampleRate::new(11_025).unwrap();
     let cfg = TncConfig::bell_202(sr).unwrap();

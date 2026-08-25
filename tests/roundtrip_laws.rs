@@ -11,12 +11,12 @@
 //! messages, which substitutes for shrinking at this input size.
 #![cfg(all(feature = "tnc", feature = "fx25", feature = "kiss", feature = "g3ruh"))]
 
-use warble::aprs::{Latitude, Longitude, Position, Symbol};
-use warble::ax25::{Address, HdlcDeframer, UiFrame, hdlc};
-use warble::fx25::{Fx25Receiver, WRAP_MAX, byte_bits, stuff_frame, wrap};
-use warble::kiss::{KissCommand, KissDeframer, KissPort, encode_into, frame_iter};
-use warble::nrzi::{NrziDecoder, NrziEncoder};
-use warble::{Bit, Descrambler, Scrambler};
+use yodel::aprs::{Latitude, Longitude, Position, Symbol};
+use yodel::ax25::{Address, HdlcDeframer, UiFrame, hdlc};
+use yodel::fx25::{Fx25Receiver, WRAP_MAX, byte_bits, stuff_frame, wrap};
+use yodel::kiss::{KissCommand, KissDeframer, KissPort, encode_into, frame_iter};
+use yodel::nrzi::{NrziDecoder, NrziEncoder};
+use yodel::{Bit, Descrambler, Scrambler};
 
 /// 64-bit LCG (Knuth MMIX constants), matching `tests/fuzz_decode.rs`.
 struct Lcg(u64);
@@ -241,8 +241,8 @@ fn law_aprs_position_roundtrip_within_precision() {
         let lon_h = (rng.next_u64() % (2 * LON_MAX as u64 + 1)) as i64 - LON_MAX;
         // The sweep is written in 1/100 arc-minutes, the unit the
         // uncompressed wire format uses; storage is finer.
-        let lat = Latitude::new(lat_h * warble::geo::UNITS_PER_HUNDREDTH_MINUTE).unwrap();
-        let lon = Longitude::new(lon_h * warble::geo::UNITS_PER_HUNDREDTH_MINUTE).unwrap();
+        let lat = Latitude::new(lat_h * yodel::geo::UNITS_PER_HUNDREDTH_MINUTE).unwrap();
+        let lon = Longitude::new(lon_h * yodel::geo::UNITS_PER_HUNDREDTH_MINUTE).unwrap();
 
         // Uncompressed: exact.
         let pos = Position::new(lat, lon, Symbol::CAR);
@@ -261,8 +261,8 @@ fn law_aprs_position_roundtrip_within_precision() {
         // unit and the compressed grid was coarser than it; now the
         // compressed grid is the finer of the two and the quantisation
         // is 1/380926 of a degree on latitude, half that on longitude.
-        let lat_step = warble::geo::UNITS_PER_DEGREE / 380_926;
-        let lon_step = warble::geo::UNITS_PER_DEGREE / 190_463;
+        let lat_step = yodel::geo::UNITS_PER_DEGREE / 380_926;
+        let lon_step = yodel::geo::UNITS_PER_DEGREE / 190_463;
         let dlat = parsed.latitude.units() - lat.units();
         let dlon = parsed.longitude.units() - lon.units();
         assert!(
@@ -287,7 +287,7 @@ fn law_nrzi_scrambler_composition_identity() {
         let data = rng.bits(data_len);
         let recovered: Vec<Bit> = {
             let channel =
-                Scrambler::default().scramble_iter(warble::nrzi::encode_iter(data.iter().copied()));
+                Scrambler::default().scramble_iter(yodel::nrzi::encode_iter(data.iter().copied()));
             let mut nrzi = NrziDecoder::default();
             Descrambler::default()
                 .descramble_iter(channel)

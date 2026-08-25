@@ -305,7 +305,7 @@ impl ToneCorrelator {
 /// invariant every bit-clock recovery loop above relies on:
 ///
 /// ```
-/// use warble::{BaudRate, Bit, Discriminator, Modulator, ModulatorConfig,
+/// use yodel::{BaudRate, Bit, Discriminator, Modulator, ModulatorConfig,
 ///              QuadratureCorrelator, SampleRate};
 ///
 /// let sr = SampleRate::new(48_000)?;
@@ -327,7 +327,7 @@ impl ToneCorrelator {
 ///     metric = disc.push_i16(s);
 /// }
 /// assert!(metric < 0, "space tone must give a negative metric: {metric}");
-/// # Ok::<(), warble::ConfigError>(())
+/// # Ok::<(), yodel::ConfigError>(())
 /// ```
 #[derive(Debug, Clone)]
 pub struct QuadratureCorrelator {

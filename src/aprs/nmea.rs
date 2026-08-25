@@ -80,7 +80,7 @@
 //! # Example
 //!
 //! ```
-//! use warble::aprs::nmea::{self, ChecksumStatus, FixQuality, NmeaData, NmeaError};
+//! use yodel::aprs::nmea::{self, ChecksumStatus, FixQuality, NmeaData, NmeaError};
 //!
 //! let sentence =
 //!     nmea::parse(b"$GPRMC,081836,A,3751.65,S,14507.36,E,000.0,360.0,130998,011.3,E*62")?;
@@ -1031,7 +1031,7 @@ impl core::error::Error for NmeaError {}
 /// field empty:
 ///
 /// ```
-/// use warble::aprs::nmea::{self, Constellation, NmeaData, NmeaError};
+/// use yodel::aprs::nmea::{self, Constellation, NmeaData, NmeaError};
 ///
 /// let sentence = nmea::parse(b"$GNRMC,001031.00,A,4404.13993,N,12118.86023,W,0.146,,100117,,,A*7B")?;
 /// assert_eq!(sentence.talker.constellation(), Constellation::Combined);
@@ -1048,7 +1048,7 @@ impl core::error::Error for NmeaError {}
 /// A waypoint is never mistaken for the station's position:
 ///
 /// ```
-/// use warble::aprs::nmea::{self, NmeaError};
+/// use yodel::aprs::nmea::{self, NmeaError};
 ///
 /// let sentence = nmea::parse(b"$GPWPL,4807.038,N,01131.000,E,HOME*46")?;
 /// assert_eq!(sentence.position(), None);

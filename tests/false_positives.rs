@@ -20,9 +20,9 @@
 //! true positive both increment the same counter.
 #![cfg(feature = "tnc")]
 
-use warble::ax25::RecoveryPolicy;
-use warble::tnc::{ChainVoting, DefaultTncReceiver, TncConfig};
-use warble::{Bit, SampleRate};
+use yodel::ax25::RecoveryPolicy;
+use yodel::tnc::{ChainVoting, DefaultTncReceiver, TncConfig};
+use yodel::{Bit, SampleRate};
 
 /// Every recovery/voting combination, including the default.
 const POLICIES: &[(&str, RecoveryPolicy, ChainVoting)] = &[
@@ -229,7 +229,7 @@ fn silence_and_unmodulated_tone_yield_no_frames() {
 fn random_bitstream_yields_no_frames() {
     #[cfg(feature = "mod")]
     {
-        use warble::{Modulator, ModulatorConfig};
+        use yodel::{Modulator, ModulatorConfig};
 
         let rate = SampleRate::new(44_100).expect("rate");
         let mut rng = Lcg(0xC0FF_EE01);
@@ -260,9 +260,9 @@ fn random_bitstream_yields_no_frames() {
 fn heavily_corrupted_frame_is_not_repaired_into_a_different_frame() {
     #[cfg(all(feature = "mod", feature = "alloc"))]
     {
-        use warble::aprs::{AprsPacket, Status};
-        use warble::ax25::Address;
-        use warble::tnc::TncTransmitter;
+        use yodel::aprs::{AprsPacket, Status};
+        use yodel::ax25::Address;
+        use yodel::tnc::TncTransmitter;
 
         let rate = SampleRate::new(44_100).expect("rate");
         let tx = TncTransmitter::new(TncConfig::bell_202(rate).expect("config"));

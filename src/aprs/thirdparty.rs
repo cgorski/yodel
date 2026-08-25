@@ -44,7 +44,7 @@
 //! the conversion where it happens to be legal.
 //!
 //! ```
-//! use warble::aprs::thirdparty::ThirdParty;
+//! use yodel::aprs::thirdparty::ThirdParty;
 //!
 //! let info = b"}N0CALL>APRS,TCPIP,IGATE*:>hello";
 //! let tp = ThirdParty::parse(info)?;
@@ -53,7 +53,7 @@
 //! assert_eq!(tp.path, b"TCPIP,IGATE*");
 //! assert_eq!(tp.payload, b">hello");
 //! assert!(tp.is_from_internet());
-//! # Ok::<(), warble::aprs::AprsError>(())
+//! # Ok::<(), yodel::aprs::AprsError>(())
 //! ```
 
 use super::AprsError;

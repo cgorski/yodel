@@ -23,8 +23,8 @@
 //! # Running
 //!
 //! ```text
-//! WARBLE_REF_GEN=/path/to/packet generator
-//! WARBLE_REF_DECODE=/path/to/audio decoder
+//! YODEL_REF_GEN=/path/to/packet generator
+//! YODEL_REF_DECODE=/path/to/audio decoder
 //!   cargo test --release --all-features --test il2p_differential -- --ignored --nocapture
 //! ```
 //!
@@ -35,9 +35,9 @@
 use std::path::PathBuf;
 use std::process::Command;
 
-use warble::demodulator::{AfskDemodulator, DemodulatorConfig};
-use warble::il2p::{Il2pParity, Il2pReceiver};
-use warble::{Bit, SampleRate};
+use yodel::demodulator::{AfskDemodulator, DemodulatorConfig};
+use yodel::il2p::{Il2pParity, Il2pReceiver};
+use yodel::{Bit, SampleRate};
 
 /// Frames the reference generator is asked to produce.
 const FRAME_COUNT: usize = 5;
@@ -123,10 +123,10 @@ fn decode_il2p(path: &PathBuf) -> Vec<String> {
 /// This is the test that caught the NRZI defect, and the one that would
 /// catch its return.
 #[test]
-#[ignore = "requires WARBLE_REF_GEN"]
+#[ignore = "requires YODEL_REF_GEN"]
 fn we_decode_the_reference_il2p_transmission() {
-    let Some(generator) = ref_binary("WARBLE_REF_GEN") else {
-        eprintln!("WARBLE_REF_GEN not set — skipping");
+    let Some(generator) = ref_binary("YODEL_REF_GEN") else {
+        eprintln!("YODEL_REF_GEN not set — skipping");
         return;
     };
     let dir = scratch_subdir("il2p_ref_gen");
@@ -170,7 +170,7 @@ fn we_decode_the_reference_il2p_transmission() {
     // which is exactly where the NRZI defect lived.
     // Verified by mutation: re-adding NRZI to the CLI's IL2P decode
     // escapes the library-level check and is caught here.
-    let cli = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("target/release/warble");
+    let cli = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("target/release/yodel");
     if cli.is_file() {
         let output = Command::new(&cli)
             .args(["decode", "--il2p"])
@@ -223,13 +223,12 @@ fn we_decode_the_reference_il2p_transmission() {
 /// emits "command". It is never validated on receive and does not
 /// affect decodability — see `docs/APRS_CONFORMANCE.md` §6.2.
 #[test]
-#[ignore = "requires WARBLE_REF_GEN / WARBLE_REF_DECODE"]
+#[ignore = "requires YODEL_REF_GEN / YODEL_REF_DECODE"]
 fn the_reference_decodes_our_il2p_transmission() {
-    let (Some(generator), Some(decoder)) = (
-        ref_binary("WARBLE_REF_GEN"),
-        ref_binary("WARBLE_REF_DECODE"),
-    ) else {
-        eprintln!("WARBLE_REF_GEN / WARBLE_REF_DECODE not set — skipping");
+    let (Some(generator), Some(decoder)) =
+        (ref_binary("YODEL_REF_GEN"), ref_binary("YODEL_REF_DECODE"))
+    else {
+        eprintln!("YODEL_REF_GEN / YODEL_REF_DECODE not set — skipping");
         return;
     };
     let _ = generator;
@@ -238,7 +237,7 @@ fn the_reference_decodes_our_il2p_transmission() {
     // IL2P transmission today.
     let dir = scratch_subdir("il2p_ours");
     let path = dir.join("il2p_ours.wav");
-    let cli = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("target/release/warble");
+    let cli = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("target/release/yodel");
     if !cli.is_file() {
         eprintln!("{} not built — skipping", cli.display());
         return;

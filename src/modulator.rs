@@ -31,7 +31,7 @@
 //! # Example
 //!
 //! ```
-//! use warble::{Bit, Modulator, ModulatorConfig, SampleRate};
+//! use yodel::{Bit, Modulator, ModulatorConfig, SampleRate};
 //!
 //! let config = ModulatorConfig::bell_202(SampleRate::new(48_000)?)?;
 //! let bits = [Bit::One, Bit::Zero, Bit::One];
@@ -39,7 +39,7 @@
 //!     .i16_samples(bits.into_iter())
 //!     .collect();
 //! assert_eq!(samples.len(), 3 * 40); // 48000 / 1200 = 40 samples per bit
-//! # Ok::<(), warble::ConfigError>(())
+//! # Ok::<(), yodel::ConfigError>(())
 //! ```
 
 use crate::error::ConfigError;

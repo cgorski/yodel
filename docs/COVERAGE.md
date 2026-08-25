@@ -1,6 +1,6 @@
 # Test-coverage matrix
 
-Level-by-level coverage of the warble crate against five categories.
+Level-by-level coverage of the yodel crate against five categories.
 Every cell names at least one real, passing test.
 
 ## Legend
@@ -56,7 +56,7 @@ column is unchanged; re-derive the split before quoting it as current.
 
 `cargo test --all-features -- --ignored` is **also green**, which is new
 and is the point of "Tier-3/4 guard hardening" below: with the
-`WARBLE_REF_*` variables unset, the 46 tier-4 tests all skip cleanly
+`YODEL_REF_*` variables unset, the 46 tier-4 tests all skip cleanly
 (seventeen of them used to *fail*), the 6 tier-3 tests run against the
 `corpus/` present here, the cost-gated sweep runs, and the 10 README
 fences compile and pass. 63 passed, 0 failed.
@@ -311,7 +311,7 @@ which most of the fences have:
 | `embassy::run_decoder` / `TxTicker` | `tests/embassy.rs`, `examples/balloon_tracker_embassy.rs` |
 | `SampleRing` + `TncConfig::bounded_latency()` superloop | `tests/bounded_latency.rs`, `tests/embassy.rs` |
 | `digipeat::relay_decision` / `DupeRing` | `tests/digipeat_laws.rs`, `tests/app_examples.rs`, `tests/esp32_examples.rs`, `examples/digipeater_station.rs` |
-| `wav::sniff_pcm` / `decode_sniffed` thread sketch | the CLI itself (`src/bin/warble/shared.rs`, driven by `tests/cli.rs`) and `examples/balloon_tracker.rs` |
+| `wav::sniff_pcm` / `decode_sniffed` thread sketch | the CLI itself (`src/bin/yodel/shared.rs`, driven by `tests/cli.rs`) and `examples/balloon_tracker.rs` |
 | WSPR transmit + decode round trip | `tests/wspr.rs`, `tests/wspr_rx.rs`, `examples/wspr_beacon.rs` |
 | FT8 transmit + decode round trip | `tests/ft8.rs`, `tests/ft8_rx.rs`, `examples/ft8_cycle.rs` |
 
@@ -325,11 +325,11 @@ from the API it illustrates stays green everywhere, including under
 
 Measured with `tests/differential.rs` (plus the older bidirectional
 harness in `tests/oracle.rs`), both `#[ignore]`-gated behind the
-`WARBLE_REF_GEN` / `WARBLE_REF_DECODE` environment variables naming the
+`YODEL_REF_GEN` / `YODEL_REF_DECODE` environment variables naming the
 external reference generator/decoder binaries:
 
 ```
-WARBLE_REF_GEN=… WARBLE_REF_DECODE=… \
+YODEL_REF_GEN=… YODEL_REF_DECODE=… \
   cargo test --all-features --test differential -- --ignored --nocapture
 ```
 
@@ -363,9 +363,9 @@ here because the fix is invisible in a green run.
 
 | Suite | What it did | What it does now |
 |---|---|---|
-| `tests/oracle.rs` | Seventeen of its 31 ignored tests **failed** rather than skipped when `WARBLE_REF_GEN`/`WARBLE_REF_DECODE` were unset: they called a helper that panics on an unset variable. The skip guard existed, but only in the newer half of the file | One `ref_binaries_available` shared by both halves, so they cannot drift apart again. All 31 skip cleanly. VERIFIED: `cargo test --all-features -- --ignored` with the variables unset is green |
-| `tests/oracle.rs`, `tests/differential.rs` | Tested `is_none()` before validating, so `WARBLE_REF_GEN=/typo` with `WARBLE_REF_DECODE` unset skipped **in silence**, so a typo could turn an entire interoperability suite green | Both variables are resolved before the skip decision. Unset skips; set-but-wrong fails loudly, with a message saying to unset it if the skip was intended. VERIFIED on exactly that combination: all five `differential` tests and every `oracle` test that needs a binary now fail with the path in the message |
-| `tests/aprs_differential.rs` | Read `WARBLE_REF_APRS` with no existence check at all. A bad path failed minutes later inside `spawn`, and when `corpus/` happened to be absent it did *not* fail at all, because that check came first and returned a silent skip | Same `ref_binary` rule, checked up front and independent of what other material is present; canonicalized, because the decoder is run beside its own data files. VERIFIED: `WARBLE_REF_APRS=/nope/typo` fails both tests immediately |
+| `tests/oracle.rs` | Seventeen of its 31 ignored tests **failed** rather than skipped when `YODEL_REF_GEN`/`YODEL_REF_DECODE` were unset: they called a helper that panics on an unset variable. The skip guard existed, but only in the newer half of the file | One `ref_binaries_available` shared by both halves, so they cannot drift apart again. All 31 skip cleanly. VERIFIED: `cargo test --all-features -- --ignored` with the variables unset is green |
+| `tests/oracle.rs`, `tests/differential.rs` | Tested `is_none()` before validating, so `YODEL_REF_GEN=/typo` with `YODEL_REF_DECODE` unset skipped **in silence**, so a typo could turn an entire interoperability suite green | Both variables are resolved before the skip decision. Unset skips; set-but-wrong fails loudly, with a message saying to unset it if the skip was intended. VERIFIED on exactly that combination: all five `differential` tests and every `oracle` test that needs a binary now fail with the path in the message |
+| `tests/aprs_differential.rs` | Read `YODEL_REF_APRS` with no existence check at all. A bad path failed minutes later inside `spawn`, and when `corpus/` happened to be absent it did *not* fail at all, because that check came first and returned a silent skip | Same `ref_binary` rule, checked up front and independent of what other material is present; canonicalized, because the decoder is run beside its own data files. VERIFIED: `YODEL_REF_APRS=/nope/typo` fails both tests immediately |
 | `tests/ber.rs` | Every assertion lives inside a loop, and a ceiling of `None` asserts nothing, so a ladder trimmed to one rung, or one with every ceiling replaced by `None`, measured and printed exactly as much as a pinned one | `MIN_RUNGS` (6 per ladder), `MIN_PINNED_CEILINGS` (8, the smallest of the three ladders' MEASURED 12/14/8), `MIN_MODES` (2, not 3, because the third is behind the `g3ruh` feature), and a floor on the bit centres the perfect-clock column compares |
 | `tests/differential.rs` | The shootout ladder asserts `ours >= reference`, which `0 >= 0` satisfies: a transmitter emitting silence, or a reference binary decoding nothing, would sweep every rung | `MIN_CLEAN_RECOVERED` (= 50 for both decoders on the noise-free rung, which is a correctness property, since that audio is our own unmodified transmission) and `MIN_CORPUS_CASES` (300 of the 320 generated) |
 
@@ -392,12 +392,12 @@ identical, `our_transmission_decodes_in_the_reference_decoder` 5/5
 recovered, and `we_decode_the_reference_transmission` 5/5 recovered.
 The floor is the same idiom used above, because all three legs'
 assertions are inside a loop over the case list. The three
-`WARBLE_REF_WSPR_*` variables are resolved through the same
+`YODEL_REF_WSPR_*` variables are resolved through the same
 unset-skips / set-but-wrong-fails rule as above.
 
 One caveat that can cost an hour to rediscover: the WAV-writing
 generator this suite wants is the floating-point build.
-`WARBLE_REF_WSPR_GEN` pointed at the integer sibling exits non-zero
+`YODEL_REF_WSPR_GEN` pointed at the integer sibling exits non-zero
 with an empty stderr, and the suite then fails with
 `reference generator failed:` and nothing after the colon. The guard is
 working there, since a set-but-wrong path is refusing to skip, but the

@@ -36,7 +36,7 @@
 //! *logic each task would run* — the shared-resource shapes, the ISR
 //! push, the bounded chunk drain, the idle duties — is expressed with
 //! plain types and plain functions so it compiles, runs, and
-//! self-checks on the host. Nothing warble-related is mocked: every
+//! self-checks on the host. Nothing yodel-related is mocked: every
 //! `SampleRing`/`TncReceiver`/`TncTransmitter` call is the real one.
 //! Only RTIC's scheduler is simulated (a loop that dispatches
 //! "interrupts" in priority order), and the resource lock is `&mut`
@@ -48,8 +48,8 @@
 //! ```text
 //! #[rtic::app(device = esp32c3, dispatchers = [FROM_CPU_INTR0, FROM_CPU_INTR1])]
 //! mod app {
-//!     use warble::ring::SampleRing;
-//!     use warble::tnc::{DefaultTncReceiver, TncReceiver, TncTransmitter, TncConfig};
+//!     use yodel::ring::SampleRing;
+//!     use yodel::tnc::{DefaultTncReceiver, TncReceiver, TncTransmitter, TncConfig};
 //!
 //!     #[shared]
 //!     struct Shared {
@@ -94,10 +94,10 @@
 //! }
 //! ```
 //!
-//! Note there is **zero warble-specific glue** in that skeleton: RTIC
+//! Note there is **zero yodel-specific glue** in that skeleton: RTIC
 //! itself provides the locking, priorities, and scheduling, and the
 //! crate's sync types drop straight into `#[shared]`/`#[local]`
-//! resources. That is why warble ships no `rtic` cargo feature — see
+//! resources. That is why yodel ships no `rtic` cargo feature — see
 //! "The rtic verdict" in docs/ARCHITECTURE.md.
 //!
 //! # Worst-case-latency budget (24 kHz, 1200 baud, 160 MHz RV32IMC)
@@ -141,11 +141,11 @@
 //! timeout 5 cargo run --release --example balloon_tracker_rtic --features tnc
 //! ```
 
-use warble::SampleRate;
-use warble::aprs::{AprsPacket, Status};
-use warble::ax25::Address;
-use warble::ring::SampleRing;
-use warble::tnc::{DefaultTncReceiver, TncConfig, TncReceiver, TncTransmitter};
+use yodel::SampleRate;
+use yodel::aprs::{AprsPacket, Status};
+use yodel::ax25::Address;
+use yodel::ring::SampleRing;
+use yodel::tnc::{DefaultTncReceiver, TncConfig, TncReceiver, TncTransmitter};
 
 /// Samples per simulated DMA half-buffer (5 ms at 24 kHz).
 const HALF_BUFFER: usize = 120;

@@ -28,7 +28,7 @@ pub const H_BIT: u8 = 0x80;
 /// # Validated construction
 ///
 /// ```
-/// use warble::ax25::{Ax25Error, Callsign};
+/// use yodel::ax25::{Ax25Error, Callsign};
 ///
 /// let call = Callsign::new(b"N0CALL")?;
 /// assert_eq!(call.as_bytes(), b"N0CALL"); // padding never leaks out
@@ -98,7 +98,7 @@ impl Callsign {
     /// to rebuild it by hand.
     ///
     /// ```
-    /// use warble::ax25::{Ax25Error, Callsign};
+    /// use yodel::ax25::{Ax25Error, Callsign};
     ///
     /// assert_eq!(&Callsign::new(b"APRS")?.as_padded(), b"APRS  ");
     /// assert_eq!(&Callsign::new(b"N0CALL")?.as_padded(), b"N0CALL");
@@ -116,7 +116,7 @@ impl Callsign {
 /// hard ceiling:
 ///
 /// ```
-/// use warble::ax25::{Ax25Error, Ssid};
+/// use yodel::ax25::{Ax25Error, Ssid};
 ///
 /// assert_eq!(Ssid::new(15)?.value(), 15);
 /// assert_eq!(Ssid::new(16), Err(Ax25Error::SsidOutOfRange { got: 16 }));
@@ -159,7 +159,7 @@ impl Ssid {
 /// Encode/decode round-trips exactly, including the extension bit:
 ///
 /// ```
-/// use warble::ax25::{Address, Ax25Error};
+/// use yodel::ax25::{Address, Ax25Error};
 ///
 /// let addr = Address::new(b"N0CALL", 7)?;
 /// let wire = addr.encode(false, true); // source position, final address
@@ -284,7 +284,7 @@ impl Address {
 /// # Wire round trip
 ///
 /// ```
-/// use warble::ax25::{Ax25Error, Address, PathHop};
+/// use yodel::ax25::{Ax25Error, Address, PathHop};
 ///
 /// // An unused hop, as a station requests it on transmit …
 /// let fresh = PathHop::unused(Address::new(b"WIDE1", 1)?);

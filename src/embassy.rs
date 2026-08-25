@@ -32,9 +32,9 @@
 //!
 //! ```no_run
 //! use core::cell::RefCell;
-//! use warble::SampleRing;
-//! use warble::embassy::{SampleSource, TxTicker, run_decoder};
-//! use warble::tnc::{DefaultTncReceiver, TncConfig, TncReceiver};
+//! use yodel::SampleRing;
+//! use yodel::embassy::{SampleSource, TxTicker, run_decoder};
+//! use yodel::tnc::{DefaultTncReceiver, TncConfig, TncReceiver};
 //!
 //! /// Drains a task-shared ring; on a real target the ISR is the
 //! /// producer and the shared cell is a critical-section mutex.

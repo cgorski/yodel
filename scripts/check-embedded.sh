@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Feature-matrix gates for warble. Two independent passes:
+# Feature-matrix gates for yodel. Two independent passes:
 #
 #   1. embedded — cross-compiles the LIBRARY for two representative
 #      bare-metal targets across every no_std feature set, proving the core
@@ -79,7 +79,7 @@ if [[ "${mode}" != tests ]]; then
     # The detached ESP32 RISC-V examples sub-crate (examples/esp32-riscv):
     # a #![no_std] library exercising the tnc feature set, built for both
     # riscv32 flavors of the ESP32-C3/C6 class. `imc` (no atomics A
-    # extension) builds cleanly today because warble's core is atomics-free;
+    # extension) builds cleanly today because yodel's core is atomics-free;
     # `imac` matches the matrix target above.
     for target in riscv32imac-unknown-none-elf riscv32imc-unknown-none-elf; do
         echo "==> (examples/esp32-riscv) cargo build --target ${target}"

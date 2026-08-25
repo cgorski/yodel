@@ -49,7 +49,7 @@
 //!
 //! # Try it
 //!
-//! Make a test WAV first with the encode example (or the `warble` CLI's
+//! Make a test WAV first with the encode example (or the `yodel` CLI's
 //! `encode` command), then decode it back:
 //!
 //! ```sh
@@ -59,10 +59,10 @@
 
 use std::io::Read;
 
-use warble::SampleRate;
-use warble::aprs::{AprsPacket, MessageContent};
-use warble::ax25::{Address, UiFrame};
-use warble::tnc::{DefaultTncReceiver, TncConfig, TncReceiver};
+use yodel::SampleRate;
+use yodel::aprs::{AprsPacket, MessageContent};
+use yodel::ax25::{Address, UiFrame};
+use yodel::tnc::{DefaultTncReceiver, TncConfig, TncReceiver};
 
 /// Sample rate assumed for raw PCM on stdin (WAV files carry their own).
 const STDIN_RATE_HZ: u32 = 48_000;
@@ -255,7 +255,7 @@ fn summarize(info: &[u8]) -> String {
 }
 
 /// `position lat L lon L` with four decimals (≈ 11 m resolution).
-fn position_summary(lat: warble::aprs::Latitude, lon: warble::aprs::Longitude) -> String {
+fn position_summary(lat: yodel::aprs::Latitude, lon: yodel::aprs::Longitude) -> String {
     format!(
         "position lat {:.4} lon {:.4}",
         lat.to_degrees(),

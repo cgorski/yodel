@@ -1,9 +1,9 @@
 # Decode benchmarks
 
-Measured with `scripts/benchmark.sh` (warble decoded-frame counts per
+Measured with `scripts/benchmark.sh` (yodel decoded-frame counts per
 corpus track). Targets from the shootout partner decoder: plain profile
 synthetic 72, T01 1005, T02 982, T03 100, T04 101; its E+ profile reaches
-75 / 1014 / 1000 / 100 / 107. Columns are warble counts; `-` means the row
+75 / 1014 / 1000 / 100 / 107. Columns are yodel counts; `-` means the row
 was a tuning iteration measured on Track 02 only.
 
 > **Read this as a lab notebook, not as a specification.** Many rows
@@ -378,7 +378,7 @@ single-bit-flip pass on the voted bits). The grid is exhausted.
 Current best (default config), pinned by `tests/benchmark.rs`
 (999/985/100-exact/98 for the four real-world tracks):
 
-| corpus | target | warble | met? |
+| corpus | target | yodel | met? |
 |---|---|---|---|
 | synthetic-noise-100 | 72 | **74** | yes (+2) |
 | T01 40-min traffic | 1005 | **999** | no (−6) |
@@ -416,7 +416,7 @@ Methodology: synthetic corpus via the reference generator's
 increasing-noise mode at 300 baud (`-B 300`, auto-selecting
 1600/1800 Hz, 100 frames), decoded by the reference decoder
 (`-B 300`, standard and `E+` profiles) and by
-`warble decode --preset hf300`. The five pinned 1200-baud rows above
+`yodel decode --preset hf300`. The five pinned 1200-baud rows above
 are untouched; the 300-baud row is additive and informational.
 
 The clean-audio differential leg (`tests/differential.rs::
@@ -435,7 +435,7 @@ wrong.** No chain bank was needed: the deficit was a **single
 constant**, the correlator's observation window. 300 baud now leads
 the reference.
 
-| corpus | ref | ref (E+) | warble (before) | warble (after) |
+| corpus | ref | ref (E+) | yodel (before) | yodel (after) |
 |---|---|---|---|---|
 | synthetic-noise-100 at 300 Bd | 70 | 72 | 58 | **74** |
 
@@ -516,7 +516,7 @@ Synthetic increasing-noise comparison (reference generator
 `-B 9600 -n 100`, additive `scripts/benchmark.sh` row; the five
 pinned 1200-baud rows are untouched):
 
-| corpus | ref | ref (E+) | warble (was) | warble (now) |
+| corpus | ref | ref (E+) | yodel (was) | yodel (now) |
 |---|---|---|---|---|
 | synthetic-noise-100 at 9600 Bd, 44.1 kHz | 62 | 62 | 35 | **61** |
 | synthetic-noise-100 at 9600 Bd, 48 kHz | 66 | 67 | 35 | **66** |
@@ -651,8 +651,8 @@ The FX.25 FEC layer (`fx25` feature) is `src/rs.rs`
 (RS(255,k) codec over GF(256), parity 16/32/64) and `src/fx25.rs`
 (the 11 published correlation tags, `wrap`/`wrap_with` TX,
 `Fx25Receiver` tag-hunting RX beside a parallel plain HDLC path), plus
-CLI wiring: `warble encode --fx25` wraps each frame in an FX.25
-codeblock before modulation, `warble decode --fx25` uses the
+CLI wiring: `yodel encode --fx25` wraps each frame in an FX.25
+codeblock before modulation, `yodel decode --fx25` uses the
 FX.25-aware receive path (which also still decodes plain AX.25).
 
 Reference-tooling notes (verified by running the tools): the reference
@@ -680,7 +680,7 @@ reference's 82, because it runs a **single** demodulator chain. The
 11-chain bank with its FCS-repair and voting machinery lives in
 `TncReceiver`, whose tone paths were held byte-identical to the
 pre-FX.25 crate, and the tag hunter sits on a separate single-chain
-pipeline. For comparison, `warble decode` *without* `--fx25` scores
+pipeline. For comparison, `yodel decode` *without* `--fx25` scores
 70 on the same WAV, because the multi-chain plain receiver decodes the
 embedded frames directly but ignores the RS parity. The noisy row is
 informational; the pinned interop floors live in the differential test.
@@ -710,7 +710,7 @@ parallel deframer. RS is alive but earns only 2 of the 60.
 
 ### The fix was the decision statistic, not anything FX.25
 
-| corpus | ref | ref (E+) | warble before | warble after |
+| corpus | ref | ref (E+) | yodel before | yodel after |
 |---|---|---|---|---|
 | synthetic-noise-100 FX.25 | 82 | 91 | 60 | **92** |
 

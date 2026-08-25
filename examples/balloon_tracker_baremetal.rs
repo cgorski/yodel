@@ -1,6 +1,6 @@
 //! Bare-metal balloon tracker: one superloop, no executor, no
 //! interrupts framework — the simplest way to share an MCU with
-//! `warble`.
+//! `yodel`.
 //!
 //! * **Scenario** — the flight computer *inside the payload*. It sends
 //!   telemetry beacons down and decodes what its receiver hears (the
@@ -12,7 +12,7 @@
 //!   Audio arrives from an ADC via DMA and leaves through a DAC/PWM.
 //! * **Runs here** — on a host, with the ADC/DMA/DAC simulated so the
 //!   loop self-checks. Only the scaffolding (`println!`, `Instant`) is
-//!   host-only; the warble call paths are the `no_std` ones.
+//!   host-only; the yodel call paths are the `no_std` ones.
 //! * **Features** — `tnc`.
 //!
 //! If your MCU already runs an executor, prefer
@@ -60,7 +60,7 @@
 //!   would feed a DAC, here they are counted.
 //!
 //! Everything is fixed-size (`[i16; N]` buffers, a const-generic
-//! ring, no heap on any warble call path): the same code structure
+//! ring, no heap on any yodel call path): the same code structure
 //! compiles under `#![no_std]` without `alloc` — only the simulation
 //! scaffolding (`println!`, `Instant` for the duty-cycle report) is
 //! host-only.
@@ -100,11 +100,11 @@
 
 use std::time::{Duration, Instant};
 
-use warble::SampleRate;
-use warble::aprs::{AprsPacket, Status};
-use warble::ax25::Address;
-use warble::ring::SampleRing;
-use warble::tnc::{DefaultTncReceiver, TncConfig, TncReceiver, TncTransmitter};
+use yodel::SampleRate;
+use yodel::aprs::{AprsPacket, Status};
+use yodel::ax25::Address;
+use yodel::ring::SampleRing;
+use yodel::tnc::{DefaultTncReceiver, TncConfig, TncReceiver, TncTransmitter};
 
 /// Samples per simulated DMA half-buffer (5 ms at 24 kHz).
 const HALF_BUFFER: usize = 120;

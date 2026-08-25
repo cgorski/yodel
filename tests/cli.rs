@@ -1,8 +1,8 @@
-//! End-to-end tests of the `warble` CLI binary.
+//! End-to-end tests of the `yodel` CLI binary.
 //!
 //! The binary is only compiled with its full feature set (the `cli`
 //! aggregate: std + tnc + micE + kiss), so this file is gated on all of
-//! them — `env!("CARGO_BIN_EXE_warble")` would otherwise fail.
+//! them — `env!("CARGO_BIN_EXE_yodel")` would otherwise fail.
 #![cfg(all(feature = "std", feature = "tnc", feature = "micE", feature = "kiss"))]
 
 use std::path::PathBuf;
@@ -10,14 +10,14 @@ use std::process::Command;
 use std::sync::atomic::{AtomicU32, Ordering};
 
 /// The compiled CLI binary.
-const BIN: &str = env!("CARGO_BIN_EXE_warble");
+const BIN: &str = env!("CARGO_BIN_EXE_yodel");
 
 /// A unique scratch WAV path in the system temp directory.
 fn scratch(tag: &str) -> PathBuf {
     static COUNTER: AtomicU32 = AtomicU32::new(0);
     let n = COUNTER.fetch_add(1, Ordering::Relaxed);
     let pid = std::process::id();
-    std::env::temp_dir().join(format!("warble-cli-{pid}-{n}-{tag}.wav"))
+    std::env::temp_dir().join(format!("yodel-cli-{pid}-{n}-{tag}.wav"))
 }
 
 /// Runs the binary with `args`, returning (exit ok, stdout, stderr).
@@ -25,7 +25,7 @@ fn run(args: &[&str]) -> (bool, String, String) {
     let output = Command::new(BIN)
         .args(args)
         .output()
-        .expect("running the warble binary");
+        .expect("running the yodel binary");
     (
         output.status.success(),
         String::from_utf8_lossy(&output.stdout).into_owned(),
@@ -42,7 +42,7 @@ fn run_with_stdin(args: &[&str], input: &[u8]) -> (bool, String, String) {
         .stdout(std::process::Stdio::piped())
         .stderr(std::process::Stdio::piped())
         .spawn()
-        .expect("spawning the warble binary");
+        .expect("spawning the yodel binary");
     child
         .stdin
         .take()
@@ -74,7 +74,7 @@ fn run_with_stdin_early_exit(args: &[&str], input: &[u8]) -> (bool, String, Stri
         .stdout(std::process::Stdio::piped())
         .stderr(std::process::Stdio::piped())
         .spawn()
-        .expect("spawning the warble binary");
+        .expect("spawning the yodel binary");
     if let Some(mut stdin) = child.stdin.take() {
         match stdin.write_all(input) {
             Ok(()) | Err(_) => {}
@@ -90,10 +90,10 @@ fn run_with_stdin_early_exit(args: &[&str], input: &[u8]) -> (bool, String, Stri
 
 /// Synthesizes one status-report transmission as i16 samples at `hz`.
 fn synthesized_samples(hz: u32) -> Vec<i16> {
-    use warble::SampleRate;
-    use warble::aprs::{AprsPacket, Status};
-    use warble::ax25::Address;
-    use warble::tnc::{TncConfig, TncTransmitter};
+    use yodel::SampleRate;
+    use yodel::aprs::{AprsPacket, Status};
+    use yodel::ax25::Address;
+    use yodel::tnc::{TncConfig, TncTransmitter};
 
     let rate = SampleRate::new(hz).expect("rate");
     let config = TncConfig::bell_202(rate).expect("config");
@@ -187,7 +187,7 @@ fn encode_message_decode_round_trip() {
     let _ = std::fs::remove_file(&wav);
 }
 
-/// `warble decode ... | head -1` must exit quietly rather than panic.
+/// `yodel decode ... | head -1` must exit quietly rather than panic.
 ///
 /// Rust ignores SIGPIPE, so writing to a closed stdout surfaces as
 /// `ErrorKind::BrokenPipe`, and the `print!` family turns that into a
@@ -226,7 +226,7 @@ fn decode_exits_cleanly_on_closed_stdout() {
             .stdout(std::process::Stdio::piped())
             .stderr(std::process::Stdio::piped())
             .spawn()
-            .expect("spawning the warble binary");
+            .expect("spawning the yodel binary");
         // No reader at all: every write the child attempts fails.
         drop(child.stdout.take());
         let output = child.wait_with_output().expect("waiting for the binary");
@@ -247,10 +247,10 @@ fn decode_exits_cleanly_on_closed_stdout() {
 
 #[test]
 fn decode_wav_written_by_library() {
-    use warble::SampleRate;
-    use warble::aprs::{AprsPacket, Status};
-    use warble::ax25::Address;
-    use warble::tnc::{TncConfig, TncTransmitter};
+    use yodel::SampleRate;
+    use yodel::aprs::{AprsPacket, Status};
+    use yodel::ax25::Address;
+    use yodel::tnc::{TncConfig, TncTransmitter};
 
     let wav = scratch("lib");
     let rate = SampleRate::new(22_050).expect("rate");
@@ -383,9 +383,9 @@ fn bad_usage_exits_nonzero() {
 #[test]
 fn decode_bad_inputs_exit_nonzero() {
     // Nonexistent file.
-    let (ok, _, stderr) = run(&["decode", "/nonexistent/warble-missing.wav"]);
+    let (ok, _, stderr) = run(&["decode", "/nonexistent/yodel-missing.wav"]);
     assert!(!ok);
-    assert!(stderr.contains("warble-missing.wav"), "got: {stderr}");
+    assert!(stderr.contains("yodel-missing.wav"), "got: {stderr}");
 
     // Unsupported WAV format: stereo.
     let wav = scratch("stereo");
@@ -826,9 +826,9 @@ const JSONL_FIXTURE: &[FixtureFrame] = &[
 /// which each frame completes is a constant, which is what makes the
 /// exact-output pin below possible.
 fn write_jsonl_fixture_wav(tag: &str, hz: u32) -> PathBuf {
-    use warble::SampleRate;
-    use warble::ax25::{Address, PathHop, UiFrame};
-    use warble::tnc::{TncConfig, TncTransmitter};
+    use yodel::SampleRate;
+    use yodel::ax25::{Address, PathHop, UiFrame};
+    use yodel::tnc::{TncConfig, TncTransmitter};
 
     /// Silence between frames, in samples. A round number so the
     /// arithmetic behind the pinned offsets is inspectable.
@@ -1432,7 +1432,7 @@ fn bench_threshold_pass_and_fail_exit_codes() {
 fn bench_json_shape_and_directory_input() {
     // Two gen WAVs in a scratch directory, benched by directory path;
     // the JSON report carries per-file and aggregate fields.
-    let dir = std::env::temp_dir().join(format!("warble-bench-dir-{}", std::process::id()));
+    let dir = std::env::temp_dir().join(format!("yodel-bench-dir-{}", std::process::id()));
     std::fs::create_dir_all(&dir).expect("mkdir");
     for (name, count) in [("one.wav", "2"), ("two.wav", "3")] {
         let path = dir.join(name).to_string_lossy().into_owned();
@@ -1462,9 +1462,9 @@ fn gen_bad_values_exit_nonzero() {
     let (ok, _, stderr) = run(&["gen", "--out", "/tmp/x.wav", "--level", "1.5"]);
     assert!(!ok);
     assert!(stderr.contains("--level"), "got: {stderr}");
-    let (ok, _, stderr) = run(&["bench", "/nonexistent/warble-bench-missing.wav"]);
+    let (ok, _, stderr) = run(&["bench", "/nonexistent/yodel-bench-missing.wav"]);
     assert!(!ok);
-    assert!(stderr.contains("warble-bench-missing"), "got: {stderr}");
+    assert!(stderr.contains("yodel-bench-missing"), "got: {stderr}");
     let (ok, _, stderr) = run(&["bench", "/tmp", "--min", "5x"]);
     assert!(!ok);
     assert!(stderr.contains("--min"), "got: {stderr}");
@@ -1765,7 +1765,7 @@ fn m17_gen_decode_round_trip() {
         "--dst",
         "BROADCAST",
         "--text",
-        "Greetings from the warble CLI over M17!",
+        "Greetings from the yodel CLI over M17!",
         "-o",
         &path,
     ]);
@@ -1777,7 +1777,7 @@ fn m17_gen_decode_round_trip() {
         "got: {stdout}"
     );
     assert!(
-        stdout.contains("payload: Greetings from the warble CLI over M17!"),
+        stdout.contains("payload: Greetings from the yodel CLI over M17!"),
         "got: {stdout}"
     );
     assert!(stderr.contains("1 packet(s)"), "got: {stderr}");
@@ -1882,10 +1882,10 @@ mod live_capture_plumbing {
     use super::live_capture::plumbing::{
         ChunkFeed, RatePlan, downmix_frame_i16, f32_to_i16, plan_rate,
     };
-    use warble::SampleRate;
-    use warble::aprs::{AprsPacket, Status};
-    use warble::ax25::Address;
-    use warble::tnc::{DefaultTncReceiver, TncConfig, TncReceiver, TncTransmitter};
+    use yodel::SampleRate;
+    use yodel::aprs::{AprsPacket, Status};
+    use yodel::ax25::Address;
+    use yodel::tnc::{DefaultTncReceiver, TncConfig, TncReceiver, TncTransmitter};
 
     /// Synthesized transmission: a status report as i16 samples at `hz`.
     fn fake_source(hz: u32) -> Vec<i16> {
@@ -1947,7 +1947,7 @@ mod live_capture_plumbing {
         for hz in [4_000, 96_001] {
             let err = plan_rate(hz).expect_err("must refuse");
             assert!(err.contains("48000"), "guidance missing: {err}");
-            assert!(err.contains("warble decode -"), "guidance missing: {err}");
+            assert!(err.contains("yodel decode -"), "guidance missing: {err}");
         }
     }
 
@@ -2157,7 +2157,7 @@ fn position_ambiguity_is_honoured_by_both_renderers() {
 
 // ----------------------------------------------------------------- ptt
 
-/// `warble ptt --list` enumerates without touching a radio.
+/// `yodel ptt --list` enumerates without touching a radio.
 ///
 /// Exits zero whether or not any port exists, because "no serial ports
 /// found" is a fact about the machine, not a failure of the command.

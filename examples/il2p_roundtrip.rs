@@ -17,13 +17,13 @@
 //! cargo run --example il2p_roundtrip --features il2p,mod,demod
 //! ```
 
-use warble::SampleRate;
-use warble::ax25::{Address, UiFrame};
-use warble::demodulator::{AfskDemodulator, DemodulatorConfig};
-use warble::il2p::{
+use yodel::SampleRate;
+use yodel::ax25::{Address, UiFrame};
+use yodel::demodulator::{AfskDemodulator, DemodulatorConfig};
+use yodel::il2p::{
     self, ENCODED_MAX, HEADER_LEN, HEADER_PARITY_LEN, Il2pParity, Il2pReceiver, SYNC_LEN,
 };
-use warble::modulator::{Modulator, ModulatorConfig};
+use yodel::modulator::{Modulator, ModulatorConfig};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let rate = SampleRate::new(48_000)?;

@@ -18,11 +18,11 @@
 
 #![cfg(feature = "tnc")]
 
-use warble::SampleRate;
-use warble::aprs::{AprsPacket, Latitude, Longitude, Position, Status, Symbol};
-use warble::ax25::Address;
-use warble::geo::Ambiguity;
-use warble::tnc::{DefaultTncReceiver, TncConfig, TncReceiver, TncTransmitter};
+use yodel::SampleRate;
+use yodel::aprs::{AprsPacket, Latitude, Longitude, Position, Status, Symbol};
+use yodel::ax25::Address;
+use yodel::geo::Ambiguity;
+use yodel::tnc::{DefaultTncReceiver, TncConfig, TncReceiver, TncTransmitter};
 
 /// 64-bit LCG (Knuth MMIX constants). Deterministic.
 struct Lcg(u64);
@@ -60,7 +60,7 @@ fn frame_samples(i: usize, sr_hz: u32) -> Vec<i16> {
     let cfg = TncConfig::bell_202(sr).unwrap();
     let tx = TncTransmitter::new(cfg);
 
-    let comment_pool: [&[u8]; 3] = [b"snr ladder", b"warble", b"fixed corpus frame"];
+    let comment_pool: [&[u8]; 3] = [b"snr ladder", b"yodel", b"fixed corpus frame"];
     let status_pool: [&[u8]; 3] = [b"SNR ladder status", b"ok", b"thirty frames of pcm"];
     let packet = if i.is_multiple_of(2) {
         AprsPacket::Position(Position {

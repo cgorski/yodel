@@ -33,9 +33,9 @@
 //! # Round trip
 //!
 //! ```
-//! use warble::kiss::{KissCommand, KissDeframer, KissPort, encode_into, encoded_len};
+//! use yodel::kiss::{KissCommand, KissDeframer, KissPort, encode_into, encoded_len};
 //!
-//! # fn main() -> Result<(), warble::kiss::KissError> {
+//! # fn main() -> Result<(), yodel::kiss::KissError> {
 //! let payload = [0x01, 0xC0, 0xDB, 0x02];
 //! let port = KissPort::new(3)?;
 //! let mut buf = [0u8; 32];
@@ -247,13 +247,13 @@ pub fn encoded_len(port: KissPort, command: KissCommand, payload: &[u8]) -> usiz
 ///
 /// ```
 /// # #[cfg(all(feature = "kiss", feature = "alloc"))] {
-/// use warble::kiss::{KissCommand, KissPort, encode_to_vec};
+/// use yodel::kiss::{KissCommand, KissPort, encode_to_vec};
 ///
 /// // 0xC0 is the frame delimiter, so a payload containing one is escaped.
 /// let wire = encode_to_vec(KissPort::new(0)?, KissCommand::Data, &[0x82, 0xC0]);
 /// assert_eq!(wire, [0xC0, 0x00, 0x82, 0xDB, 0xDC, 0xC0]);
 /// # }
-/// # Ok::<(), warble::kiss::KissError>(())
+/// # Ok::<(), yodel::kiss::KissError>(())
 /// ```
 #[cfg(feature = "alloc")]
 #[must_use]
@@ -279,9 +279,9 @@ pub fn encode_to_vec(port: KissPort, command: KissCommand, payload: &[u8]) -> al
 /// where that is observable:
 ///
 /// ```
-/// use warble::kiss::{FEND, FESC, KissCommand, KissPort, TFEND, encode_into};
+/// use yodel::kiss::{FEND, FESC, KissCommand, KissPort, TFEND, encode_into};
 ///
-/// # fn main() -> Result<(), warble::kiss::KissError> {
+/// # fn main() -> Result<(), yodel::kiss::KissError> {
 /// let port = KissPort::new(12)?;
 /// let mut buf = [0u8; 8];
 /// let len = encode_into(port, KissCommand::Data, &[0x11], &mut buf)?;

@@ -251,7 +251,7 @@ pub struct DegreesMinutes {
 /// What this struct adds is readable access and a name to pass around:
 ///
 /// ```
-/// use warble::geo::{Coordinates, Latitude, Longitude};
+/// use yodel::geo::{Coordinates, Latitude, Longitude};
 ///
 /// let here = Coordinates::new(
 ///     Latitude::from_degrees(49.0583)?,
@@ -259,7 +259,7 @@ pub struct DegreesMinutes {
 /// );
 /// assert!((here.latitude.to_degrees() - 49.0583).abs() < 1e-4);
 /// assert!((here.longitude.to_degrees() - -72.0292).abs() < 1e-4);
-/// # Ok::<(), warble::geo::GeoError>(())
+/// # Ok::<(), yodel::geo::GeoError>(())
 /// ```
 ///
 /// [`Self::ambiguity`] qualifies the *precision of the measurement*
@@ -469,13 +469,13 @@ impl Coordinates {
     /// end.
     ///
     /// ```
-    /// use warble::geo::{Coordinates, Latitude, Longitude};
+    /// use yodel::geo::{Coordinates, Latitude, Longitude};
     ///
     /// let here = Coordinates::new(Latitude::from_degrees(49.0)?, Longitude::from_degrees(-72.0)?);
     /// let north = Coordinates::new(Latitude::from_degrees(49.1)?, Longitude::from_degrees(-72.0)?);
     /// // A tenth of a degree of latitude is 6 arc-minutes: 11.112 km.
     /// assert_eq!(here.distance_to(north).meters(), 11_112);
-    /// # Ok::<(), warble::geo::GeoError>(())
+    /// # Ok::<(), yodel::geo::GeoError>(())
     /// ```
     #[must_use]
     pub fn distance_to(self, other: Self) -> Distance {
@@ -713,13 +713,13 @@ impl Latitude {
     /// magnitude cannot be given the wrong sign by accident.
     ///
     /// ```
-    /// use warble::geo::{Latitude, LatitudeHemisphere};
+    /// use yodel::geo::{Latitude, LatitudeHemisphere};
     ///
     /// // 33 degrees 25.64 minutes north.
     /// let lat = Latitude::from_degrees_minutes(33, 2564, LatitudeHemisphere::North)?;
     /// let dm = lat.degrees_minutes();
     /// assert_eq!((dm.degrees, dm.hundredths_of_minute), (33, 2564));
-    /// # Ok::<(), warble::geo::GeoError>(())
+    /// # Ok::<(), yodel::geo::GeoError>(())
     /// ```
     ///
     /// # Errors
@@ -758,14 +758,14 @@ impl Latitude {
     /// a radio shows and what the APRS wire carries.
     ///
     /// ```
-    /// use warble::geo::{Latitude, LatitudeHemisphere};
+    /// use yodel::geo::{Latitude, LatitudeHemisphere};
     ///
     /// let lat = Latitude::from_degrees(49.0583)?;
     /// let dm = lat.degrees_minutes();
     /// assert_eq!(dm.degrees, 49);
     /// assert_eq!(dm.hundredths_of_minute, 350); // 3.50 arc-minutes
     /// assert_eq!(lat.hemisphere(), LatitudeHemisphere::North);
-    /// # Ok::<(), warble::geo::GeoError>(())
+    /// # Ok::<(), yodel::geo::GeoError>(())
     /// ```
     #[must_use]
     pub const fn degrees_minutes(self) -> DegreesMinutes {
@@ -823,13 +823,13 @@ impl Longitude {
     /// [`Self::from_degrees`].
     ///
     /// ```
-    /// use warble::geo::{Longitude, LongitudeHemisphere};
+    /// use yodel::geo::{Longitude, LongitudeHemisphere};
     ///
     /// // 112 degrees 07.00 minutes west.
     /// let lon = Longitude::from_degrees_minutes(112, 700, LongitudeHemisphere::West)?;
     /// let dm = lon.degrees_minutes();
     /// assert_eq!((dm.degrees, dm.hundredths_of_minute), (112, 700));
-    /// # Ok::<(), warble::geo::GeoError>(())
+    /// # Ok::<(), yodel::geo::GeoError>(())
     /// ```
     ///
     /// # Errors
@@ -866,14 +866,14 @@ impl Longitude {
     /// Pair it with [`Self::hemisphere`].
     ///
     /// ```
-    /// use warble::geo::{Longitude, LongitudeHemisphere};
+    /// use yodel::geo::{Longitude, LongitudeHemisphere};
     ///
     /// let lon = Longitude::from_degrees(-72.0292)?;
     /// let dm = lon.degrees_minutes();
     /// assert_eq!(dm.degrees, 72);
     /// assert_eq!(dm.hundredths_of_minute, 175); // 1.75 arc-minutes
     /// assert_eq!(lon.hemisphere(), LongitudeHemisphere::West);
-    /// # Ok::<(), warble::geo::GeoError>(())
+    /// # Ok::<(), yodel::geo::GeoError>(())
     /// ```
     #[must_use]
     pub const fn degrees_minutes(self) -> DegreesMinutes {
@@ -1112,7 +1112,7 @@ impl GridPrecision {
 /// grids naming the same square compare equal however they were typed.
 ///
 /// ```
-/// use warble::geo::{Coordinates, GridPrecision, Latitude, Longitude, MaidenheadGrid};
+/// use yodel::geo::{Coordinates, GridPrecision, Latitude, Longitude, MaidenheadGrid};
 ///
 /// let boston = Coordinates::new(
 ///     Latitude::from_degrees(42.5)?,
@@ -1126,7 +1126,7 @@ impl GridPrecision {
 ///
 /// // Parsing is case-insensitive; storage is canonical.
 /// assert_eq!(MaidenheadGrid::new("io91WM")?.as_str(), "IO91wm");
-/// # Ok::<(), warble::geo::GeoError>(())
+/// # Ok::<(), yodel::geo::GeoError>(())
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct MaidenheadGrid {
@@ -1250,7 +1250,7 @@ impl MaidenheadGrid {
     /// six-character locator opts in to sending only the square.
     ///
     /// ```
-    /// use warble::geo::{GridPrecision, MaidenheadGrid};
+    /// use yodel::geo::{GridPrecision, MaidenheadGrid};
     ///
     /// let precise = MaidenheadGrid::new("IO91wm")?;
     /// assert_eq!(
@@ -1262,7 +1262,7 @@ impl MaidenheadGrid {
     ///     precise.to_precision(GridPrecision::ExtendedSquare).as_str(),
     ///     "IO91wm"
     /// );
-    /// # Ok::<(), warble::geo::GeoError>(())
+    /// # Ok::<(), yodel::geo::GeoError>(())
     /// ```
     #[must_use]
     pub const fn to_precision(self, precision: GridPrecision) -> Self {

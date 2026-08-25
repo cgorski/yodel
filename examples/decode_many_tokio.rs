@@ -23,15 +23,15 @@
 //!
 //! # Which of the four entry points to use
 //!
-//! `warble::asynk` offers four ways in, and picking the right one is
+//! `yodel::asynk` offers four ways in, and picking the right one is
 //! most of the work:
 //!
 //! | You have | Use | Notes |
 //! |---|---|---|
-//! | a path to a WAV file | [`decode_wav`](warble::asynk::decode_wav) | reads on a blocking thread; nothing is buffered up front |
-//! | one `AsyncRead` (socket, stdin, pipe) | [`decode_stream`](warble::asynk::decode_stream) | sniffs WAV vs raw s16le; pass the rate for raw |
-//! | one `AsyncRead` of raw PCM at a known config | [`frames`](warble::asynk::frames) | no sniffing, no `wav` feature needed |
-//! | *N* readers at once | [`decode_many`](warble::asynk::decode_many) | one merged stream, each item tagged with its feed index |
+//! | a path to a WAV file | [`decode_wav`](yodel::asynk::decode_wav) | reads on a blocking thread; nothing is buffered up front |
+//! | one `AsyncRead` (socket, stdin, pipe) | [`decode_stream`](yodel::asynk::decode_stream) | sniffs WAV vs raw s16le; pass the rate for raw |
+//! | one `AsyncRead` of raw PCM at a known config | [`frames`](yodel::asynk::frames) | no sniffing, no `wav` feature needed |
+//! | *N* readers at once | [`decode_many`](yodel::asynk::decode_many) | one merged stream, each item tagged with its feed index |
 //!
 //! This example uses `decode_many`, because the interesting question
 //! with more than one radio is not how to decode — it is how to know
@@ -73,9 +73,9 @@
 use std::time::Instant;
 
 use tokio_stream::StreamExt;
-use warble::SampleRate;
-use warble::ax25::Address;
-use warble::tnc::{OwnedFrame, TncConfig};
+use yodel::SampleRate;
+use yodel::ax25::Address;
+use yodel::tnc::{OwnedFrame, TncConfig};
 
 const RATE_HZ: u32 = 48_000;
 
@@ -137,7 +137,7 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
     // One merged stream over every feed. Items are `(feed_index, result)`,
     // which is how a frame keeps its provenance without a channel per radio.
     let started = Instant::now();
-    let mut stream = std::pin::pin!(warble::asynk::decode_many(feeds, cfg));
+    let mut stream = std::pin::pin!(yodel::asynk::decode_many(feeds, cfg));
 
     let mut total = 0u32;
     let mut per_feed = vec![0u32; labels.len()];

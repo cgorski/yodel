@@ -96,8 +96,8 @@
 //! # Round trip
 //!
 //! ```
-//! use warble::ax25::{Address, UiFrame};
-//! use warble::il2p::{self, Il2pParity, ENCODED_MAX, SYNC_LEN};
+//! use yodel::ax25::{Address, UiFrame};
+//! use yodel::il2p::{self, Il2pParity, ENCODED_MAX, SYNC_LEN};
 //!
 //! let frame = UiFrame::new(
 //!     Address::new(b"APRS", 0)?,
@@ -291,7 +291,7 @@ const fn lfsr_taps(state: u16) -> u16 {
 /// most-significant bit first, matching IL2P's transmit bit order.
 ///
 /// ```
-/// use warble::il2p::Il2pScrambler;
+/// use yodel::il2p::Il2pScrambler;
 ///
 /// let mut data = *b"il2p known answer";
 /// let original = data;
@@ -1454,8 +1454,8 @@ enum Il2pRxState {
 /// such — the block lengths simply disagree and frames stop decoding.
 ///
 /// ```
-/// use warble::ax25::{Address, UiFrame};
-/// use warble::il2p::{self, ENCODED_MAX, Il2pParity, Il2pReceiver};
+/// use yodel::ax25::{Address, UiFrame};
+/// use yodel::il2p::{self, ENCODED_MAX, Il2pParity, Il2pReceiver};
 ///
 /// let frame = UiFrame::new(
 ///     Address::new(b"APRS", 0)?,

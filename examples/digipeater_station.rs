@@ -103,13 +103,13 @@
 
 use std::io::{Read, Write};
 
-use warble::SampleRate;
-use warble::ax25::{Address, PathHop, UiFrame};
-use warble::digipeat::{
+use yodel::SampleRate;
+use yodel::ax25::{Address, PathHop, UiFrame};
+use yodel::digipeat::{
     Alias, DupeRing, ExactAliasAction, Freshness, IgnoreReason, RelayDecision, WideLimit,
     relay_decision,
 };
-use warble::tnc::{DefaultTncReceiver, MAX_FRAME_BYTES, TncConfig, TncReceiver, TncTransmitter};
+use yodel::tnc::{DefaultTncReceiver, MAX_FRAME_BYTES, TncConfig, TncReceiver, TncTransmitter};
 
 /// Sample rate assumed for raw PCM on stdin (WAV files carry their own).
 const STDIN_RATE_HZ: u32 = 48_000;

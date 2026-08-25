@@ -36,8 +36,8 @@
 //!
 //! The last section below demonstrates both of those.
 
-use warble::aprs::monitor::{MonitorLine, format_line};
-use warble::aprs::{
+use yodel::aprs::monitor::{MonitorLine, format_line};
+use yodel::aprs::{
     Addressee, AprsError, AprsPacket, Latitude, Longitude, Message, MessageContent, Position,
     Status, Symbol,
 };
@@ -59,7 +59,7 @@ fn the_ceremony_you_can_skip() -> Result<(), Box<dyn std::error::Error>> {
             Longitude::from_degrees(-72.0292)?,
             Symbol::CAR,
         )
-        .with_comment(b"warble"),
+        .with_comment(b"yodel"),
     );
 
     // Allocation-free: you own the buffer and the length.

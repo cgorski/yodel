@@ -24,9 +24,9 @@
 //! The whole decode is this:
 //!
 //! ```no_run
-//! # async fn demo(reader: tokio::net::TcpStream, cfg: warble::tnc::TncConfig) {
+//! # async fn demo(reader: tokio::net::TcpStream, cfg: yodel::tnc::TncConfig) {
 //! use tokio_stream::StreamExt;
-//! let mut frames = std::pin::pin!(warble::asynk::frames(reader, cfg));
+//! let mut frames = std::pin::pin!(yodel::asynk::frames(reader, cfg));
 //! while let Some(Ok(frame)) = frames.next().await {
 //!     println!("{}", String::from_utf8_lossy(frame.info()));
 //! }
@@ -41,12 +41,12 @@
 //!
 //! Raw **s16le mono PCM** at [`RATE_HZ`] — no header, no framing. That
 //! is what `arecord -f S16_LE -r 48000 -c 1 -t raw` emits and what most
-//! SDR tools pipe out. [`warble::asynk::frames`] takes the rate from the
+//! SDR tools pipe out. [`yodel::asynk::frames`] takes the rate from the
 //! [`TncConfig`], so the stream carries no metadata that could disagree
 //! with you; it also means this example needs no `wav` feature.
 //!
 //! For a *WAV* stream, whose header states its own rate, use
-//! [`warble::asynk::decode_stream`] instead — same shape, plus sniffing.
+//! [`yodel::asynk::decode_stream`] instead — same shape, plus sniffing.
 //! To turn a WAV file into a stream of the right shape:
 //!
 //! ```sh
@@ -58,10 +58,10 @@ use std::time::{Duration, Instant};
 
 use tokio::io::{AsyncRead, AsyncWriteExt};
 use tokio_stream::StreamExt;
-use warble::SampleRate;
-use warble::aprs::{AprsPacket, Status};
-use warble::ax25::Address;
-use warble::tnc::{TncConfig, TncTransmitter};
+use yodel::SampleRate;
+use yodel::aprs::{AprsPacket, Status};
+use yodel::ax25::Address;
+use yodel::tnc::{TncConfig, TncTransmitter};
 
 /// Sample rate of the stream. Raw PCM has no header, so both ends must
 /// agree out of band; this is the agreement.
@@ -133,7 +133,7 @@ async fn decode(
     sink_delay: Option<Duration>,
 ) -> Result<usize, Box<dyn std::error::Error>> {
     let deadline = budget.map(|b| tokio::time::Instant::now() + b);
-    let mut frames = std::pin::pin!(warble::asynk::frames(reader, cfg));
+    let mut frames = std::pin::pin!(yodel::asynk::frames(reader, cfg));
     let mut n = 0;
     let mut last = Instant::now();
     loop {

@@ -32,10 +32,10 @@ mod digipeater_station;
 #[allow(dead_code)]
 mod trigger_reply;
 
-use warble::SampleRate;
-use warble::aprs::{AprsPacket, Latitude, Longitude, Message, MessageContent, Position, Symbol};
-use warble::ax25::{Address, PathHop, UiFrame};
-use warble::tnc::{DefaultTncReceiver, TncConfig, TncReceiver, TncTransmitter};
+use yodel::SampleRate;
+use yodel::aprs::{AprsPacket, Latitude, Longitude, Message, MessageContent, Position, Symbol};
+use yodel::ax25::{Address, PathHop, UiFrame};
+use yodel::tnc::{DefaultTncReceiver, TncConfig, TncReceiver, TncTransmitter};
 
 fn addr(call: &[u8], ssid: u8) -> Address {
     match Address::new(call, ssid) {
@@ -294,10 +294,10 @@ mod digi {
     use crate::digipeater_station::{
         FrameReport, Policy, Station, Verdict, json_line, parse_args, parse_callsign, stats_report,
     };
-    use warble::SampleRate;
-    use warble::ax25::PathHop;
-    use warble::digipeat::WideLimit;
-    use warble::tnc::{DefaultTncReceiver, TncConfig, TncReceiver};
+    use yodel::SampleRate;
+    use yodel::ax25::PathHop;
+    use yodel::digipeat::WideLimit;
+    use yodel::tnc::{DefaultTncReceiver, TncConfig, TncReceiver};
 
     fn policy(transmit: bool) -> Policy {
         Policy {
@@ -476,8 +476,8 @@ mod digi {
         hops: &[(&[u8], u8, bool)],
         info: &[u8],
     ) -> Vec<i16> {
-        use warble::ax25::UiFrame;
-        use warble::tnc::TncTransmitter;
+        use yodel::ax25::UiFrame;
+        use yodel::tnc::TncTransmitter;
         let hop_list: Vec<PathHop> = hops
             .iter()
             .map(|&(call, ssid, repeated)| PathHop {
@@ -506,10 +506,10 @@ mod concurrent {
         CHANNEL_DEPTH, DecodedFrame, JsonlSink, MemorySink, Sink, WORKERS, decode_pool,
     };
     use std::sync::atomic::{AtomicU32, Ordering};
-    use warble::SampleRate;
-    use warble::aprs::{AprsPacket, Status};
-    use warble::ax25::Address;
-    use warble::tnc::{DefaultTncReceiver, TncConfig, TncTransmitter};
+    use yodel::SampleRate;
+    use yodel::aprs::{AprsPacket, Status};
+    use yodel::ax25::Address;
+    use yodel::tnc::{DefaultTncReceiver, TncConfig, TncTransmitter};
 
     /// Writes `count` status frames (each naming `tag` and its index)
     /// as a 48 kHz WAV in the temp directory, returning the path.
@@ -517,7 +517,7 @@ mod concurrent {
         static COUNTER: AtomicU32 = AtomicU32::new(0);
         let n = COUNTER.fetch_add(1, Ordering::Relaxed);
         let path = std::env::temp_dir().join(format!(
-            "warble-concurrent-{}-{n}-{tag}.wav",
+            "yodel-concurrent-{}-{n}-{tag}.wav",
             std::process::id()
         ));
         let spec = hound::WavSpec {
@@ -623,7 +623,7 @@ mod concurrent {
         let mut owned = None;
         for s in samples {
             if let Some(frame) = rx.push_i16(s) {
-                owned = Some(warble::tnc::OwnedFrame::new(&frame).unwrap());
+                owned = Some(yodel::tnc::OwnedFrame::new(&frame).unwrap());
             }
         }
         let mut out = Vec::new();

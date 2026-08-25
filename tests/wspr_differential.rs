@@ -35,9 +35,9 @@
 //! path into `reference/` (see CONTRIBUTING.md):
 //!
 //! ```text
-//! WARBLE_REF_WSPR_ENCODE=/path/to/symbol-printing encoder
-//! WARBLE_REF_WSPR_GEN=/path/to/wav-writing generator
-//! WARBLE_REF_WSPR_DECODE=/path/to/decoder
+//! YODEL_REF_WSPR_ENCODE=/path/to/symbol-printing encoder
+//! YODEL_REF_WSPR_GEN=/path/to/wav-writing generator
+//! YODEL_REF_WSPR_DECODE=/path/to/decoder
 //!   cargo test --release --all-features --test wspr_differential -- --ignored --nocapture
 //! ```
 //!
@@ -48,9 +48,9 @@
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use warble::SampleRate;
-use warble::geo::MaidenheadGrid;
-use warble::wspr::{
+use yodel::SampleRate;
+use yodel::geo::MaidenheadGrid;
+use yodel::wspr::{
     SYMBOL_COUNT, WsprConfig, WsprDecoder, WsprDecoderConfig, WsprMessage, WsprModulator,
 };
 
@@ -194,7 +194,7 @@ const SYMBOL_HEADER: &str = "Channel symbols:";
 /// say which one it names: a dedicated encoder dissects the message it is
 /// given and takes nothing else, while a simulator prints its symbols
 /// only when asked for them with a flag. Trying both is what makes
-/// `WARBLE_REF_WSPR_ENCODE` mean "a symbol-printing WSPR encoder" rather
+/// `YODEL_REF_WSPR_ENCODE` mean "a symbol-printing WSPR encoder" rather
 /// than "one specific build", and guessing wrong is not a theoretical
 /// risk: it is why this test had never once run (see
 /// [`reference_symbols`]).
@@ -248,7 +248,7 @@ fn reference_symbols(encoder: &Path, text: &str) -> Vec<u8> {
     panic!(
         "the reference encoder printed no {SYMBOL_COUNT}-symbol \
          {SYMBOL_HEADER:?} section for {text:?} in any known argument \
-         form. Point WARBLE_REF_WSPR_ENCODE at an encoder that prints \
+         form. Point YODEL_REF_WSPR_ENCODE at an encoder that prints \
          channel symbols.\n{transcript}"
     );
 }
@@ -276,10 +276,10 @@ fn rendered(msg: &WsprMessage) -> String {
 /// least one symbol here, and no amount of internal round-tripping can
 /// see any of them.
 #[test]
-#[ignore = "requires WARBLE_REF_WSPR_ENCODE"]
+#[ignore = "requires YODEL_REF_WSPR_ENCODE"]
 fn channel_symbols_match_the_reference_encoder() {
-    let Some(encoder) = ref_binary("WARBLE_REF_WSPR_ENCODE") else {
-        eprintln!("WARBLE_REF_WSPR_ENCODE not set — skipping");
+    let Some(encoder) = ref_binary("YODEL_REF_WSPR_ENCODE") else {
+        eprintln!("YODEL_REF_WSPR_ENCODE not set — skipping");
         return;
     };
 
@@ -314,10 +314,10 @@ fn channel_symbols_match_the_reference_encoder() {
 
 /// The reference decoder must recover our message from our audio.
 #[test]
-#[ignore = "requires WARBLE_REF_WSPR_DECODE"]
+#[ignore = "requires YODEL_REF_WSPR_DECODE"]
 fn our_transmission_decodes_in_the_reference_decoder() {
-    let Some(decoder) = ref_binary("WARBLE_REF_WSPR_DECODE") else {
-        eprintln!("WARBLE_REF_WSPR_DECODE not set — skipping");
+    let Some(decoder) = ref_binary("YODEL_REF_WSPR_DECODE") else {
+        eprintln!("YODEL_REF_WSPR_DECODE not set — skipping");
         return;
     };
     let dir = scratch_subdir("wspr_ref_decode");
@@ -376,10 +376,10 @@ fn our_transmission_decodes_in_the_reference_decoder() {
 /// than papers over — agreement to within a couple of hertz would have
 /// hidden a real geometry error.
 #[test]
-#[ignore = "requires WARBLE_REF_WSPR_GEN"]
+#[ignore = "requires YODEL_REF_WSPR_GEN"]
 fn we_decode_the_reference_transmission() {
-    let Some(generator) = ref_binary("WARBLE_REF_WSPR_GEN") else {
-        eprintln!("WARBLE_REF_WSPR_GEN not set — skipping");
+    let Some(generator) = ref_binary("YODEL_REF_WSPR_GEN") else {
+        eprintln!("YODEL_REF_WSPR_GEN not set — skipping");
         return;
     };
     let dir = scratch_subdir("wspr_ref_gen");

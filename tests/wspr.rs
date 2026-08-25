@@ -15,16 +15,16 @@
 //! loop against real off-air decoders.
 #![cfg(feature = "wspr")]
 
-use warble::geo::GeoError;
-use warble::wspr::{
+use yodel::geo::GeoError;
+use yodel::wspr::{
     DATA_BITS, POLY_A, POLY_B, SYMBOL_COUNT, SYNC_VECTOR, WsprConfig, WsprError, WsprMessage,
     WsprModulator, convolutional_encode, interleave,
 };
-use warble::{MaidenheadGrid, SampleRate};
+use yodel::{MaidenheadGrid, SampleRate};
 
 /// A locator from text, panicking on invalid input: these tests are
 /// about the WSPR encoding, and locator parsing has its own suite in
-/// `warble::geo`.
+/// `yodel::geo`.
 fn grid(text: &str) -> MaidenheadGrid {
     MaidenheadGrid::new(text).expect("valid locator")
 }

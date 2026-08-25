@@ -13,14 +13,14 @@
 //! recognize. That keeps the type accurate as the convention drifts.
 //!
 //! ```
-//! use warble::aprs::capabilities::Capabilities;
+//! use yodel::aprs::capabilities::Capabilities;
 //!
 //! let cap = Capabilities::parse(b"<IGATE,MSG_CNT=13,LOC_CNT=54")?;
 //! assert!(cap.has(b"IGATE"));
 //! assert_eq!(cap.value(b"MSG_CNT"), Some(&b"13"[..]));
 //! assert_eq!(cap.value(b"MISSING"), None);
 //! assert_eq!(cap.tokens().count(), 3);
-//! # Ok::<(), warble::aprs::AprsError>(())
+//! # Ok::<(), yodel::aprs::AprsError>(())
 //! ```
 
 use super::AprsError;

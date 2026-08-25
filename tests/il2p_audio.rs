@@ -5,15 +5,15 @@
 //! coexisting with plain AX.25/HDLC traffic.
 #![cfg(all(feature = "il2p", feature = "mod", feature = "demod"))]
 
-use warble::SampleRate;
-use warble::ax25::UiFrame;
-use warble::demodulator::{AfskDemodulator, DemodulatorConfig};
+use yodel::SampleRate;
+use yodel::ax25::UiFrame;
+use yodel::demodulator::{AfskDemodulator, DemodulatorConfig};
 
-use warble::il2p::{
+use yodel::il2p::{
     self, ENCODED_MAX, HEADER_LEN, HEADER_PARITY_LEN, Il2pParity, Il2pReceiver, SYNC_LEN,
     encode_ui_frame,
 };
-use warble::modulator::{Modulator, ModulatorConfig};
+use yodel::modulator::{Modulator, ModulatorConfig};
 
 const RATE: u32 = 48_000;
 
@@ -26,8 +26,8 @@ fn sample_rate() -> SampleRate {
     SampleRate::new(RATE).unwrap()
 }
 
-fn addr(call: &[u8], ssid: u8) -> warble::ax25::Address {
-    warble::ax25::Address::new(call, ssid).unwrap()
+fn addr(call: &[u8], ssid: u8) -> yodel::ax25::Address {
+    yodel::ax25::Address::new(call, ssid).unwrap()
 }
 
 /// Encodes `frame` as IL2P, returning the encoded bytes (sync included).
@@ -162,14 +162,14 @@ fn il2p_sync_word_tolerates_one_bit_error() {
 }
 
 /// Coexistence: plain AX.25/HDLC audio still decodes through the
-/// ordinary [`warble::tnc::TncReceiver`] with the `il2p` feature
+/// ordinary [`yodel::tnc::TncReceiver`] with the `il2p` feature
 /// compiled in (the feature adds a parallel codec; the default receive
 /// paths are untouched).
 #[cfg(all(feature = "tnc", feature = "alloc"))]
 #[test]
 fn plain_ax25_rx_unaffected_with_il2p_enabled() {
-    use warble::aprs::{AprsPacket, Status};
-    use warble::tnc::{DefaultTncReceiver, TncConfig, TncTransmitter};
+    use yodel::aprs::{AprsPacket, Status};
+    use yodel::tnc::{DefaultTncReceiver, TncConfig, TncTransmitter};
 
     let config = TncConfig::bell_202(sample_rate()).unwrap();
     let tx = TncTransmitter::new(config);
@@ -199,9 +199,9 @@ fn plain_ax25_rx_unaffected_with_il2p_enabled() {
 #[cfg(feature = "g3ruh")]
 mod baseband_9600 {
     use super::*;
-    use warble::baseband::{BasebandDemodulator, BasebandModulator};
-    use warble::scrambler::{Descrambler, Scrambler};
-    use warble::{BaudRate, Bit};
+    use yodel::baseband::{BasebandDemodulator, BasebandModulator};
+    use yodel::scrambler::{Descrambler, Scrambler};
+    use yodel::{BaudRate, Bit};
 
     fn baud() -> BaudRate {
         BaudRate::new(9_600).unwrap()

@@ -1,4 +1,4 @@
-//! `warble level`: a live input meter for setting a radio's volume.
+//! `yodel level`: a live input meter for setting a radio's volume.
 //!
 //! # Why this exists
 //!
@@ -246,7 +246,7 @@ pub fn tone_energy(window: &[i16], rate: u32) -> (f32, f32) {
     (one(MARK_HZ), one(SPACE_HZ))
 }
 
-/// Arguments of `warble level`.
+/// Arguments of `yodel level`.
 #[derive(Args)]
 pub struct LevelArgs {
     /// Input: `-` to read audio from stdin, WAV or raw s16le PCM. The
@@ -283,13 +283,13 @@ pub struct LevelArgs {
     #[arg(long)]
     then_decode: bool,
 
-    /// Modem preset and per-field overrides, as `warble decode` takes
+    /// Modem preset and per-field overrides, as `yodel decode` takes
     /// them. Only consulted with `--then-decode`.
     #[command(flatten)]
     modem: ModemArgs,
 }
 
-/// Runs `warble level`.
+/// Runs `yodel level`.
 ///
 /// # Errors
 ///
@@ -300,7 +300,7 @@ pub fn level(args: &LevelArgs) -> Result<(), String> {
     if args.input != "-" {
         return Err(format!(
             "level reads audio from stdin: pass '-', not '{}'. Pipe a capture \
-             tool into it, e.g. `... | warble level --rate 44100 -`",
+             tool into it, e.g. `... | yodel level --rate 44100 -`",
             args.input
         ));
     }
@@ -455,7 +455,7 @@ fn finish(redraw: bool) {
 /// that is being decoded rather than of a second capture.
 fn meter_and_decode(
     args: &LevelArgs,
-    rate: warble::SampleRate,
+    rate: yodel::SampleRate,
     samples: Box<dyn Iterator<Item = Result<i16, String>> + Send>,
 ) -> Result<(), String> {
     #[allow(clippy::cast_possible_truncation)]

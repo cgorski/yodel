@@ -21,8 +21,8 @@
 //! bandwidth) by tests/wspr_rx.rs; the often-quoted −31 dB belongs to
 //! the reference implementation's decoder, not this one.
 
-use warble::wspr::{WsprConfig, WsprDecoder, WsprDecoderConfig, WsprMessage, WsprModulator};
-use warble::{MaidenheadGrid, SampleRate};
+use yodel::wspr::{WsprConfig, WsprDecoder, WsprDecoderConfig, WsprMessage, WsprModulator};
+use yodel::{MaidenheadGrid, SampleRate};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // 1. TX: message -> 162 channel symbols -> 4-FSK samples. The

@@ -533,14 +533,14 @@ impl TncConfig {
     /// apply the bound.
     ///
     /// ```
-    /// use warble::DevicePreset;
-    /// use warble::ax25::RecoveryPolicy;
-    /// use warble::tnc::{ChainVoting, TncConfig};
+    /// use yodel::DevicePreset;
+    /// use yodel::ax25::RecoveryPolicy;
+    /// use yodel::tnc::{ChainVoting, TncConfig};
     ///
     /// let cfg: TncConfig = DevicePreset::Esp32C3.tnc_config()?.bounded_latency();
     /// assert_eq!(cfg.recovery(), RecoveryPolicy::None);
     /// assert_eq!(cfg.voting(), ChainVoting::Off);
-    /// # Ok::<(), warble::ConfigError>(())
+    /// # Ok::<(), yodel::ConfigError>(())
     /// ```
     #[must_use]
     pub const fn bounded_latency(mut self) -> Self {

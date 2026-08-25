@@ -1,21 +1,21 @@
-//! `warble gen`: deterministic impairment-controlled test-signal
+//! `yodel gen`: deterministic impairment-controlled test-signal
 //! generation (seeded noise SNR, amplitude, inter-frame gaps).
 
 use clap::Args;
 
-use warble::SampleRate;
-use warble::aprs::{AprsPacket, Status};
-use warble::tnc::TncTransmitter;
+use yodel::SampleRate;
+use yodel::aprs::{AprsPacket, Status};
+use yodel::tnc::TncTransmitter;
 
 use crate::shared::{ModemArgs, fx25_samples, il2p_samples, parse_address};
 
-/// Arguments of `warble gen`: a deterministic impairment-controlled
+/// Arguments of `yodel gen`: a deterministic impairment-controlled
 /// test-signal generator.
 #[derive(Args)]
 pub struct GenArgs {
     /// Output: a WAV file path (16-bit mono integer PCM), or `-` to
     /// stream raw s16le mono PCM to stdout (pipe it straight into
-    /// `warble decode --sample-rate <HZ> -`).
+    /// `yodel decode --sample-rate <HZ> -`).
     #[arg(long, value_name = "OUTPUT.wav | -")]
     out: String,
 
@@ -32,9 +32,9 @@ pub struct GenArgs {
     to: String,
 
     /// Base status text of every frame. The frame counter `[i/N]` is
-    /// always appended, so `warble bench` can recover the expected
+    /// always appended, so `yodel bench` can recover the expected
     /// frame count from a decoded recording.
-    #[arg(long, value_name = "TEXT", default_value = "warble test signal")]
+    #[arg(long, value_name = "TEXT", default_value = "yodel test signal")]
     text: String,
 
     /// Mix in additive white noise at this signal-to-noise ratio in
@@ -73,7 +73,7 @@ pub struct GenArgs {
 
 /// Deterministic 64-bit linear congruential generator (the Knuth MMIX
 /// multiplier/increment, high bits taken as output) used for the
-/// seeded noise of `warble gen`. Hand-rolled on purpose: no dependency,
+/// seeded noise of `yodel gen`. Hand-rolled on purpose: no dependency,
 /// no wall clock, so the same seed and flags always produce
 /// byte-identical audio. Statistical quality is plenty for test noise;
 /// it is not cryptographic.
@@ -107,7 +107,7 @@ fn clamp_i16(v: f64) -> i16 {
     v.round().clamp(f64::from(i16::MIN), f64::from(i16::MAX)) as i16
 }
 
-/// Runs `warble gen`: synthesizes `--count` sequence-numbered status
+/// Runs `yodel gen`: synthesizes `--count` sequence-numbered status
 /// frames, applies the amplitude and seeded-noise impairments, and
 /// writes a WAV file or raw s16le PCM to stdout.
 pub fn generate(args: &GenArgs) -> Result<(), String> {

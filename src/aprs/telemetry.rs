@@ -555,7 +555,7 @@ fn parse_value(field: &[u8], at: usize) -> Result<Option<TelemetryValue>, AprsEr
 /// 13's form for whatever the sender sent:
 ///
 /// ```
-/// use warble::aprs::{AprsError, Telemetry, TelemetryValue};
+/// use yodel::aprs::{AprsError, Telemetry, TelemetryValue};
 ///
 /// let wire = b"T#005,199,000,255,073,123,01010101";
 /// let report = Telemetry::parse(wire)?;
@@ -622,7 +622,7 @@ impl<'a> Telemetry<'a> {
     /// integer sensors and has no absent channel to express:
     ///
     /// ```
-    /// use warble::aprs::Telemetry;
+    /// use yodel::aprs::Telemetry;
     ///
     /// let report = Telemetry {
     ///     seq: 5,
@@ -633,7 +633,7 @@ impl<'a> Telemetry<'a> {
     /// let mut buf = [0u8; 40];
     /// let len = report.build(&mut buf)?;
     /// assert_eq!(&buf[..len], b"T#005,199,000,255,073,123,00000000");
-    /// # Ok::<(), warble::aprs::AprsError>(())
+    /// # Ok::<(), yodel::aprs::AprsError>(())
     /// ```
     #[must_use]
     pub const fn integer_channels(

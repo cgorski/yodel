@@ -5,28 +5,28 @@
 //! demodulation.
 #![cfg(feature = "aprs")]
 
-use warble::aprs::{
+use yodel::aprs::{
     Addressee, AprsError, AprsPacket, CompressedCs, DataExtension, Latitude, Longitude, Message,
     MessageContent, Position, PositionTimestamped, Status, Symbol, Timestamp, build_ui_frame,
     packet_from_ui,
 };
-use warble::ax25::{Address, UiFrame};
-use warble::geo::Ambiguity;
+use yodel::ax25::{Address, UiFrame};
+use yodel::geo::Ambiguity;
 
 /// A coordinate magnitude in 1/100 arc-minutes, the unit the fixtures
 /// in this file are written in. Storage is finer, so this rounds.
 fn hundredths(units: i64) -> i64 {
-    let step = warble::geo::UNITS_PER_HUNDREDTH_MINUTE;
+    let step = yodel::geo::UNITS_PER_HUNDREDTH_MINUTE;
     let half = if units < 0 { -step / 2 } else { step / 2 };
     (units + half) / step
 }
 
 fn lat(v: i64) -> Latitude {
-    Latitude::new(v * warble::geo::UNITS_PER_HUNDREDTH_MINUTE).unwrap()
+    Latitude::new(v * yodel::geo::UNITS_PER_HUNDREDTH_MINUTE).unwrap()
 }
 
 fn lon(v: i64) -> Longitude {
-    Longitude::new(v * warble::geo::UNITS_PER_HUNDREDTH_MINUTE).unwrap()
+    Longitude::new(v * yodel::geo::UNITS_PER_HUNDREDTH_MINUTE).unwrap()
 }
 
 fn addr(call: &[u8], ssid: u8) -> Address {
@@ -87,16 +87,15 @@ fn compressed_position_spec_vector() {
             // which is -72.75000393777269. Storing it to the nearest
             // 1/100 arc-minute, as this crate used to, moved the
             // station 0.44 m.
-            let step_lat = warble::geo::UNITS_PER_DEGREE / 380_926;
-            let step_lon = warble::geo::UNITS_PER_DEGREE / 190_463;
+            let step_lat = yodel::geo::UNITS_PER_DEGREE / 380_926;
+            let step_lon = yodel::geo::UNITS_PER_DEGREE / 190_463;
             assert_eq!(
                 p.position.latitude,
-                Latitude::new(90 * warble::geo::UNITS_PER_DEGREE - 15_427_503 * step_lat).unwrap()
+                Latitude::new(90 * yodel::geo::UNITS_PER_DEGREE - 15_427_503 * step_lat).unwrap()
             );
             assert_eq!(
                 p.position.longitude,
-                Longitude::new(20_427_156 * step_lon - 180 * warble::geo::UNITS_PER_DEGREE)
-                    .unwrap()
+                Longitude::new(20_427_156 * step_lon - 180 * yodel::geo::UNITS_PER_DEGREE).unwrap()
             );
             assert_eq!(p.position.symbol.to_wire(), (b'/', b'>'));
             assert_eq!(p.cs, CompressedCs::RadioRange { miles: 20 });
@@ -149,11 +148,11 @@ fn compressed_position_round_trip_hemispheres() {
         };
         assert!(
             (a.latitude.units() - b.latitude.units()).abs()
-                <= warble::geo::UNITS_PER_DEGREE / 380_926
+                <= yodel::geo::UNITS_PER_DEGREE / 380_926
         );
         assert!(
             (a.longitude.units() - b.longitude.units()).abs()
-                <= warble::geo::UNITS_PER_DEGREE / 190_463
+                <= yodel::geo::UNITS_PER_DEGREE / 190_463
         );
         assert_eq!(a.symbol, b.symbol);
         assert_eq!(a.comment, b.comment);
@@ -237,13 +236,13 @@ fn rejection_vectors() {
     assert_eq!(
         AprsPacket::parse(b"!9101.00N/07201.75W-"),
         Err(AprsError::BadLatitude {
-            got: (91 * 6000 + 100) * warble::geo::UNITS_PER_HUNDREDTH_MINUTE
+            got: (91 * 6000 + 100) * yodel::geo::UNITS_PER_HUNDREDTH_MINUTE
         })
     );
     assert_eq!(
         AprsPacket::parse(b"!4903.50N/18101.00W-"),
         Err(AprsError::BadLongitude {
-            got: (-(181 * 6000 + 100)) * warble::geo::UNITS_PER_HUNDREDTH_MINUTE
+            got: (-(181 * 6000 + 100)) * yodel::geo::UNITS_PER_HUNDREDTH_MINUTE
         })
     );
     assert_eq!(
@@ -506,10 +505,10 @@ fn ui_frame_glue_round_trip() {
 #[cfg(all(feature = "mod", feature = "demod"))]
 mod full_stack {
     use super::*;
-    use warble::SampleRate;
-    use warble::ax25::{FrameReceiver, tx_i16};
-    use warble::demodulator::DemodulatorConfig;
-    use warble::modulator::{Modulator, ModulatorConfig};
+    use yodel::SampleRate;
+    use yodel::ax25::{FrameReceiver, tx_i16};
+    use yodel::demodulator::DemodulatorConfig;
+    use yodel::modulator::{Modulator, ModulatorConfig};
 
     #[test]
     fn packet_to_samples_and_back() {
@@ -539,7 +538,7 @@ mod full_stack {
 
         let sr = SampleRate::new(48_000).unwrap();
         let modulator = Modulator::new(ModulatorConfig::bell_202(sr).unwrap());
-        let demod = warble::AfskDemodulator::new(DemodulatorConfig::bell_202(sr).unwrap()).unwrap();
+        let demod = yodel::AfskDemodulator::new(DemodulatorConfig::bell_202(sr).unwrap()).unwrap();
         let mut rx = FrameReceiver::<330>::new(demod);
 
         let mut recovered: Vec<Vec<u8>> = Vec::new();

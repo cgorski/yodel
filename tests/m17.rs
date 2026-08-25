@@ -4,8 +4,8 @@
 //! packet roundtrips (clean, corrupted-within-capacity, garbage).
 #![cfg(feature = "m17")]
 
-use warble::SampleRate;
-use warble::m17::{
+use yodel::SampleRate;
+use yodel::m17::{
     self, Address, FRAME_BITS, FRAME_BYTES, Lsf, M17Error, M17FrameEvent, M17PacketTx, M17Receiver,
     MAX_PACKET_PAYLOAD, PACKET_FRAME_PAYLOAD, PacketAssembler, PacketFrame, convolutional_encode,
     crc16, deinterleave, depuncture, dibit_to_symbol, golay24_decode, golay24_encode, interleave,

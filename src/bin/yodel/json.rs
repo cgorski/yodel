@@ -1,5 +1,5 @@
 //! JSON Lines (NDJSON) rendering of decoded AX.25/APRS frames, for
-//! `warble decode --output-format jsonl`.
+//! `yodel decode --output-format jsonl`.
 //!
 //! One self-contained JSON object per frame, one per line, so decoder
 //! output pipes straight into `jq`, a log shipper or a database. The
@@ -32,7 +32,7 @@
 //! * `push_*` — one **free function per library type**, each taking the
 //!   object it writes into. No trait, no derive, no inherent `impl` on
 //!   a foreign type: the projection of `MicE` (say) into JSON is a
-//!   function of `&MicE`, which is exactly what a `warble::json` module
+//!   function of `&MicE`, which is exactly what a `yodel::json` module
 //!   would export.
 //!
 //! # Bytes versus strings: the `_hex` sibling rule
@@ -69,15 +69,15 @@
 
 use std::fmt::Write as _;
 
-use warble::SampleRate;
-use warble::aprs::monitor::MonitorLine;
-use warble::aprs::{
+use yodel::SampleRate;
+use yodel::aprs::monitor::MonitorLine;
+use yodel::aprs::{
     AprsPacket, CompressedCs, DataExtension, Decoded, DecodedKind, Message, MessageContent,
     MicEFix, MicEMessage, NmeaSentence, PhgRate, Position, PositionWeather, PositionlessWeather,
     Status, Symbol, TelemetryDefinition, TelemetryLabels, ThirdParty, Timestamp, UltimeterFormat,
     UltimeterRecord, WeatherReport, decoded_from_ui,
 };
-use warble::ax25::UiFrame;
+use yodel::ax25::UiFrame;
 
 use crate::shared::format_address;
 
@@ -266,7 +266,7 @@ impl<'a> Array<'a> {
     /// this reason: chapter 13's zero-padded `007` is not valid JSON.
     ///
     /// [`Display`]: std::fmt::Display
-    /// [`TelemetryValue`]: warble::aprs::TelemetryValue
+    /// [`TelemetryValue`]: yodel::aprs::TelemetryValue
     pub fn push_number(&mut self, value: impl std::fmt::Display) {
         self.sep();
         let _ = write!(self.out, "{value}");
@@ -436,7 +436,7 @@ pub fn push_monitor_line(
 /// that quietly forgave some value changes would be the same mistake
 /// this function exists to fix.
 ///
-/// [`coordinates`]: warble::aprs::Position::coordinates
+/// [`coordinates`]: yodel::aprs::Position::coordinates
 fn rebuild_verdict(decoded: &Decoded<'_>) -> &'static str {
     let DecodedKind::Packet(ref packet) = decoded.kind else {
         return "n/a";
@@ -682,7 +682,7 @@ pub fn push_packet(obj: &mut Object<'_>, packet: &AprsPacket<'_>) {
 /// the sender claimed, because chapter 6 lets the longitude carry its
 /// digits in full beside a blanked latitude. This renderer made that
 /// exact mistake for Mic-E once already.
-fn push_masked_position(obj: &mut Object<'_>, at: &warble::geo::Coordinates) {
+fn push_masked_position(obj: &mut Object<'_>, at: &yodel::geo::Coordinates) {
     obj.field_f64("lat_deg", at.latitude.to_degrees());
     obj.field_f64("lon_deg", at.longitude.to_degrees());
     if !at.ambiguity.is_exact() {
@@ -933,7 +933,7 @@ fn push_telemetry_labels(obj: &mut Object<'_>, labels: &TelemetryLabels<'_>) {
 /// beside `comment`, which still holds the bytes verbatim, because they
 /// are views rather than fields.
 fn push_comment_views(obj: &mut Object<'_>, comment: &[u8]) {
-    if let Some(t) = warble::aprs::comment_telemetry(comment) {
+    if let Some(t) = yodel::aprs::comment_telemetry(comment) {
         let mut o = obj.object("comment_telemetry");
         o.field_u64("seq", u64::from(t.seq));
         {
@@ -955,7 +955,7 @@ fn push_comment_views(obj: &mut Object<'_>, comment: &[u8]) {
             None => o.field_null("digital"),
         }
     }
-    if let Some(d) = warble::aprs::dao(comment) {
+    if let Some(d) = yodel::aprs::dao(comment) {
         let mut o = obj.object("dao");
         o.field_bytes("datum", &[d.datum]);
         o.field_bool("datum_assigned", d.datum_is_assigned());
@@ -1037,7 +1037,7 @@ pub fn push_weather_fields(obj: &mut Object<'_>, w: &WeatherReport) {
 
 /// A raw NMEA 0183 sentence, writing both `kind` and its object.
 pub fn push_nmea(obj: &mut Object<'_>, sentence: &NmeaSentence<'_>) {
-    use warble::aprs::nmea::{ChecksumStatus, FixQuality};
+    use yodel::aprs::nmea::{ChecksumStatus, FixQuality};
 
     obj.field_str("kind", "nmea");
     let mut o = obj.object("nmea");
@@ -1080,7 +1080,7 @@ pub fn push_nmea(obj: &mut Object<'_>, sentence: &NmeaSentence<'_>) {
 /// object. The measurements use the same keys as every other weather
 /// form, via [`push_weather_fields`].
 pub fn push_ultimeter(obj: &mut Object<'_>, record: UltimeterRecord<'_>) {
-    use warble::aprs::ultimeter::WindUnit;
+    use yodel::aprs::ultimeter::WindUnit;
 
     obj.field_str("kind", "ultimeter");
     let mut o = obj.object("ultimeter");

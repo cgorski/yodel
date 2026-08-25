@@ -4,7 +4,7 @@
 *.wav
 /corpus/
 
-# Cargo.lock IS tracked. This crate ships a binary ([[bin]] warble), and
+# Cargo.lock IS tracked. This crate ships a binary ([[bin]] yodel), and
 # the current guidance for any repo with a binary is to commit the
 # lockfile: it makes CI reproducible (a semver-compatible upstream
 # release can no longer turn a green PR red with no local change), makes

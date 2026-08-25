@@ -1,4 +1,4 @@
-//! `warble serve`: a KISS TNC bridging audio I/O to KISS byte streams.
+//! `yodel serve`: a KISS TNC bridging audio I/O to KISS byte streams.
 //!
 //! This file has two halves: the clap-facing command (`ServeArgs`,
 //! [`serve_command`], the audio-edge resolution) and, inside the
@@ -10,11 +10,11 @@
 
 use clap::Args;
 
-use warble::SampleRate;
+use yodel::SampleRate;
 
 use crate::shared::{ModemArgs, check_wav_spec, sniff_stdin_samples};
 
-/// Arguments of `warble serve`: the KISS TNC bridge.
+/// Arguments of `yodel serve`: the KISS TNC bridge.
 #[derive(Args)]
 pub struct ServeArgs {
     /// Listen for KISS clients on this TCP address, e.g.
@@ -32,7 +32,7 @@ pub struct ServeArgs {
     stdio: bool,
 
     /// RX audio: a 16-bit mono PCM WAV file (replay/testing), or `-`
-    /// for stdin. Stdin is sniffed exactly like `warble decode -`: a
+    /// for stdin. Stdin is sniffed exactly like `yodel decode -`: a
     /// RIFF/WAV header means WAV (rate from the header), anything else
     /// is raw s16le PCM (requires --sample-rate) — pipe a capture tool
     /// in for live audio (see the README pipe recipes and
@@ -60,19 +60,19 @@ pub struct ServeArgs {
     modem: ModemArgs,
 }
 
-/// Transport-agnostic core of `warble serve`, kept clap-free and free
+/// Transport-agnostic core of `yodel serve`, kept clap-free and free
 /// of process-global I/O so the whole bridge is testable in-process:
 /// `tests/serve.rs` includes this file via `#[path]` and drives
 /// [`serve::run_tcp`] on a loopback listener bound to an OS-assigned
 /// port and [`serve::run_stream`] on in-memory buffers.
 ///
-/// KISS framing comes from the library's [`warble::kiss`] module
+/// KISS framing comes from the library's [`yodel::kiss`] module
 /// (encoder iterator + streaming deframer) — nothing is reimplemented
 /// here; this module is sockets, threads and channels only.
 ///
 /// Concurrency shape (std::thread + bounded `sync_channel`s; this
 /// bridge stays runtime-free by design — the opt-in `async` feature's
-/// tokio adapter lives in `warble::asynk`, see `docs/ARCHITECTURE.md`):
+/// tokio adapter lives in `yodel::asynk`, see `docs/ARCHITECTURE.md`):
 ///
 /// ```text
 /// audio in ─→ decode thread ─→ bounded chan ─→ broadcast thread ─→ every client
@@ -95,12 +95,12 @@ pub mod serve {
     use std::sync::mpsc::{SyncSender, sync_channel};
     use std::sync::{Arc, Mutex};
 
-    use warble::demodulator::{AfskDemodulator, DemodulatorConfig};
-    use warble::fx25::{Fx25Receiver, WRAP_MAX, byte_bits, stuff_frame, wrap};
-    use warble::kiss::{KissCommand, KissDeframer, KissPort, frame_iter};
-    use warble::modulator::{Modulator, ModulatorConfig};
-    use warble::nrzi::{self, NrziDecoder};
-    use warble::tnc::{DefaultTncReceiver, MAX_FRAME_BYTES, TncConfig, TncTransmitter};
+    use yodel::demodulator::{AfskDemodulator, DemodulatorConfig};
+    use yodel::fx25::{Fx25Receiver, WRAP_MAX, byte_bits, stuff_frame, wrap};
+    use yodel::kiss::{KissCommand, KissDeframer, KissPort, frame_iter};
+    use yodel::modulator::{Modulator, ModulatorConfig};
+    use yodel::nrzi::{self, NrziDecoder};
+    use yodel::tnc::{DefaultTncReceiver, MAX_FRAME_BYTES, TncConfig, TncTransmitter};
 
     /// At most this many simultaneous KISS clients; connections beyond
     /// the cap are closed immediately (documented limit — it keeps the
@@ -299,7 +299,7 @@ pub mod serve {
                         Some(Ok(frame)) => frame.to_vec(),
                         _ => return None,
                     };
-                    let ui = warble::ax25::UiFrame::parse(&frame).ok()?;
+                    let ui = yodel::ax25::UiFrame::parse(&frame).ok()?;
                     let len = ui.build(&mut buf).ok()?;
                     Some(buf.get(..len)?.to_vec())
                 }
@@ -691,7 +691,7 @@ pub mod serve {
     }
 }
 
-/// The audio-input side of `warble serve`, resolved from `--input`:
+/// The audio-input side of `yodel serve`, resolved from `--input`:
 /// the validated sample rate plus a `Send + 'static` sample iterator.
 type ServeAudio = (
     SampleRate,
@@ -700,7 +700,7 @@ type ServeAudio = (
 
 fn serve_rx_audio(args: &ServeArgs) -> Result<ServeAudio, String> {
     if args.input == "-" {
-        // Stdin is sniffed WAV-vs-raw exactly like `warble decode -`
+        // Stdin is sniffed WAV-vs-raw exactly like `yodel decode -`
         // (rate from a WAV header, contradiction check against
         // --sample-rate, raw s16le otherwise).
         return sniff_stdin_samples(std::io::stdin(), args.sample_rate);
@@ -723,7 +723,7 @@ fn serve_rx_audio(args: &ServeArgs) -> Result<ServeAudio, String> {
     Ok((rate, Box::new(samples)))
 }
 
-/// Runs `warble serve`: resolves the audio edges and dispatches to the
+/// Runs `yodel serve`: resolves the audio edges and dispatches to the
 /// TCP or stdio bridge core. Exit codes follow the binary's
 /// convention: 0 at clean audio EOF, 1 on any I/O or setup failure,
 /// 2 for usage errors (via clap).

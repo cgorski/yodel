@@ -46,8 +46,8 @@
 //! # Example
 //!
 //! ```
-//! use warble::{MaidenheadGrid, SampleRate};
-//! use warble::wspr::{WsprConfig, WsprMessage, WsprModulator};
+//! use yodel::{MaidenheadGrid, SampleRate};
+//! use yodel::wspr::{WsprConfig, WsprMessage, WsprModulator};
 //!
 //! let msg = WsprMessage::new("K1ABC", MaidenheadGrid::new("FN42")?, 37)?;
 //! let symbols = msg.channel_symbols();
@@ -325,8 +325,8 @@ impl WsprMessage {
     /// uses).
     ///
     /// ```
-    /// use warble::MaidenheadGrid;
-    /// use warble::wspr::{WsprError, WsprMessage};
+    /// use yodel::MaidenheadGrid;
+    /// use yodel::wspr::{WsprError, WsprMessage};
     ///
     /// let msg = WsprMessage::new("K1ABC", MaidenheadGrid::new("fn42")?, 37)?;
     /// assert_eq!(msg.grid().as_str(), "FN42");

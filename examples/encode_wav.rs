@@ -19,10 +19,10 @@
 //! cargo run --example encode_wav --features tnc,wav
 //! ```
 
-use warble::SampleRate;
-use warble::aprs::{AprsPacket, Latitude, Longitude, Position, Symbol};
-use warble::ax25::Address;
-use warble::tnc::{MAX_FRAME_BYTES, TncConfig, TncTransmitter};
+use yodel::SampleRate;
+use yodel::aprs::{AprsPacket, Latitude, Longitude, Position, Symbol};
+use yodel::ax25::Address;
+use yodel::tnc::{MAX_FRAME_BYTES, TncConfig, TncTransmitter};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // A position report: 49° 03.50' N, 072° 01.75' W, drawn as a car.
@@ -34,7 +34,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             Longitude::from_degrees(-72.0292)?,
             Symbol::CAR,
         )
-        .with_comment(b"warble example beacon"),
+        .with_comment(b"yodel example beacon"),
     );
 
     // The transmitter composes the whole stack: APRS payload -> AX.25

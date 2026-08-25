@@ -51,8 +51,8 @@ pub const DEFAULT_TAIL_FLAGS: usize = 2;
 /// keeping the six-ones flag pattern unique on the line:
 ///
 /// ```
-/// use warble::Bit;
-/// use warble::ax25::hdlc::frame_bits;
+/// use yodel::Bit;
+/// use yodel::ax25::hdlc::frame_bits;
 ///
 /// let bits: Vec<Bit> = frame_bits(&[0x1F], 0, 0).collect();
 /// // Five ones, then the stuffed Zero (not a data bit), then bit 5 of 0x1F.

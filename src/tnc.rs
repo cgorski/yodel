@@ -159,10 +159,10 @@ impl<'a> RxFrame<'a> {
     ///
     /// ```
     /// # #[cfg(all(feature = "micE", feature = "mod", feature = "alloc"))] {
-    /// use warble::SampleRate;
-    /// use warble::aprs::{AprsPacket, Status};
-    /// use warble::ax25::Address;
-    /// use warble::tnc::{DefaultTncReceiver, TncConfig, TncTransmitter};
+    /// use yodel::SampleRate;
+    /// use yodel::aprs::{AprsPacket, Status};
+    /// use yodel::ax25::Address;
+    /// use yodel::tnc::{DefaultTncReceiver, TncConfig, TncTransmitter};
     ///
     /// let cfg = TncConfig::bell_202(SampleRate::new(48_000)?)?;
     /// let tx = TncTransmitter::new(cfg);
@@ -214,10 +214,10 @@ impl<'a> RxFrame<'a> {
 /// size), so conversion only fails for oversized custom-`N` receivers.
 ///
 /// ```
-/// use warble::SampleRate;
-/// use warble::aprs::{AprsPacket, Status};
-/// use warble::ax25::Address;
-/// use warble::tnc::{DefaultTncReceiver, OwnedFrame, TncConfig, TncTransmitter};
+/// use yodel::SampleRate;
+/// use yodel::aprs::{AprsPacket, Status};
+/// use yodel::ax25::Address;
+/// use yodel::tnc::{DefaultTncReceiver, OwnedFrame, TncConfig, TncTransmitter};
 ///
 /// let cfg = TncConfig::bell_202(SampleRate::new(48_000)?)?;
 /// let tx = TncTransmitter::new(cfg);
@@ -649,10 +649,10 @@ struct BasebandRx<const N: usize> {
 /// source is the paired transmitter, so exactly one frame comes back:
 ///
 /// ```
-/// use warble::SampleRate;
-/// use warble::aprs::{AprsPacket, Status};
-/// use warble::ax25::Address;
-/// use warble::tnc::{DefaultTncReceiver, TncConfig, TncReceiver, TncTransmitter};
+/// use yodel::SampleRate;
+/// use yodel::aprs::{AprsPacket, Status};
+/// use yodel::ax25::Address;
+/// use yodel::tnc::{DefaultTncReceiver, TncConfig, TncReceiver, TncTransmitter};
 ///
 /// let cfg = TncConfig::bell_202(SampleRate::new(48_000)?)?;
 /// let tx = TncTransmitter::new(cfg);

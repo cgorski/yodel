@@ -29,8 +29,8 @@
 
 #![cfg(all(feature = "aprs", feature = "alloc"))]
 
-use warble::aprs::monitor::MonitorLine;
-use warble::aprs::{AprsError, AprsPacket, DecodedKind, TelemetryDefinition, TelemetryValue};
+use yodel::aprs::monitor::MonitorLine;
+use yodel::aprs::{AprsError, AprsPacket, DecodedKind, TelemetryDefinition, TelemetryValue};
 
 /// Splits a TNC2 monitor line and hands back its information field.
 fn info(line: &[u8]) -> &[u8] {
@@ -338,7 +338,7 @@ fn message_text_may_open_with_ack() {
         AprsPacket::Message(m) => assert!(
             matches!(
                 m.content,
-                warble::aprs::MessageContent::Text { id: None, .. }
+                yodel::aprs::MessageContent::Text { id: None, .. }
             ),
             "a message whose text begins with ack is text with no id, got {:?}",
             m.content
@@ -600,7 +600,7 @@ fn dao_refines_the_position_without_touching_the_bytes() {
     // field keep the wire's own DDMM.hh spelling.
     let hundredth = (refined - field) * 6_000;
     assert!(
-        hundredth < warble::geo::UNITS_PER_DEGREE,
+        hundredth < yodel::geo::UNITS_PER_DEGREE,
         "a DAO addend must not carry into the printed hundredth"
     );
 

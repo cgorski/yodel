@@ -148,8 +148,8 @@
 //! # Example
 //!
 //! ```
-//! use warble::SampleRate;
-//! use warble::ft8::{Ft8Config, Ft8Message, Ft8Modulator, Ft8Tail};
+//! use yodel::SampleRate;
+//! use yodel::ft8::{Ft8Config, Ft8Message, Ft8Modulator, Ft8Tail};
 //!
 //! let msg = Ft8Message::standard("CQ", "K1ABC", false, Ft8Tail::grid("FN42")?)?;
 //! let symbols = msg.channel_symbols();
@@ -1042,11 +1042,11 @@ impl Ft8Tail {
     /// nothing downstream ever holds an unvalidated string.
     ///
     /// ```
-    /// use warble::ft8::Ft8Tail;
-    /// use warble::geo::MaidenheadGrid;
+    /// use yodel::ft8::Ft8Tail;
+    /// use yodel::geo::MaidenheadGrid;
     ///
     /// assert_eq!(Ft8Tail::grid("fn42")?, Ft8Tail::Grid(MaidenheadGrid::new("FN42")?));
-    /// # Ok::<(), warble::geo::GeoError>(())
+    /// # Ok::<(), yodel::geo::GeoError>(())
     /// ```
     ///
     /// # Errors
@@ -1395,7 +1395,7 @@ pub fn pack_g15(tail: Ft8Tail) -> Result<u16, Ft8Error> {
 /// it. The same implementation's decoder special-cases the string
 /// `RR73` where it would otherwise treat a grid as a grid.
 ///
-/// Matching it is the point of having a differential at all: a warble
+/// Matching it is the point of having a differential at all: a yodel
 /// transmission is then **bit-identical** to the reference's rather
 /// than just intelligible to it, which is the bar this crate already
 /// holds WSPR to (all 162 channel symbols identical). Both spellings

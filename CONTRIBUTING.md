@@ -1,4 +1,4 @@
-# Contributing to warble
+# Contributing to yodel
 
 Thanks for your interest! This document describes how the project is
 built, tested, and gated. All of it is enforced by CI
@@ -108,7 +108,7 @@ feature set, and CI only ever ran `--all-features`, so the gap stayed
 invisible while 22 of 31 feature sets failed to compile their tests.
 The causes were mundane and would each have been caught the day they
 landed: `tests/{noise,oracle,roundtrip}.rs` reaching for
-`warble::modulator` / `warble::demodulator` without declaring them, and
+`yodel::modulator` / `yodel::demodulator` without declaring them, and
 `src/scrambler.rs`'s own unit tests using `Vec` where there is no
 `alloc`.
 
@@ -240,7 +240,7 @@ capabilities (8), Ultimeter records (57), and timestamps as values.
 
 Both were found in this suite.
 
-### A set-but-wrong `WARBLE_REF_*` path used to pass
+### A set-but-wrong `YODEL_REF_*` path used to pass
 
 The tier-4 suites skip when their binary is absent, which is right: a
 contributor without it must still get a green `cargo test`. They used to
@@ -260,7 +260,7 @@ at all: with the variables unset it **failed** 17 of its 31 ignored
 tests, so `cargo test -- --ignored` was red for any contributor without
 the binaries. There was also a two-variable hole in both `oracle.rs` and
 `differential.rs`: because `is_none()` was tested before the path was
-validated, `WARBLE_REF_GEN=/typo` with `WARBLE_REF_DECODE` unset skipped
+validated, `YODEL_REF_GEN=/typo` with `YODEL_REF_DECODE` unset skipped
 in silence. Resolve every variable *before* deciding to skip.
 
 This has already cost something. Two suites that looked green had
@@ -523,7 +523,7 @@ Concretely, do not add:
   behaviour needs testing, test it in `tests/`.
 - **Synthesized input where real input is the point.** Prefer taking a
   file or a stream, as the real program would, and document how to
-  produce one (`encode_wav`, `warble gen`). A decoder that invents its
+  produce one (`encode_wav`, `yodel gen`). A decoder that invents its
   own signal teaches nothing about wiring up a decoder.
 
 What is legitimately not real, and how to handle it:
@@ -607,7 +607,7 @@ facts are not copyrightable" is a respectable one.
    your way around.
 
 **What to do instead.** Run the other implementation as an external
-black box behind a `WARBLE_REF_*` variable, at test time, and compare.
+black box behind a `YODEL_REF_*` variable, at test time, and compare.
 GPLv2 §0 and GPLv3 §2 both state that running a program is unrestricted
 and that its output is not a derived work. That settled reading is the
 basis of the tier-4 suites. The cost is that the test is `#[ignore]`d
@@ -727,12 +727,12 @@ these assertions does not relax it.
 Because a study reference's name may not appear in tracked files for the
 purposes above, nothing tracked may hardcode a path into `reference/`.
 The oracle and differential test suites, and `scripts/benchmark.sh`, all
-locate the binaries through the `WARBLE_REF_GEN` / `WARBLE_REF_DECODE`
+locate the binaries through the `YODEL_REF_GEN` / `YODEL_REF_DECODE`
 environment variables and treat them purely as external black boxes:
 
 ```sh
-export WARBLE_REF_GEN=/path/to/reference-generator
-export WARBLE_REF_DECODE=/path/to/reference-decoder
+export YODEL_REF_GEN=/path/to/reference-generator
+export YODEL_REF_DECODE=/path/to/reference-decoder
 cargo test --all-features -- --ignored
 ```
 
@@ -750,9 +750,9 @@ It needs three binaries from an independent WSPR implementation, again
 as black boxes behind environment variables:
 
 ```sh
-export WARBLE_REF_WSPR_ENCODE=/path/to/symbol-printing encoder
-export WARBLE_REF_WSPR_GEN=/path/to/wav-writing generator
-export WARBLE_REF_WSPR_DECODE=/path/to/decoder
+export YODEL_REF_WSPR_ENCODE=/path/to/symbol-printing encoder
+export YODEL_REF_WSPR_GEN=/path/to/wav-writing generator
+export YODEL_REF_WSPR_DECODE=/path/to/decoder
 cargo test --release --all-features --test wspr_differential -- --ignored --nocapture
 ```
 
@@ -768,9 +768,9 @@ with a message when its binary is absent.
 three more binaries from an independent FT8 implementation:
 
 ```sh
-export WARBLE_REF_FT8_ENCODE=/path/to/symbol-printing encoder
-export WARBLE_REF_FT8_GEN=/path/to/wav-writing generator
-export WARBLE_REF_FT8_DECODE=/path/to/decoder
+export YODEL_REF_FT8_ENCODE=/path/to/symbol-printing encoder
+export YODEL_REF_FT8_GEN=/path/to/wav-writing generator
+export YODEL_REF_FT8_DECODE=/path/to/decoder
 cargo test --release --all-features --test ft8_differential -- --ignored --nocapture
 ```
 

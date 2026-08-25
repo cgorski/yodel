@@ -2,7 +2,7 @@
 //!
 //! # What this file does, start to finish
 //!
-//! 1. Wraps warble's [`TncReceiver`] — the full Bell 202 receive chain
+//! 1. Wraps yodel's [`TncReceiver`] — the full Bell 202 receive chain
 //!    (tone discriminator → parallel slicer bank → NRZI decode → HDLC
 //!    deframe → FCS check) — in a small [`AprsDecoder`] struct sized for
 //!    a microcontroller.
@@ -12,7 +12,7 @@
 //!    frame spanning two (or ten) DMA buffers decodes identically.
 //! 3. Hands every FCS-valid frame to your callback as source/destination
 //!    callsigns plus the raw APRS information field, and offers
-//!    [`parse_aprs`] to lift that payload into warble's typed
+//!    [`parse_aprs`] to lift that payload into yodel's typed
 //!    [`AprsPacket`] representation.
 //!
 //! Everything is `no_std`, allocation-free, and integer-only.
@@ -58,24 +58,24 @@
 //! nothing next to the C3's 400 KiB SRAM. If you only expect short
 //! beacons you can shrink `N`, or swap the receiver's sweep for
 //! `SpaceGainSweep::UNITY` (a single chain) to cut both RAM and CPU;
-//! see `warble::tnc::TncConfig::with_space_gain_sweep`.
+//! see `yodel::tnc::TncConfig::with_space_gain_sweep`.
 //!
 //! # Fixed point on a soft-float core
 //!
 //! Same story as `beacon.rs`: the C3/C6 have no FPU, so this module
-//! only uses `push_i16` — warble's integer receive path (fixed-point
+//! only uses `push_i16` — yodel's integer receive path (fixed-point
 //! correlators and one-pole filters). Never route your samples through
 //! `f32` on these cores.
 
-use warble::aprs::{AprsError, AprsPacket};
-use warble::tnc::{RxFrame, TncConfig, TncReceiver};
-use warble::{ConfigError, SampleRate};
+use yodel::aprs::{AprsError, AprsPacket};
+use yodel::tnc::{RxFrame, TncConfig, TncReceiver};
+use yodel::{ConfigError, SampleRate};
 
 /// The sample rate the decoder is configured for (matches `beacon.rs`).
 pub const SAMPLE_RATE_HZ: u32 = 48_000;
 
 /// Receive frame-buffer capacity in bytes: the AX.25 maximum
-/// (`warble::tnc::MAX_FRAME_BYTES`). See the memory note in the file
+/// (`yodel::tnc::MAX_FRAME_BYTES`). See the memory note in the file
 /// header for shrinking it.
 pub const RX_FRAME_BYTES: usize = 330;
 
@@ -134,7 +134,7 @@ impl AprsDecoder {
     /// Receive statistics: accepted frames, FCS errors, oversizes.
     /// Useful for a debug console ("am I hearing anything at all?").
     #[must_use]
-    pub fn stats(&self) -> warble::tnc::TncStats {
+    pub fn stats(&self) -> yodel::tnc::TncStats {
         self.rx.stats()
     }
 }
@@ -167,7 +167,7 @@ pub fn parse_aprs<'a>(frame: &RxFrame<'a>) -> Result<AprsPacket<'a>, AprsError> 
 // #![no_main]
 //
 // use esp_hal::main;
-// use warble_esp32_riscv_examples::demod::{AprsDecoder, parse_aprs};
+// use yodel_esp32_riscv_examples::demod::{AprsDecoder, parse_aprs};
 //
 // #[main]
 // fn main() -> ! {
@@ -202,7 +202,7 @@ pub fn parse_aprs<'a>(frame: &RxFrame<'a>) -> Result<AprsPacket<'a>, AprsError> 
 // ```
 //
 // Timing budget: at 48 kHz the decoder must average under ~20.8 µs per
-// sample. warble's integer chain runs each correlator once per sample
+// sample. yodel's integer chain runs each correlator once per sample
 // plus a handful of multiply-adds per decision chain — comfortably
 // inside budget on a 160 MHz C3/C6, and you can halve the work again
 // with `SpaceGainSweep::UNITY` if needed.

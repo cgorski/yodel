@@ -2,10 +2,10 @@
 //! TNC receive, plus TX pipeline-order pinning.
 #![cfg(all(feature = "tnc", feature = "g3ruh"))]
 
-use warble::ax25::Address;
-use warble::nrzi;
-use warble::tnc::{DefaultTncReceiver, TncConfig, TncTransmitter};
-use warble::{
+use yodel::ax25::Address;
+use yodel::nrzi;
+use yodel::tnc::{DefaultTncReceiver, TncConfig, TncTransmitter};
+use yodel::{
     BasebandModulator, BaudRate, Bit, ModemProfile, ModulationScheme, SampleRate, Scrambler,
 };
 

@@ -7,7 +7,7 @@
 //! modems, and remains popular because the tones survive ordinary voice
 //! channels.
 //!
-//! `warble` is a `#![no_std]`, zero-dependency, allocation-free
+//! `yodel` is a `#![no_std]`, zero-dependency, allocation-free
 //! implementation. The modulator produces *continuous-phase* FSK: a single
 //! phase accumulator runs across bit boundaries, so switching tones never
 //! introduces a click (a discontinuity) in the waveform.
@@ -89,7 +89,7 @@
 //!   chunk-drain decode loop over the sync core plus an embassy-time
 //!   TX ticker; implies `tnc`, pulls only `embassy-time`. Off by
 //!   default, enabled by nothing else.
-//! * `ptt`: serial PTT for `warble ptt` — assert RTS or DTR on a
+//! * `ptt`: serial PTT for `yodel ptt` — assert RTS or DTR on a
 //!   USB-serial adapter to key a transmitter, hold it, and drop it
 //!   again. CLI only, and the one feature in this crate that can put a
 //!   signal on the air by itself, so its failure mode is deassert.
@@ -97,7 +97,7 @@
 //! * `capture`: live sound-card capture (`cpal`) for the `live_capture`
 //!   example only. Off by default and enabled by nothing else.
 //! * `cli`: aggregate (`wav` + `tnc` + `micE` + `kiss` + `fx25` +
-//!   `il2p` + `wspr` + `ft8` + `m17` + `ptt`) enabling the `warble`
+//!   `il2p` + `wspr` + `ft8` + `m17` + `ptt`) enabling the `yodel`
 //!   command-line binary.
 //!
 //! # Units and geography

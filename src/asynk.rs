@@ -21,7 +21,7 @@
 //!
 //! #[tokio::main]
 //! async fn main() -> Result<(), Box<dyn std::error::Error>> {
-//!     let mut frames = std::pin::pin!(warble::asynk::decode_wav("rx.wav"));
+//!     let mut frames = std::pin::pin!(yodel::asynk::decode_wav("rx.wav"));
 //!     while let Some(frame) = frames.next().await {
 //!         println!("{}", String::from_utf8_lossy(frame?.info()));
 //!     }
@@ -38,10 +38,10 @@
 //! ```no_run
 //! # async fn demo() -> Result<(), Box<dyn std::error::Error>> {
 //! use tokio_stream::StreamExt;
-//! use warble::{SampleRate, tnc::TncConfig};
+//! use yodel::{SampleRate, tnc::TncConfig};
 //!
 //! let cfg = TncConfig::bell_202(SampleRate::new(48_000)?)?;
-//! let mut frames = std::pin::pin!(warble::asynk::frames(tokio::io::stdin(), cfg));
+//! let mut frames = std::pin::pin!(yodel::asynk::frames(tokio::io::stdin(), cfg));
 //! while let Some(frame) = frames.next().await {
 //!     println!("{}", String::from_utf8_lossy(frame?.info()));
 //! }
@@ -52,16 +52,16 @@
 //! When you do not know whether the pipe carries a WAV or raw PCM,
 //! [`decode_stream`] (with the `wav` feature) sniffs the first four
 //! bytes and does the right thing either way — the async twin of the
-//! CLI's `warble decode -`:
+//! CLI's `yodel decode -`:
 //!
 //! ```no_run
 //! # async fn demo() -> Result<(), Box<dyn std::error::Error>> {
 //! use tokio_stream::StreamExt;
 //!
 //! // WAV takes its rate from the header; 48 kHz applies if raw.
-//! let rate = warble::SampleRate::new(48_000).ok();
+//! let rate = yodel::SampleRate::new(48_000).ok();
 //! let mut frames =
-//!     std::pin::pin!(warble::asynk::decode_stream(tokio::io::stdin(), rate));
+//!     std::pin::pin!(yodel::asynk::decode_stream(tokio::io::stdin(), rate));
 //! while let Some(frame) = frames.next().await {
 //!     println!("{}", String::from_utf8_lossy(frame?.info()));
 //! }
@@ -70,7 +70,7 @@
 //! ```
 //!
 //! No code at all: the same intake is one shell line away —
-//! `your-capture-tool | warble decode - --sample-rate 48000`.
+//! `your-capture-tool | yodel decode - --sample-rate 48000`.
 
 use std::io;
 
@@ -110,10 +110,10 @@ const CHUNK_BYTES: usize = 8192;
 /// frames; a slow consumer stalls the decoder, losing nothing.
 ///
 /// ```no_run
-/// # async fn demo() -> Result<(), warble::wav::WavError> {
+/// # async fn demo() -> Result<(), yodel::wav::WavError> {
 /// use tokio_stream::StreamExt;
 ///
-/// let mut frames = std::pin::pin!(warble::asynk::decode_wav("rx.wav"));
+/// let mut frames = std::pin::pin!(yodel::asynk::decode_wav("rx.wav"));
 /// while let Some(frame) = frames.next().await {
 ///     println!("{}", String::from_utf8_lossy(frame?.info()));
 /// }
@@ -138,7 +138,7 @@ pub fn decode_wav(
 /// Decodes a piped audio stream — WAV or raw s16le PCM, told apart by
 /// sniffing the first four bytes — into a `Stream` of frames.
 ///
-/// This is the async twin of `warble decode -`: point it at any
+/// This is the async twin of `yodel decode -`: point it at any
 /// [`AsyncRead`] (tokio stdin, a socket, a file) and the intake
 /// classifies the bytes exactly the way the CLI does, via the shared
 /// [`crate::wav::sniff_pcm`]. A stream opening with `RIFF` is parsed
@@ -159,12 +159,12 @@ pub fn decode_wav(
 /// losing nothing.
 ///
 /// ```no_run
-/// # async fn demo() -> Result<(), warble::wav::WavError> {
+/// # async fn demo() -> Result<(), yodel::wav::WavError> {
 /// use tokio_stream::StreamExt;
 ///
 /// // WAV or raw PCM piped to stdin; 48 kHz applies if it is raw.
-/// let rate = warble::SampleRate::new(48_000).ok();
-/// let mut frames = std::pin::pin!(warble::asynk::decode_stream(
+/// let rate = yodel::SampleRate::new(48_000).ok();
+/// let mut frames = std::pin::pin!(yodel::asynk::decode_stream(
 ///     tokio::io::stdin(),
 ///     rate,
 /// ));
@@ -275,12 +275,12 @@ impl io::Read for ChunkReader {
 /// ```no_run
 /// # async fn demo() -> std::io::Result<()> {
 /// use tokio_stream::StreamExt;
-/// use warble::SampleRate;
-/// use warble::tnc::TncConfig;
+/// use yodel::SampleRate;
+/// use yodel::tnc::TncConfig;
 ///
 /// let cfg = TncConfig::bell_202(SampleRate::new(48_000).unwrap()).unwrap();
 /// let pcm = tokio::fs::File::open("rx.s16le").await?;
-/// let mut frames = std::pin::pin!(warble::asynk::frames(pcm, cfg));
+/// let mut frames = std::pin::pin!(yodel::asynk::frames(pcm, cfg));
 /// while let Some(frame) = frames.next().await {
 ///     println!("{}", String::from_utf8_lossy(frame?.info()));
 /// }
@@ -316,13 +316,13 @@ where
 /// ```no_run
 /// # async fn demo() -> std::io::Result<()> {
 /// use tokio_stream::StreamExt;
-/// use warble::SampleRate;
-/// use warble::tnc::TncConfig;
+/// use yodel::SampleRate;
+/// use yodel::tnc::TncConfig;
 ///
 /// let cfg = TncConfig::bell_202(SampleRate::new(48_000).unwrap()).unwrap();
 /// let a = tokio::fs::File::open("feed-a.s16le").await?;
 /// let b = tokio::fs::File::open("feed-b.s16le").await?;
-/// let mut frames = std::pin::pin!(warble::asynk::decode_many([a, b], cfg));
+/// let mut frames = std::pin::pin!(yodel::asynk::decode_many([a, b], cfg));
 /// while let Some((feed, frame)) = frames.next().await {
 ///     println!("feed {feed}: {}", String::from_utf8_lossy(frame?.info()));
 /// }
@@ -452,9 +452,9 @@ fn push_sample<T: Copy>(
 /// ```no_run
 /// # async fn demo() -> std::io::Result<()> {
 /// let listener = tokio::net::TcpListener::bind("127.0.0.1:8001").await?;
-/// let frames = warble::asynk::decode_wav("rx.wav")
+/// let frames = yodel::asynk::decode_wav("rx.wav")
 ///     .filter_map(|r| r.ok());
-/// warble::asynk::serve_kiss(listener, frames).await?;
+/// yodel::asynk::serve_kiss(listener, frames).await?;
 /// # Ok(())
 /// # }
 /// # use tokio_stream::StreamExt;

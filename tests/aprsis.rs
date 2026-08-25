@@ -1,4 +1,4 @@
-//! Proof of the two hostile-input guards in the `warble aprsis` client.
+//! Proof of the two hostile-input guards in the `yodel aprsis` client.
 //!
 //! `aprsis` is the only subcommand that reads from a network peer this
 //! crate does not control, and it runs for days at a time. Two of its
@@ -16,15 +16,15 @@
 //! uses, so the test drives the same code the binary runs.
 #![cfg(all(feature = "cli", feature = "std"))]
 
-#[path = "../src/bin/warble/aprsis.rs"]
+#[path = "../src/bin/yodel/aprsis.rs"]
 #[allow(dead_code, unused_imports)]
-mod warble_bin;
+mod yodel_bin;
 
 use std::io::{BufReader, ErrorKind};
 
-use warble_bin::{LineOutcome, downstream_closed, read_bounded_line};
+use yodel_bin::{LineOutcome, downstream_closed, read_bounded_line};
 
-use warble::aprs::monitor::LINE_MAX;
+use yodel::aprs::monitor::LINE_MAX;
 
 /// Reads every line a slice contains, returning the outcomes.
 fn read_all(input: &[u8], max: usize) -> Vec<(LineOutcome, Vec<u8>)> {

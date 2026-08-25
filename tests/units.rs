@@ -1,4 +1,4 @@
-//! Unit-conversion laws for `warble::units`.
+//! Unit-conversion laws for `yodel::units`.
 //!
 //! # Why the known-answer tests come first
 //!
@@ -23,7 +23,7 @@
 //! 100 °C is 212 °F, 32 °F is 0 °C, one standard atmosphere is
 //! 1013.2 hPa and 29.92 inHg.
 
-use warble::units::{
+use yodel::units::{
     Bearing, CompassPoint, Distance, Humidity, Power, Pressure, Rainfall, Speed, Temperature,
     UnitError,
 };

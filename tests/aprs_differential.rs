@@ -46,12 +46,12 @@
 //! printed in two units both are compared, which is what stops a
 //! knots/mph mix-up passing on a loose tolerance.
 //!
-//! Needs the corpus plus `WARBLE_REF_APRS` pointing at the reference's
+//! Needs the corpus plus `YODEL_REF_APRS` pointing at the reference's
 //! APRS decoder binary (see CONTRIBUTING.md; it is a separate binary
-//! from `WARBLE_REF_DECODE`, which decodes *audio*):
+//! from `YODEL_REF_DECODE`, which decodes *audio*):
 //!
 //! ```text
-//! WARBLE_REF_APRS=/path/to/aprs-decoder \
+//! YODEL_REF_APRS=/path/to/aprs-decoder \
 //!   cargo test --all-features --test aprs_differential -- --ignored --nocapture
 //! ```
 //!
@@ -64,17 +64,17 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
-use warble::SampleRate;
-use warble::aprs::extension::{self, DataExtension};
-use warble::aprs::symbol::resolve as resolve_symbol;
-use warble::aprs::{
+use yodel::SampleRate;
+use yodel::aprs::extension::{self, DataExtension};
+use yodel::aprs::symbol::resolve as resolve_symbol;
+use yodel::aprs::{
     AprsPacket, CompressedCs, CompressionOrigin, CompressionType, Coordinates, Decoded,
     DecodedKind, Latitude, Longitude, NmeaSource, Position, PositionCs, Symbol, WeatherReport,
     mic_e,
 };
-use warble::geo::Ambiguity;
-use warble::tnc::{DefaultTncReceiver, TncConfig};
-use warble::units::{Bearing, Distance, Humidity, Rainfall, Speed, Temperature};
+use yodel::geo::Ambiguity;
+use yodel::tnc::{DefaultTncReceiver, TncConfig};
+use yodel::units::{Bearing, Distance, Humidity, Rainfall, Speed, Temperature};
 
 const FILES: &[&str] = &[
     "01_40-Mins-Traffic_-on-144.39.wav",
@@ -143,8 +143,8 @@ fn ref_binary(var: &str) -> Option<PathBuf> {
 /// hemisphere letters were accepted case-insensitively.
 ///
 /// The symbol row was 1475 until chapter 20's address-borne symbols
-/// were implemented ([`warble::aprs::symbol::from_destination`] and
-/// [`warble::aprs::symbol::from_source_ssid`]); the 268 raw-NMEA
+/// were implemented ([`yodel::aprs::symbol::from_destination`] and
+/// [`yodel::aprs::symbol::from_source_ssid`]); the 268 raw-NMEA
 /// frames that carry their icon in the AX.25 addresses rather than the
 /// information field then joined the comparison, all 268 agreeing.
 ///
@@ -190,7 +190,7 @@ const MIN_COMPARED: &[(&str, usize)] = &[
 ///   formats were implemented, then 2 once hemisphere letters were
 ///   accepted case-insensitively. Both remaining frames are
 ///   third-party (`}`) wrappers around a *Mic-E* payload. Mic-E needs
-///   the destination address, and [`warble::aprs::ThirdParty`] does not
+///   the destination address, and [`yodel::aprs::ThirdParty`] does not
 ///   nest — it borrows the encapsulated payload and leaves descending
 ///   to the caller, which bounds recursion by construction — so the
 ///   harness cannot recover the inner destination. A property of the
@@ -410,7 +410,7 @@ fn degrees(coordinates: Coordinates) -> Degrees {
 
 /// Records a speed in both units the reference prints.
 ///
-/// Goes through [`warble::units::Speed`] rather than restating the
+/// Goes through [`yodel::units::Speed`] rather than restating the
 /// conversion factors here, so the test measures the crate's own
 /// arithmetic instead of a second copy of it that could drift. Only
 /// the last step — canonical millimetres per hour into the
@@ -603,7 +603,7 @@ fn packet_fields(packet: &AprsPacket<'_>) -> Fields {
     fields
 }
 
-/// warble's dissection of one frame.
+/// yodel's dissection of one frame.
 ///
 /// Goes through the total [`Decoded`] entry point so that raw NMEA and
 /// third-party traffic are covered too — those are the formats most
@@ -1082,11 +1082,11 @@ fn symbol_mapping_report(pairs: &[((u8, u8), String)]) -> (Vec<String>, usize) {
 // ---------------------------------------------------------------------
 
 #[test]
-#[ignore = "requires corpus/ and WARBLE_REF_APRS"]
+#[ignore = "requires corpus/ and YODEL_REF_APRS"]
 fn aprs_fields_agree_with_reference_decoder() {
     let dir = Path::new("corpus");
-    let Some(decoder) = ref_binary("WARBLE_REF_APRS") else {
-        eprintln!("WARBLE_REF_APRS not set — skipping");
+    let Some(decoder) = ref_binary("YODEL_REF_APRS") else {
+        eprintln!("YODEL_REF_APRS not set — skipping");
         return;
     };
     if !dir.is_dir() {
@@ -1124,7 +1124,7 @@ fn aprs_fields_agree_with_reference_decoder() {
             let take = cb.len().min(6);
             dest_call[..take].copy_from_slice(&cb[..take]);
 
-            let render = |a: &warble::ax25::Address| {
+            let render = |a: &yodel::ax25::Address| {
                 let call = core::str::from_utf8(a.callsign.as_bytes())
                     .unwrap_or("?")
                     .to_string();
@@ -1440,10 +1440,10 @@ fn compressed_position(cs: CompressedCs) -> PositionCs<'static> {
 /// builders. That makes this cheaper than the corpus test *and* able to
 /// sweep values the air never happened to carry.
 #[test]
-#[ignore = "requires WARBLE_REF_APRS"]
+#[ignore = "requires YODEL_REF_APRS"]
 fn synthetic_formats_agree_with_reference_decoder() {
-    let Some(decoder) = ref_binary("WARBLE_REF_APRS") else {
-        eprintln!("WARBLE_REF_APRS not set — skipping");
+    let Some(decoder) = ref_binary("YODEL_REF_APRS") else {
+        eprintln!("YODEL_REF_APRS not set — skipping");
         return;
     };
 

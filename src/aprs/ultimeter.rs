@@ -77,7 +77,7 @@
 //! # Example
 //!
 //! ```
-//! use warble::aprs::ultimeter::{UltimeterFormat, UltimeterRecord, parse};
+//! use yodel::aprs::ultimeter::{UltimeterFormat, UltimeterRecord, parse};
 //!
 //! let record = parse(b"$ULTW0000000001FF000427C70002CCD30001026E003A050F00040000")?;
 //! assert_eq!(record.format(), UltimeterFormat::Packet);
@@ -101,7 +101,7 @@
 //! assert_eq!(pressure.tenths_hpa(), 10_183); // as the `b` field spells it
 //! assert_eq!(pressure.hundredths_inhg(), 3007); // 30.07 inHg
 //! assert_eq!(weather.humidity.map(|h| h.percent()), Some(62));
-//! # Ok::<(), warble::aprs::ultimeter::UltimeterError>(())
+//! # Ok::<(), yodel::aprs::ultimeter::UltimeterError>(())
 //! ```
 //!
 //! The format is published by the vendor as the "Ultimeter Weather
@@ -675,7 +675,7 @@ const TEMPERATURE_BIAS: i16 = 56;
 /// field belongs to this module rather than another one.
 ///
 /// ```
-/// use warble::aprs::ultimeter::{UltimeterFormat, WindUnit, detect};
+/// use yodel::aprs::ultimeter::{UltimeterFormat, WindUnit, detect};
 ///
 /// assert_eq!(detect(b"$ULTW0000"), Some(UltimeterFormat::Packet));
 /// assert_eq!(detect(b"$GPRMC,1"), None); // raw NMEA, not Ultimeter
@@ -715,7 +715,7 @@ pub fn detect(info: &[u8]) -> Option<UltimeterFormat> {
 /// [`UltimeterError::MixedDashField`] for a corrupt field.
 ///
 /// ```
-/// use warble::aprs::ultimeter::{UltimeterError, UltimeterRecord, parse};
+/// use yodel::aprs::ultimeter::{UltimeterError, UltimeterRecord, parse};
 ///
 /// // The APRS specification's own data-logger example (three absent
 /// // sensors), with a <CR><LF> trailer the console appended.

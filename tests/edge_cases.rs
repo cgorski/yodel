@@ -37,7 +37,7 @@
 /// CRC-16/X.25 published catalogue vectors (`ax25` feature).
 #[cfg(feature = "ax25")]
 mod crc16_x25_catalogue {
-    use warble::ax25::crc16_x25;
+    use yodel::ax25::crc16_x25;
 
     /// The CRC RevEng catalogue defines every algorithm's `check` value
     /// as the CRC of the nine ASCII bytes "123456789"; for CRC-16/X.25
@@ -58,7 +58,7 @@ mod crc16_x25_catalogue {
             &b"123456789"[..],
             b"",
             b"A",
-            b"warble residue property",
+            b"yodel residue property",
             &[0x00, 0xFF, 0x7E, 0xAA][..],
         ] {
             let fcs = crc16_x25(msg);
@@ -83,7 +83,7 @@ mod crc16_x25_catalogue {
 /// log/antilog tables).
 #[cfg(feature = "fx25")]
 mod rs_gf256_published_identities {
-    use warble::rs::{RsCodec, RsParity};
+    use yodel::rs::{RsCodec, RsParity};
 
     /// The published field polynomial `x^8 + x^4 + x^3 + x^2 + 1`
     /// (0x11D), x^8 bit included.
@@ -275,7 +275,7 @@ mod rs_gf256_published_identities {
 /// G3RUH scrambler PN-sequence known answers (`g3ruh` feature).
 #[cfg(feature = "g3ruh")]
 mod g3ruh_pn_sequence {
-    use warble::{Bit, Scrambler};
+    use yodel::{Bit, Scrambler};
 
     /// First 48 bits of the free-running LFSR output, DERIVED IN THIS
     /// COMMENT from the published polynomial `x^17 + x^12 + 1` (G3RUH
@@ -339,8 +339,8 @@ mod g3ruh_pn_sequence {
 /// error (`ax25` feature).
 #[cfg(feature = "ax25")]
 mod frame_capacity_edges {
-    use warble::Bit;
-    use warble::ax25::{Address, Ax25Error, HdlcDeframer, UiFrame, hdlc};
+    use yodel::Bit;
+    use yodel::ax25::{Address, Ax25Error, HdlcDeframer, UiFrame, hdlc};
 
     /// Deframer capacity used throughout: header (16) + info + FCS (2).
     /// The const-generic `N` of `HdlcDeframer` counts the buffered frame
@@ -438,8 +438,8 @@ mod frame_capacity_edges {
 /// cannot mask tag-hunter behavior.
 #[cfg(all(feature = "fx25", feature = "ax25"))]
 mod fx25_tag_corruption {
-    use warble::ax25::{Address, UiFrame};
-    use warble::fx25::{
+    use yodel::ax25::{Address, UiFrame};
+    use yodel::fx25::{
         CorrelationTag, Fx25Receiver, TAG_BYTES, TAG_TOLERANCE, WRAP_MAX, byte_bits, stuff_frame,
         wrap,
     };

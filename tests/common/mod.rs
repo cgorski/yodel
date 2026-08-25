@@ -6,7 +6,7 @@
 
 #![allow(dead_code)]
 
-use warble::Bit;
+use yodel::Bit;
 
 /// NRZI encode (NRZI-S as used by AX.25): a `Zero` data bit produces a
 /// transition of the line level, a `One` keeps the previous level.

@@ -25,19 +25,19 @@ mod demod;
 #[path = "../examples/esp32-riscv/src/digipeater.rs"]
 mod digipeater;
 
-use warble::SampleRate;
-use warble::aprs::{AprsPacket, Latitude, Longitude, Position, Status, Symbol};
-use warble::ax25::{Address, PathHop, UiFrame};
-use warble::digipeat::WideLimit;
-use warble::tnc::{DefaultTncReceiver, TncConfig, TncReceiver, TncTransmitter};
+use yodel::SampleRate;
+use yodel::aprs::{AprsPacket, Latitude, Longitude, Position, Status, Symbol};
+use yodel::ax25::{Address, PathHop, UiFrame};
+use yodel::digipeat::WideLimit;
+use yodel::tnc::{DefaultTncReceiver, TncConfig, TncReceiver, TncTransmitter};
 
 /// 49.0583° N in signed 1/100 arc-minutes (degrees × 6000).
 /// In 1/100 arc-minutes, the unit the ESP32 example's API takes.
 const LAT_HUNDREDTHS: i64 = 294_350;
-const LAT: i64 = LAT_HUNDREDTHS * warble::geo::UNITS_PER_HUNDREDTH_MINUTE;
+const LAT: i64 = LAT_HUNDREDTHS * yodel::geo::UNITS_PER_HUNDREDTH_MINUTE;
 /// 72.0292° W in signed 1/100 arc-minutes.
 const LON_HUNDREDTHS: i64 = -432_175;
-const LON: i64 = LON_HUNDREDTHS * warble::geo::UNITS_PER_HUNDREDTH_MINUTE;
+const LON: i64 = LON_HUNDREDTHS * yodel::geo::UNITS_PER_HUNDREDTH_MINUTE;
 
 fn addr(call: &[u8], ssid: u8) -> Address {
     match Address::new(call, ssid) {
@@ -51,7 +51,7 @@ fn addr(call: &[u8], ssid: u8) -> Address {
 #[test]
 fn beacon_round_trips_through_main_crate_receiver() {
     let mut pcm = vec![0i16; beacon::MAX_BEACON_SAMPLES];
-    let n = beacon::fill_position_beacon(addr(b"N0CALL", 9), LAT, LON, b"warble esp32", &mut pcm)
+    let n = beacon::fill_position_beacon(addr(b"N0CALL", 9), LAT, LON, b"yodel esp32", &mut pcm)
         .expect("beacon must render");
     assert!(n > 0, "beacon must produce samples");
     assert_eq!(
@@ -75,7 +75,7 @@ fn beacon_round_trips_through_main_crate_receiver() {
                     Longitude::new(LON).unwrap(),
                     Symbol::CAR,
                 )
-                .with_comment(b"warble esp32"),
+                .with_comment(b"yodel esp32"),
             );
             assert_eq!(frame.aprs().expect("payload must parse"), expected);
             decoded += 1;

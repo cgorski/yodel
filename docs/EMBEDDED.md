@@ -1,6 +1,6 @@
 # Embedded use
 
-warble is written for microcontrollers first, and this guide covers the
+yodel is written for microcontrollers first, and this guide covers the
 three questions that follow from that: what the core guarantees, whether
 a given chip can keep up, and how to decode continuously while the same
 chip does everything else.
@@ -48,7 +48,7 @@ report into a caller-provided `&mut [i16]` PCM buffer (modulation),
 and `demod.rs` streams ADC/I2S-style `i16` sample chunks into the
 receive chain and hands back decoded AX.25/APRS frames (demodulation).
 
-The division of labour runs as follows. warble handles the DSP and
+The division of labour runs as follows. yodel handles the DSP and
 protocol work: APRS payloads, AX.25/HDLC framing, and Bell 202
 modulation and demodulation, all in integer `i16` fixed point. The C3
 and C6 cores have no FPU, so the `f32` paths would crawl on them. The
@@ -107,9 +107,9 @@ Wiring on hardware is covered in the
 
 ```rust
 # #[cfg(feature = "tnc")]
-# fn main() -> Result<(), warble::ConfigError> {
-use warble::DevicePreset;
-use warble::tnc::DefaultTncReceiver;
+# fn main() -> Result<(), yodel::ConfigError> {
+use yodel::DevicePreset;
+use yodel::tnc::DefaultTncReceiver;
 
 // ESP32-C3, conservative: 1200-baud AFSK, single balanced chain.
 // Expected CPU: ~390 ESTIMATED rv32 cycles/sample — ~12% of the 48 kHz
@@ -172,7 +172,7 @@ its own `std::thread`, wire them together with `std::sync::mpsc`
 channels, and blocking reads are fine:
 
 ```rust,ignore
-use warble::wav::{decode_sniffed, sniff_pcm};
+use yodel::wav::{decode_sniffed, sniff_pcm};
 
 // Decode thread: the CLI's own stdin/WAV sniffing intake, frames out
 // over a plain channel. Sensor and TX-scheduler threads run alongside;
@@ -261,8 +261,8 @@ The shape is the same either way. The ISR fills a ring, and the loop
 drains **one bounded chunk** per pass and decodes outside the lock:
 
 ```rust,ignore
-use warble::ring::SampleRing;
-use warble::tnc::{DefaultTncReceiver, TncConfig, TncReceiver};
+use yodel::ring::SampleRing;
+use yodel::tnc::{DefaultTncReceiver, TncConfig, TncReceiver};
 
 let cfg = TncConfig::bell_202(SampleRate::new(24_000)?)?.bounded_latency();
 let mut rx: DefaultTncReceiver = TncReceiver::new(cfg)?;
@@ -312,7 +312,7 @@ ring) through the receiver in bounded chunks, yielding between chunks
 so sibling tasks always get a turn; `TxTicker` schedules the beacon.
 
 ```rust,ignore
-use warble::embassy::{SampleSource, TxTicker, run_decoder};
+use yodel::embassy::{SampleSource, TxTicker, run_decoder};
 
 // Decode task: bounded chunks, cooperative yield between them.
 let mut chunk = [0i16; 128];
@@ -337,7 +337,7 @@ on a host):
 
 RTIC composes with the core with **zero glue code**. Its scheduler,
 resource locks and priorities all come from the `#[rtic::app]` macro,
-and warble's role reduces to types placed in resources. There is
+and yodel's role reduces to types placed in resources. There is
 therefore no `rtic` cargo feature; the reasoning is in
 [docs/ARCHITECTURE.md](ARCHITECTURE.md) §"The rtic verdict".
 The shape, with explicit priorities:

@@ -369,7 +369,7 @@ impl core::error::Error for MicEError {}
 /// # Common path: one line, valid by construction
 ///
 /// ```
-/// use warble::aprs::{
+/// use yodel::aprs::{
 ///     Latitude, LatitudeHemisphere, Longitude, LongitudeHemisphere, MicE, MicEError,
 ///     MicEMessage, Symbol,
 /// };
@@ -396,7 +396,7 @@ impl core::error::Error for MicEError {}
 /// let mut dest = [0u8; 6];
 /// let mut info = [0u8; 32];
 /// let len = report.encode(&mut dest, &mut info)?;
-/// let decoded = warble::aprs::mic_e::decode(&dest, &info[..len])?;
+/// let decoded = yodel::aprs::mic_e::decode(&dest, &info[..len])?;
 /// assert_eq!(decoded, report);
 /// assert_eq!(len, 9 + b"hello".len());
 /// # Ok::<(), MicEError>(())
@@ -405,7 +405,7 @@ impl core::error::Error for MicEError {}
 /// # Power user: fully typed, exhaustively matched
 ///
 /// ```
-/// use warble::aprs::{
+/// use yodel::aprs::{
 ///     Latitude, Longitude, MicE, MicEError, MicEFix, MicEMessage, Symbol, SymbolCode,
 ///     SymbolTable,
 /// };
@@ -430,7 +430,7 @@ impl core::error::Error for MicEError {}
 /// # Raw hatch: out-of-spec symbols are held, rejected only on encode
 ///
 /// ```
-/// use warble::aprs::{Latitude, Longitude, MicE, MicEError, MicEMessage, Symbol};
+/// use yodel::aprs::{Latitude, Longitude, MicE, MicEError, MicEMessage, Symbol};
 ///
 /// // '~' is no Mic-E table selector; new() rejects it up front, but
 /// // the struct-literal escape hatch can still hold it (decode does

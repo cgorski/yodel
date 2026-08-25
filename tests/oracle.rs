@@ -2,7 +2,7 @@
 //! implementation (an external, independently developed Bell 202 modem).
 //!
 //! All tests here are `#[ignore]` by default. To run them, set the
-//! environment variables `WARBLE_REF_GEN` and `WARBLE_REF_DECODE` to the
+//! environment variables `YODEL_REF_GEN` and `YODEL_REF_DECODE` to the
 //! absolute paths of the reference WAV generator and decoder binaries,
 //! then run `cargo test -- --ignored`.
 //!
@@ -28,12 +28,12 @@ use std::path::PathBuf;
 use std::process::Command;
 
 use common::*;
-use warble::{AfskDemodulator, Bit, DemodulatorConfig, Modulator, ModulatorConfig, SampleRate};
+use yodel::{AfskDemodulator, Bit, DemodulatorConfig, Modulator, ModulatorConfig, SampleRate};
 
 /// A coordinate magnitude in 1/100 arc-minutes, the unit the fixtures
 /// in this file are written in. Storage is finer, so this rounds.
 fn hundredths(units: i64) -> i64 {
-    let step = warble::geo::UNITS_PER_HUNDREDTH_MINUTE;
+    let step = yodel::geo::UNITS_PER_HUNDREDTH_MINUTE;
     let half = if units < 0 { -step / 2 } else { step / 2 };
     (units + half) / step
 }
@@ -64,14 +64,14 @@ fn ref_binary(var: &str) -> Option<PathBuf> {
 /// Both variables are resolved *before* the skip decision, on purpose:
 /// [`ref_binary`] fails on a set-but-wrong path, so a typo in one is
 /// reported even when the other is absent. Testing `is_none()` first
-/// would let `WARBLE_REF_GEN=/typo` with `WARBLE_REF_DECODE` unset skip
+/// would let `YODEL_REF_GEN=/typo` with `YODEL_REF_DECODE` unset skip
 /// in silence, which is the hole this rule exists to close.
 fn ref_binaries_available() -> bool {
-    let generator = ref_binary("WARBLE_REF_GEN");
-    let decoder = ref_binary("WARBLE_REF_DECODE");
+    let generator = ref_binary("YODEL_REF_GEN");
+    let decoder = ref_binary("YODEL_REF_DECODE");
     if generator.is_none() || decoder.is_none() {
         eprintln!(
-            "skipping: set WARBLE_REF_GEN and WARBLE_REF_DECODE to the \
+            "skipping: set YODEL_REF_GEN and YODEL_REF_DECODE to the \
              reference generator/decoder binaries to run this test"
         );
         return false;
@@ -88,7 +88,7 @@ fn ref_binaries_available() -> bool {
 fn env_binary(var: &str) -> PathBuf {
     let path = std::env::var_os(var).unwrap_or_else(|| {
         panic!(
-            "{var} is not set. Set WARBLE_REF_GEN and WARBLE_REF_DECODE to the \
+            "{var} is not set. Set YODEL_REF_GEN and YODEL_REF_DECODE to the \
              absolute paths of the reference implementation's WAV generator and \
              decoder binaries, then run `cargo test -- --ignored`."
         )
@@ -113,7 +113,7 @@ fn oracle_to_us_at_rate(sample_rate: u32) {
     if !ref_binaries_available() {
         return;
     }
-    let gen_bin = env_binary("WARBLE_REF_GEN");
+    let gen_bin = env_binary("YODEL_REF_GEN");
     let wav_path = scratch_dir().join(format!("oracle_gen_{sample_rate}.wav"));
     // Known test frame in monitoring format: SRC>DEST:info
     let frame_text = "N0CALL-7>APRS:!4237.14NS07120.83W# oracle to us";
@@ -163,31 +163,31 @@ fn oracle_to_us_at_rate(sample_rate: u32) {
 }
 
 #[test]
-#[ignore = "requires WARBLE_REF_GEN / WARBLE_REF_DECODE"]
+#[ignore = "requires YODEL_REF_GEN / YODEL_REF_DECODE"]
 fn oracle_to_us_44100() {
     oracle_to_us_at_rate(44100);
 }
 
 #[test]
-#[ignore = "requires WARBLE_REF_GEN / WARBLE_REF_DECODE"]
+#[ignore = "requires YODEL_REF_GEN / YODEL_REF_DECODE"]
 fn oracle_to_us_48000() {
     oracle_to_us_at_rate(48000);
 }
 
 #[test]
-#[ignore = "requires WARBLE_REF_GEN / WARBLE_REF_DECODE"]
+#[ignore = "requires YODEL_REF_GEN / YODEL_REF_DECODE"]
 fn oracle_to_us_22050() {
     oracle_to_us_at_rate(22050);
 }
 
 #[test]
-#[ignore = "requires WARBLE_REF_GEN / WARBLE_REF_DECODE"]
+#[ignore = "requires YODEL_REF_GEN / YODEL_REF_DECODE"]
 fn oracle_to_us_11025() {
     oracle_to_us_at_rate(11025);
 }
 
 #[test]
-#[ignore = "requires WARBLE_REF_GEN / WARBLE_REF_DECODE"]
+#[ignore = "requires YODEL_REF_GEN / YODEL_REF_DECODE"]
 fn oracle_to_us_8000() {
     oracle_to_us_at_rate(8000);
 }
@@ -209,7 +209,7 @@ fn us_to_oracle_at_rate(sample_rate: u32, use_f32: bool) {
     if !ref_binaries_available() {
         return;
     }
-    let decode = env_binary("WARBLE_REF_DECODE");
+    let decode = env_binary("YODEL_REF_DECODE");
     let line_bits = ui_frame_line_bits(b"us to oracle test");
 
     let modulator =
@@ -259,25 +259,25 @@ fn us_to_oracle_at_rate(sample_rate: u32, use_f32: bool) {
 }
 
 #[test]
-#[ignore = "requires WARBLE_REF_GEN / WARBLE_REF_DECODE"]
+#[ignore = "requires YODEL_REF_GEN / YODEL_REF_DECODE"]
 fn us_to_oracle_44100_i16() {
     us_to_oracle_at_rate(44100, false);
 }
 
 #[test]
-#[ignore = "requires WARBLE_REF_GEN / WARBLE_REF_DECODE"]
+#[ignore = "requires YODEL_REF_GEN / YODEL_REF_DECODE"]
 fn us_to_oracle_48000_i16() {
     us_to_oracle_at_rate(48000, false);
 }
 
 #[test]
-#[ignore = "requires WARBLE_REF_GEN / WARBLE_REF_DECODE"]
+#[ignore = "requires YODEL_REF_GEN / YODEL_REF_DECODE"]
 fn us_to_oracle_44100_f32() {
     us_to_oracle_at_rate(44100, true);
 }
 
 #[test]
-#[ignore = "requires WARBLE_REF_GEN / WARBLE_REF_DECODE"]
+#[ignore = "requires YODEL_REF_GEN / YODEL_REF_DECODE"]
 fn us_to_oracle_48000_f32() {
     us_to_oracle_at_rate(48000, true);
 }
@@ -292,15 +292,15 @@ mod full_stack {
     use super::{PathBuf, env_binary, hundredths, ref_binaries_available, scratch_dir};
     use std::process::Command;
 
-    use warble::aprs::{
+    use yodel::aprs::{
         Addressee, AprsError, AprsPacket, Item, Latitude, Longitude, Message, MessageContent,
         Object, Position, PositionWeather, PositionlessWeather, Symbol, Telemetry, Timestamp,
         WeatherReport, build_ui_frame, packet_from_ui,
     };
-    use warble::ax25::{Address, FrameReceiver, UiFrame, tx_i16};
-    use warble::geo::Ambiguity;
-    use warble::units::{Humidity, Pressure, Rainfall, Speed, Temperature};
-    use warble::{AfskDemodulator, DemodulatorConfig, Modulator, ModulatorConfig, SampleRate};
+    use yodel::ax25::{Address, FrameReceiver, UiFrame, tx_i16};
+    use yodel::geo::Ambiguity;
+    use yodel::units::{Humidity, Pressure, Rainfall, Speed, Temperature};
+    use yodel::{AfskDemodulator, DemodulatorConfig, Modulator, ModulatorConfig, SampleRate};
 
     /// Writes `samples` (with a little leading/trailing silence) to a 16-bit
     /// mono WAV and returns the path.
@@ -328,7 +328,7 @@ mod full_stack {
 
     /// Runs the reference decoder over a WAV and returns its stdout.
     fn run_ref_decoder(wav_path: &PathBuf) -> String {
-        let decode = env_binary("WARBLE_REF_DECODE");
+        let decode = env_binary("YODEL_REF_DECODE");
         let output = Command::new(&decode)
             .arg(wav_path)
             .output()
@@ -437,7 +437,7 @@ mod full_stack {
             messaging: false,
             compressed: false,
             extension: None,
-            comment: b"warble full stack",
+            comment: b"yodel full stack",
         })
     }
 
@@ -453,32 +453,32 @@ mod full_stack {
     }
 
     #[test]
-    #[ignore = "requires WARBLE_REF_GEN / WARBLE_REF_DECODE"]
+    #[ignore = "requires YODEL_REF_GEN / YODEL_REF_DECODE"]
     fn full_stack_position_to_oracle_44100() {
         full_stack_to_oracle(44100, &oracle_position(), "APZ001", "N0CALL-1", "pos");
     }
 
     #[test]
-    #[ignore = "requires WARBLE_REF_GEN / WARBLE_REF_DECODE"]
+    #[ignore = "requires YODEL_REF_GEN / YODEL_REF_DECODE"]
     fn full_stack_position_to_oracle_48000() {
         full_stack_to_oracle(48000, &oracle_position(), "APZ001", "N0CALL-1", "pos");
     }
 
     #[test]
-    #[ignore = "requires WARBLE_REF_GEN / WARBLE_REF_DECODE"]
+    #[ignore = "requires YODEL_REF_GEN / YODEL_REF_DECODE"]
     fn full_stack_message_to_oracle_44100() {
         full_stack_to_oracle(44100, &oracle_message(), "APRS", "N0CALL-1", "msg");
     }
 
     #[test]
-    #[ignore = "requires WARBLE_REF_GEN / WARBLE_REF_DECODE"]
+    #[ignore = "requires YODEL_REF_GEN / YODEL_REF_DECODE"]
     fn full_stack_message_to_oracle_48000() {
         full_stack_to_oracle(48000, &oracle_message(), "APRS", "N0CALL-1", "msg");
     }
 
     /// Runs the reference generator and returns the WAV's samples.
     fn run_ref_generator(args: &[&str], wav_name: &str, sample_rate: u32) -> Vec<i16> {
-        let gen_bin = env_binary("WARBLE_REF_GEN");
+        let gen_bin = env_binary("YODEL_REF_GEN");
         let wav_path = scratch_dir().join(wav_name);
         let output = Command::new(&gen_bin)
             .arg("-r")
@@ -571,13 +571,13 @@ mod full_stack {
     }
 
     #[test]
-    #[ignore = "requires WARBLE_REF_GEN / WARBLE_REF_DECODE"]
+    #[ignore = "requires YODEL_REF_GEN / YODEL_REF_DECODE"]
     fn oracle_full_stack_to_us_44100() {
         oracle_full_stack_to_us(44100);
     }
 
     #[test]
-    #[ignore = "requires WARBLE_REF_GEN / WARBLE_REF_DECODE"]
+    #[ignore = "requires YODEL_REF_GEN / YODEL_REF_DECODE"]
     fn oracle_full_stack_to_us_48000() {
         oracle_full_stack_to_us(48000);
     }
@@ -593,7 +593,7 @@ mod full_stack {
         let frame_file = scratch_dir().join(format!("oracle_aprs_pos_{sample_rate}.txt"));
         std::fs::write(
             &frame_file,
-            "N0CALL-7>APRS:!4237.14N/07120.83W#warble oracle\n",
+            "N0CALL-7>APRS:!4237.14N/07120.83W#yodel oracle\n",
         )
         .unwrap();
         let samples = run_ref_generator(
@@ -622,20 +622,20 @@ mod full_stack {
                 assert_eq!(pos.symbol.to_wire(), (b'/', b'#'));
                 assert!(!pos.messaging);
                 assert!(!pos.compressed);
-                assert!(pos.comment.starts_with(b"warble oracle"));
+                assert!(pos.comment.starts_with(b"yodel oracle"));
             }
             other => panic!("expected a position report, got {other:?}"),
         }
     }
 
     #[test]
-    #[ignore = "requires WARBLE_REF_GEN / WARBLE_REF_DECODE"]
+    #[ignore = "requires YODEL_REF_GEN / YODEL_REF_DECODE"]
     fn oracle_aprs_position_to_us_44100() {
         oracle_aprs_position_to_us(44100);
     }
 
     #[test]
-    #[ignore = "requires WARBLE_REF_GEN / WARBLE_REF_DECODE"]
+    #[ignore = "requires YODEL_REF_GEN / YODEL_REF_DECODE"]
     fn oracle_aprs_position_to_us_48000() {
         oracle_aprs_position_to_us(48000);
     }
@@ -673,7 +673,7 @@ mod full_stack {
         let (src_call, src_ssid) = split_ssid(src);
         let dest_addr = Address::new(dest_text.as_bytes(), 0).unwrap();
         let src_addr = Address::new(src_call.as_bytes(), src_ssid).unwrap();
-        let frame = warble::ax25::UiFrame::new(dest_addr, src_addr, info);
+        let frame = yodel::ax25::UiFrame::new(dest_addr, src_addr, info);
         let mut frame_buf = [0u8; 256];
         let frame_len = frame.build(&mut frame_buf).unwrap();
 
@@ -816,7 +816,7 @@ mod full_stack {
     }
 
     #[test]
-    #[ignore = "requires WARBLE_REF_GEN / WARBLE_REF_DECODE"]
+    #[ignore = "requires YODEL_REF_GEN / YODEL_REF_DECODE"]
     fn full_stack_weather_to_oracle_44100() {
         if !ref_binaries_available() {
             return;
@@ -831,7 +831,7 @@ mod full_stack {
     }
 
     #[test]
-    #[ignore = "requires WARBLE_REF_GEN / WARBLE_REF_DECODE"]
+    #[ignore = "requires YODEL_REF_GEN / YODEL_REF_DECODE"]
     fn full_stack_position_weather_to_oracle_44100() {
         if !ref_binaries_available() {
             return;
@@ -846,7 +846,7 @@ mod full_stack {
     }
 
     #[test]
-    #[ignore = "requires WARBLE_REF_GEN / WARBLE_REF_DECODE"]
+    #[ignore = "requires YODEL_REF_GEN / YODEL_REF_DECODE"]
     fn full_stack_telemetry_to_oracle_44100() {
         if !ref_binaries_available() {
             return;
@@ -855,7 +855,7 @@ mod full_stack {
     }
 
     #[test]
-    #[ignore = "requires WARBLE_REF_GEN / WARBLE_REF_DECODE"]
+    #[ignore = "requires YODEL_REF_GEN / YODEL_REF_DECODE"]
     fn full_stack_object_to_oracle_44100() {
         if !ref_binaries_available() {
             return;
@@ -864,7 +864,7 @@ mod full_stack {
     }
 
     #[test]
-    #[ignore = "requires WARBLE_REF_GEN / WARBLE_REF_DECODE"]
+    #[ignore = "requires YODEL_REF_GEN / YODEL_REF_DECODE"]
     fn full_stack_item_to_oracle_44100() {
         if !ref_binaries_available() {
             return;
@@ -873,7 +873,7 @@ mod full_stack {
     }
 
     #[test]
-    #[ignore = "requires WARBLE_REF_GEN / WARBLE_REF_DECODE"]
+    #[ignore = "requires YODEL_REF_GEN / YODEL_REF_DECODE"]
     fn oracle_weather_to_us_44100() {
         if !ref_binaries_available() {
             return;
@@ -902,7 +902,7 @@ mod full_stack {
     }
 
     #[test]
-    #[ignore = "requires WARBLE_REF_GEN / WARBLE_REF_DECODE"]
+    #[ignore = "requires YODEL_REF_GEN / YODEL_REF_DECODE"]
     fn oracle_position_weather_to_us_44100() {
         if !ref_binaries_available() {
             return;
@@ -927,7 +927,7 @@ mod full_stack {
     }
 
     #[test]
-    #[ignore = "requires WARBLE_REF_GEN / WARBLE_REF_DECODE"]
+    #[ignore = "requires YODEL_REF_GEN / YODEL_REF_DECODE"]
     fn oracle_telemetry_to_us_44100() {
         if !ref_binaries_available() {
             return;
@@ -955,7 +955,7 @@ mod full_stack {
     }
 
     #[test]
-    #[ignore = "requires WARBLE_REF_GEN / WARBLE_REF_DECODE"]
+    #[ignore = "requires YODEL_REF_GEN / YODEL_REF_DECODE"]
     fn oracle_object_to_us_44100() {
         if !ref_binaries_available() {
             return;
@@ -988,7 +988,7 @@ mod full_stack {
     }
 
     #[test]
-    #[ignore = "requires WARBLE_REF_GEN / WARBLE_REF_DECODE"]
+    #[ignore = "requires YODEL_REF_GEN / YODEL_REF_DECODE"]
     fn oracle_item_to_us_44100() {
         if !ref_binaries_available() {
             return;
@@ -1019,7 +1019,7 @@ mod full_stack {
     #[cfg(feature = "micE")]
     mod mic_e_oracle {
         use super::*;
-        use warble::aprs::mic_e::{self, MicE, MicEFix, MicEMessage};
+        use yodel::aprs::mic_e::{self, MicE, MicEFix, MicEMessage};
 
         /// Encodes `report` with our encoder and round-trips it through
         /// the reference decoder, asserting the monitor line reproduces
@@ -1033,7 +1033,7 @@ mod full_stack {
         }
 
         #[test]
-        #[ignore = "requires WARBLE_REF_GEN / WARBLE_REF_DECODE"]
+        #[ignore = "requires YODEL_REF_GEN / YODEL_REF_DECODE"]
         fn mic_e_north_west_to_oracle() {
             if !ref_binaries_available() {
                 return;
@@ -1059,7 +1059,7 @@ mod full_stack {
         }
 
         #[test]
-        #[ignore = "requires WARBLE_REF_GEN / WARBLE_REF_DECODE"]
+        #[ignore = "requires YODEL_REF_GEN / YODEL_REF_DECODE"]
         fn mic_e_south_east_to_oracle() {
             if !ref_binaries_available() {
                 return;
@@ -1100,7 +1100,7 @@ mod full_stack {
         /// +400 = 651: SP = 82+28 = 110 'n', DC = 0*10+6+28 = 34 '"',
         /// SE = 51+28 = 79 'O'. Symbol code 'j', table '/'.
         #[test]
-        #[ignore = "requires WARBLE_REF_GEN / WARBLE_REF_DECODE"]
+        #[ignore = "requires YODEL_REF_GEN / YODEL_REF_DECODE"]
         fn oracle_mic_e_north_west_to_us() {
             if !ref_binaries_available() {
                 return;
@@ -1147,7 +1147,7 @@ mod full_stack {
         /// code '-', table '/'. Altitude 200+10000 = 10200 base-91 =
         /// 1*8281 + 21*91 + 8 => '"' '6' ')' then '}'.
         #[test]
-        #[ignore = "requires WARBLE_REF_GEN / WARBLE_REF_DECODE"]
+        #[ignore = "requires YODEL_REF_GEN / YODEL_REF_DECODE"]
         fn oracle_mic_e_south_east_to_us() {
             if !ref_binaries_available() {
                 return;

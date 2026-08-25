@@ -89,7 +89,7 @@ const AMPLITUDE: i32 = 32_767;
 /// positive, a zero negative — with smooth cosine edges between them:
 ///
 /// ```
-/// use warble::{BasebandModulator, BaudRate, Bit, SampleRate};
+/// use yodel::{BasebandModulator, BaudRate, Bit, SampleRate};
 ///
 /// let sr = SampleRate::new(48_000)?;
 /// let baud = BaudRate::new(9_600)?;
@@ -97,14 +97,14 @@ const AMPLITUDE: i32 = 32_767;
 /// let samples: Vec<i16> = m.i16_samples([Bit::One; 4].into_iter()).collect();
 /// assert_eq!(samples.len(), 4 * 5); // 48000 / 9600 = 5 samples per bit
 /// assert!(samples.iter().all(|&s| s == 32_767)); // steady ones: flat level
-/// # Ok::<(), warble::ConfigError>(())
+/// # Ok::<(), yodel::ConfigError>(())
 /// ```
 ///
 /// In a real G3RUH transmit chain the modulator is the last stage, fed by
 /// the scrambler, which is fed by the NRZI encoder:
 ///
 /// ```
-/// use warble::{BasebandModulator, BaudRate, Bit, SampleRate, Scrambler, nrzi};
+/// use yodel::{BasebandModulator, BaudRate, Bit, SampleRate, Scrambler, nrzi};
 ///
 /// let bits = [Bit::Zero, Bit::One, Bit::One, Bit::Zero];
 /// let m = BasebandModulator::new(SampleRate::new(48_000)?, BaudRate::new(9_600)?)?;
@@ -112,7 +112,7 @@ const AMPLITUDE: i32 = 32_767;
 ///     .i16_samples(Scrambler::default().scramble_iter(nrzi::encode_iter(bits.into_iter())))
 ///     .collect();
 /// assert_eq!(pcm.len(), 4 * 5);
-/// # Ok::<(), warble::ConfigError>(())
+/// # Ok::<(), yodel::ConfigError>(())
 /// ```
 ///
 /// Note for the DSP-minded: at 44 100 Hz a 9600-baud bit spans 4.59375
@@ -120,14 +120,14 @@ const AMPLITUDE: i32 = 32_767;
 /// any run of bits totals exactly `floor(bits · rate / baud)` samples:
 ///
 /// ```
-/// use warble::{BasebandModulator, BaudRate, Bit, SampleRate};
+/// use yodel::{BasebandModulator, BaudRate, Bit, SampleRate};
 ///
 /// let m = BasebandModulator::new(SampleRate::new(44_100)?, BaudRate::new(9_600)?)?;
 /// let n = m
 ///     .i16_samples(core::iter::repeat_n(Bit::One, 3_200))
 ///     .count();
 /// assert_eq!(n, 3_200 * 44_100 / 9_600); // = 14_700, zero drift
-/// # Ok::<(), warble::ConfigError>(())
+/// # Ok::<(), yodel::ConfigError>(())
 /// ```
 #[cfg(feature = "mod")]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -521,7 +521,7 @@ fn sin_taylor(x: f64) -> f64 {
 /// time, so we check the tail):
 ///
 /// ```
-/// use warble::{BasebandDemodulator, BasebandModulator, BaudRate, Bit, SampleRate};
+/// use yodel::{BasebandDemodulator, BasebandModulator, BaudRate, Bit, SampleRate};
 ///
 /// let sr = SampleRate::new(48_000)?;
 /// let baud = BaudRate::new(9_600)?;
@@ -535,14 +535,14 @@ fn sin_taylor(x: f64) -> f64 {
 /// for pair in tail.windows(2) {
 ///     assert_ne!(pair[0], pair[1]); // alternation recovered
 /// }
-/// # Ok::<(), warble::ConfigError>(())
+/// # Ok::<(), yodel::ConfigError>(())
 /// ```
 ///
 /// In a receive chain the recovered bits go to the descrambler, then the
 /// NRZI decoder:
 ///
 /// ```
-/// use warble::{BasebandDemodulator, BaudRate, Descrambler, NrziDecoder, SampleRate};
+/// use yodel::{BasebandDemodulator, BaudRate, Descrambler, NrziDecoder, SampleRate};
 ///
 /// let mut front = BasebandDemodulator::new(SampleRate::new(44_100)?, BaudRate::new(9_600)?)?;
 /// let mut descrambler = Descrambler::default();
@@ -552,7 +552,7 @@ fn sin_taylor(x: f64) -> f64 {
 ///         let _data_bit = nrzi.decode(descrambler.descramble(raw));
 ///     }
 /// }
-/// # Ok::<(), warble::ConfigError>(())
+/// # Ok::<(), yodel::ConfigError>(())
 /// ```
 ///
 /// Note for the DSP-minded: the FIR spans three bit periods, so its length
@@ -562,14 +562,14 @@ fn sin_taylor(x: f64) -> f64 {
 /// passes unscaled:
 ///
 /// ```
-/// use warble::{BasebandDemodulator, BaudRate, SampleRate};
+/// use yodel::{BasebandDemodulator, BaudRate, SampleRate};
 ///
 /// // 44_100 / 9_600 = 4.59 samples per bit -> a 15-tap filter (three bit
 /// // periods, which is also the cap); construction is checked.
 /// assert!(BasebandDemodulator::new(SampleRate::new(44_100)?, BaudRate::new(9_600)?).is_ok());
 /// // Fewer than 2 samples per bit is rejected, not mis-decoded.
 /// assert!(BasebandDemodulator::new(SampleRate::new(8_000)?, BaudRate::new(9_600)?).is_err());
-/// # Ok::<(), warble::ConfigError>(())
+/// # Ok::<(), yodel::ConfigError>(())
 /// ```
 #[cfg(feature = "demod")]
 #[derive(Debug, Clone)]

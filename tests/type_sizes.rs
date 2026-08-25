@@ -50,7 +50,7 @@
 
 use core::mem::size_of;
 
-use warble::aprs::{
+use yodel::aprs::{
     AprsPacket, Decoded, DecodedKind, MicE, Position, PositionCs, PositionTimestamped,
     WeatherReport,
 };

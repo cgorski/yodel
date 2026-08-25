@@ -114,7 +114,7 @@ impl core::error::Error for DigipeatError {}
 /// abusive on shared channels).
 ///
 /// ```
-/// use warble::digipeat::{DigipeatError, WideLimit};
+/// use yodel::digipeat::{DigipeatError, WideLimit};
 ///
 /// assert_eq!(WideLimit::new(2)?.value(), 2);
 /// assert_eq!(
@@ -162,8 +162,8 @@ impl WideLimit {
 /// a plain slice, so the set is allocation-free:
 ///
 /// ```
-/// use warble::ax25::Address;
-/// use warble::digipeat::{Alias, DigipeatError, WideLimit};
+/// use yodel::ax25::Address;
+/// use yodel::digipeat::{Alias, DigipeatError, WideLimit};
 ///
 /// let my_call = Address::new(b"N0CALL", 1).unwrap();
 /// let served = [
@@ -310,8 +310,8 @@ fn parse_wide(address: &Address) -> Option<(u8, u8)> {
 /// protections, not errors.
 ///
 /// ```
-/// use warble::ax25::{Address, PathHop};
-/// use warble::digipeat::{
+/// use yodel::ax25::{Address, PathHop};
+/// use yodel::digipeat::{
 ///     Alias, ExactAliasAction, RelayDecision, WideLimit, relay_decision,
 /// };
 ///
@@ -484,8 +484,8 @@ fn fingerprint(src: &Address, dest: &Address, info: &[u8]) -> u64 {
 /// oldest entry is evicted.
 ///
 /// ```
-/// use warble::ax25::Address;
-/// use warble::digipeat::{DupeRing, Freshness};
+/// use yodel::ax25::Address;
+/// use yodel::digipeat::{DupeRing, Freshness};
 ///
 /// let src = Address::new(b"N0CALL", 1).unwrap();
 /// let dest = Address::new(b"APRS", 0).unwrap();

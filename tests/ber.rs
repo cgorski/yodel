@@ -53,7 +53,7 @@
 //! and cannot re-acquire from random data.** Scoring the continuous run
 //! in 2000-bit segments shows the signature clearly — a run of exactly
 //! zero-error segments, then one segment at ~40% errors, then ~50% for
-//! every segment to the end of the stream, forever. [`warble::Slicer`]
+//! every segment to the end of the stream, forever. [`yodel::Slicer`]
 //! nudges its phase on *every* metric zero crossing with no magnitude
 //! qualification; once noise supplies spurious crossings the loop is
 //! dragged around by them, drops to its fast "searching" gain, and has
@@ -80,7 +80,7 @@
 //! Metric 2 lands **2–3 dB below** Metric 1's continuous transition
 //! (Bell 202: −2.50 dB threshold against a transition just under 0 dB).
 //! That is not a contradiction, it is the same finding from the other
-//! side. Metric 1 exercises one bare [`warble::AfskDemodulator`] over a
+//! side. Metric 1 exercises one bare [`yodel::AfskDemodulator`] over a
 //! 20 000-bit stream; Metric 2 exercises `DefaultTncReceiver`, which runs
 //! a bank of chains at staggered clock phases and re-acquires from every
 //! frame's own HDLC preamble, so a lock loss costs at most one short
@@ -117,9 +117,9 @@
 //! in release.
 #![cfg(all(feature = "mod", feature = "demod"))]
 
-use warble::demodulator::{AfskDemodulator, DemodulatorConfig};
-use warble::modulator::{Modulator, ModulatorConfig};
-use warble::{Bit, ModemProfile, SampleRate};
+use yodel::demodulator::{AfskDemodulator, DemodulatorConfig};
+use yodel::modulator::{Modulator, ModulatorConfig};
+use yodel::{Bit, ModemProfile, SampleRate};
 
 /// The one sample rate everything here is measured at. 48 kHz is the rate
 /// all three modes share (G3RUH 9600 needs ≥ 2 samples per bit; 48 kHz
@@ -278,7 +278,7 @@ impl Mode {
     /// guarantee.
     #[cfg(feature = "g3ruh")]
     fn baseband_channel(self, bits: &[Bit], snr_db: f64, seed: u64) -> Vec<Bit> {
-        use warble::{BasebandDemodulator, BasebandModulator};
+        use yodel::{BasebandDemodulator, BasebandModulator};
         let sr = SampleRate::new(SR_HZ).unwrap();
         let baud = self.profile().baud();
         let mut demod = BasebandDemodulator::new(sr, baud).unwrap();
@@ -474,7 +474,7 @@ fn burst_ber(mode: Mode, snr_db: f64, seed: u64) -> (usize, usize, usize) {
 }
 
 /// Column 3: the discriminator metric hard-decided at ideal bit centres,
-/// bypassing [`warble::Slicer`] entirely — same waveform, same seeded
+/// bypassing [`yodel::Slicer`] entirely — same waveform, same seeded
 /// noise, perfect timing. This is the crate's *achievable* curve at the
 /// tone correlator, and pinning it separately means a real correlator
 /// regression (a bad tap design, a broken orthogonal window) cannot hide
@@ -503,7 +503,7 @@ fn perfect_clock_ber(mode: Mode, snr_db: f64, seed: u64) -> Option<f64> {
     if mode == Mode::G3ruh9600 {
         return None;
     }
-    use warble::{Discriminator, QuadratureCorrelator};
+    use yodel::{Discriminator, QuadratureCorrelator};
 
     let sr = SampleRate::new(SR_HZ).unwrap();
     let profile = mode.profile();
@@ -1156,9 +1156,9 @@ fn ber_curve_fine_sweep() {
 #[cfg(feature = "tnc")]
 mod sensitivity {
     use super::{Lcg, Mode, SR_HZ, mix, noise_peak};
-    use warble::SampleRate;
-    use warble::ax25::Address;
-    use warble::tnc::{DefaultTncReceiver, TncConfig, TncReceiver, TncTransmitter};
+    use yodel::SampleRate;
+    use yodel::ax25::Address;
+    use yodel::tnc::{DefaultTncReceiver, TncConfig, TncReceiver, TncTransmitter};
 
     /// Frames decoded per SNR evaluation. 24 makes the 50% crossing
     /// (12 frames) a clear majority decision while keeping a bisection
@@ -1173,13 +1173,13 @@ mod sensitivity {
 
     /// The `i`-th frame's information field: deterministic, varying in
     /// content so the measurement is not an artifact of one bit pattern.
-    fn info(i: usize) -> [u8; 24] {
-        let mut buf = *b"warble sensitivity 0000 ";
-        buf[19] = b'0' + ((i / 1000) % 10) as u8;
-        buf[20] = b'0' + ((i / 100) % 10) as u8;
-        buf[21] = b'0' + ((i / 10) % 10) as u8;
-        buf[22] = b'0' + (i % 10) as u8;
-        buf[23] = b'a' + (i % 26) as u8;
+    fn info(i: usize) -> [u8; 23] {
+        let mut buf = *b"yodel sensitivity 0000 ";
+        buf[18] = b'0' + ((i / 1000) % 10) as u8;
+        buf[19] = b'0' + ((i / 100) % 10) as u8;
+        buf[20] = b'0' + ((i / 10) % 10) as u8;
+        buf[21] = b'0' + (i % 10) as u8;
+        buf[22] = b'a' + (i % 26) as u8;
         buf
     }
 

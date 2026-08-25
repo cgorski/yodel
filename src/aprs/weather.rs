@@ -176,8 +176,8 @@ pub struct WeatherReport {
     /// break the byte-exact rebuild an igate depends on.
     ///
     /// ```
-    /// use warble::aprs::{AprsError, PositionlessWeather, WeatherReport};
-    /// use warble::units::{Rainfall, Speed};
+    /// use yodel::aprs::{AprsError, PositionlessWeather, WeatherReport};
+    /// use yodel::units::{Rainfall, Speed};
     ///
     /// let report = PositionlessWeather::new(
     ///     10,
@@ -207,8 +207,8 @@ pub struct WeatherReport {
 /// # Common path: one line, valid by construction
 ///
 /// ```
-/// use warble::aprs::{AprsError, PositionlessWeather, WeatherReport};
-/// use warble::units::Temperature;
+/// use yodel::aprs::{AprsError, PositionlessWeather, WeatherReport};
+/// use yodel::units::Temperature;
 ///
 /// // A sensor that reads Celsius feeds a wire field in Fahrenheit,
 /// // and nobody has to know: 25 C is 77 F.
@@ -235,7 +235,7 @@ pub struct WeatherReport {
 /// rejected by [`PositionlessWeather::build`].
 ///
 /// ```
-/// use warble::aprs::{AprsError, PositionlessWeather, WeatherReport};
+/// use yodel::aprs::{AprsError, PositionlessWeather, WeatherReport};
 ///
 /// let odd = PositionlessWeather {
 ///     month: 13, // out of spec; held, rejected on build
@@ -273,8 +273,8 @@ pub struct PositionlessWeather<'a> {
 /// # Common path: one line, valid by construction
 ///
 /// ```
-/// use warble::aprs::{AprsError, Latitude, Longitude, PositionWeather, WeatherReport};
-/// use warble::units::Speed;
+/// use yodel::aprs::{AprsError, Latitude, Longitude, PositionWeather, WeatherReport};
+/// use yodel::units::Speed;
 ///
 /// let report = PositionWeather::new(
 ///     Latitude::from_degrees(49.0583)?,
@@ -298,14 +298,14 @@ pub struct PositionlessWeather<'a> {
 /// # Power user: choose the alternate table, keep the `_` code
 ///
 /// ```
-/// use warble::aprs::{AprsError, Latitude, Longitude, PositionWeather, Symbol, WeatherReport};
+/// use yodel::aprs::{AprsError, Latitude, Longitude, PositionWeather, Symbol, WeatherReport};
 ///
 /// let report = PositionWeather::new(
 ///     Latitude::new(0)?,
 ///     Longitude::new(0)?,
 ///     WeatherReport::default(),
 /// )
-/// .with_table(Symbol::alternate(warble::aprs::SymbolCode::new(b'_')?))
+/// .with_table(Symbol::alternate(yodel::aprs::SymbolCode::new(b'_')?))
 /// .with_messaging(true);
 /// assert_eq!(report.symbol.to_wire(), (b'\\', b'_'));
 /// # Ok::<(), AprsError>(())
@@ -314,7 +314,7 @@ pub struct PositionlessWeather<'a> {
 /// # Raw hatch: out-of-spec table bytes round-trip exactly
 ///
 /// ```
-/// use warble::aprs::{AprsError, Latitude, Longitude, PositionWeather, Symbol, WeatherReport};
+/// use yodel::aprs::{AprsError, Latitude, Longitude, PositionWeather, Symbol, WeatherReport};
 ///
 /// let report = PositionWeather::new(Latitude::new(0)?, Longitude::new(0)?, WeatherReport::default())
 ///     .with_table(Symbol::from_wire(b'~', b'_')); // '~' held verbatim

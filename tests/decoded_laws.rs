@@ -55,8 +55,8 @@
 //! shapes known to be adversarial, so failures reproduce exactly.
 #![cfg(feature = "aprs")]
 
-use warble::aprs::{AprsError, AprsPacket, Decoded, DecodedKind};
-use warble::ax25::Address;
+use yodel::aprs::{AprsError, AprsPacket, Decoded, DecodedKind};
+use yodel::ax25::Address;
 
 /// Deterministic xorshift64*, so any failure reproduces from the seed.
 struct Rng(u64);
@@ -453,9 +453,9 @@ fn laws_hold_under_single_byte_corruption() {
 #[cfg(all(feature = "tnc", feature = "alloc"))]
 #[test]
 fn receive_only_formats_survive_the_full_radio_stack() {
-    use warble::SampleRate;
-    use warble::ax25::Address;
-    use warble::tnc::{DefaultTncReceiver, TncConfig, TncTransmitter};
+    use yodel::SampleRate;
+    use yodel::ax25::Address;
+    use yodel::tnc::{DefaultTncReceiver, TncConfig, TncTransmitter};
 
     let rate = SampleRate::new(44_100).expect("rate");
     let config = TncConfig::bell_202(rate).expect("config");
@@ -669,7 +669,7 @@ fn frame_laws_hold_for_every_prefix_of_valid_packets() {
 #[cfg(feature = "micE")]
 #[test]
 fn mic_e_decode_never_overlaps_the_information_field_decoder() {
-    use warble::aprs::mic_e;
+    use yodel::aprs::mic_e;
 
     let dests = destinations();
     let mut rng = Rng(0x5EED_0000_C0FF_EE01);

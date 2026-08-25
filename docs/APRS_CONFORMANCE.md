@@ -1,6 +1,6 @@
 # APRS conformance and type design
 
-A gap analysis of `warble`'s APRS layer against the current protocol
+A gap analysis of `yodel`'s APRS layer against the current protocol
 reference, grounded in measurements over the real off-air corpus.
 
 This document is about the *record* level: the strict/lenient contract
@@ -10,7 +10,7 @@ and spec coverage. For the component level see the design invariants in
 
 ## 1. Which spec are we implementing?
 
-`warble` cites "APRS 1.01" throughout. That citation is a defect.
+`yodel` cites "APRS 1.01" throughout. That citation is a defect.
 
 `APRS101.pdf` is the 2000 document for protocol version 1.0.1. It is the
 only edition the APRS Working Group ever formally approved, and its own
@@ -990,7 +990,7 @@ that are easy to conflate:
 | Frames where both decoders produced a position | 1724 |
 | — **agreeing within 0.0001°** | **1724 (100%)** |
 | — disagreeing | **0** |
-| Positions only warble found | 55 |
+| Positions only yodel found | 55 |
 | Positions only the reference found | 2 |
 
 **Accuracy is not the problem.** Every position we decode matches an

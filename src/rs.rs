@@ -53,7 +53,7 @@
 //! # Beginner: encode and decode a round trip
 //!
 //! ```
-//! use warble::rs::{RsCodec, RsParity};
+//! use yodel::rs::{RsCodec, RsParity};
 //!
 //! let codec = RsCodec::new(RsParity::Sixteen);
 //! let data = *b"hello, fec world";
@@ -68,7 +68,7 @@
 //! let corrected = codec.decode(&mut block)?;
 //! assert_eq!(corrected, 0);
 //! assert_eq!(&block[..16], &data);
-//! # Ok::<(), warble::rs::RsError>(())
+//! # Ok::<(), yodel::rs::RsError>(())
 //! ```
 //!
 //! # Practitioner: shortened block with injected symbol errors
@@ -78,7 +78,7 @@
 //! errors — the maximum for [`RsParity::Sixteen`] — are corrected:
 //!
 //! ```
-//! use warble::rs::{RsCodec, RsParity};
+//! use yodel::rs::{RsCodec, RsParity};
 //!
 //! let codec = RsCodec::new(RsParity::Sixteen);
 //! let data: [u8; 40] = core::array::from_fn(|i| i as u8 ^ 0x5A);
@@ -94,7 +94,7 @@
 //! }
 //! assert_eq!(codec.decode(&mut block)?, 8);
 //! assert_eq!(&block[..40], &data);
-//! # Ok::<(), warble::rs::RsError>(())
+//! # Ok::<(), yodel::rs::RsError>(())
 //! ```
 //!
 //! # Expert: the `t = p / 2` bound and failure semantics
@@ -109,7 +109,7 @@
 //! (FX.25 does — the wrapped frame carries its own frame check sequence).
 //!
 //! ```
-//! use warble::rs::{RsCodec, RsParity, RsError};
+//! use yodel::rs::{RsCodec, RsParity, RsError};
 //!
 //! let codec = RsCodec::new(RsParity::Sixteen);
 //! let mut block = [0u8; 32];
@@ -121,7 +121,7 @@
 //!     block[pos] ^= 0x01;
 //! }
 //! assert_eq!(codec.decode(&mut block), Err(RsError::Uncorrectable));
-//! # Ok::<(), warble::rs::RsError>(())
+//! # Ok::<(), yodel::rs::RsError>(())
 //! ```
 
 use core::fmt;

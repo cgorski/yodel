@@ -1,9 +1,9 @@
 [package]
-name = "warble-esp32-riscv-examples"
+name = "yodel-esp32-riscv-examples"
 version = "0.1.0"
 edition = "2024"
 publish = false
-description = "Copy-paste APRS beacon (modulation), decoder (demodulation) and WIDEn-N digipeater examples for ESP32-class RISC-V bare-metal targets, built on warble"
+description = "Copy-paste APRS beacon (modulation), decoder (demodulation) and WIDEn-N digipeater examples for ESP32-class RISC-V bare-metal targets, built on yodel"
 license = "MIT OR Apache-2.0"
 
 # This empty [workspace] table DETACHES the sub-crate from any parent
@@ -19,7 +19,7 @@ license = "MIT OR Apache-2.0"
 # plus `mod` and `demod`); `digipeat` adds the WIDEn-N relay-decision
 # core and dupe ring used by the digipeater example. Default features
 # are disabled so nothing std-flavored can sneak in.
-warble = { path = "../..", default-features = false, features = ["tnc", "digipeat"] }
+yodel = { path = "../..", default-features = false, features = ["tnc", "digipeat"] }
 
 [lib]
 # A library (not a binary) on purpose: it cross-compiles for bare-metal

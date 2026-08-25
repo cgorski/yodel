@@ -3,8 +3,8 @@
 //! adjacent valid frame.
 #![cfg(feature = "ax25")]
 
-use warble::Bit;
-use warble::ax25::{Address, Ax25Error, HdlcDeframer, UiFrame, hdlc};
+use yodel::Bit;
+use yodel::ax25::{Address, Ax25Error, HdlcDeframer, UiFrame, hdlc};
 
 /// A valid UI frame body.
 fn ui_body(info: &[u8]) -> Vec<u8> {

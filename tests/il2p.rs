@@ -17,8 +17,8 @@
 //! constant preserves. Conformance needs an external vector.
 #![cfg(feature = "il2p")]
 
-use warble::ax25::{Address, UiFrame};
-use warble::il2p::{
+use yodel::ax25::{Address, UiFrame};
+use yodel::il2p::{
     self, ENCODED_MAX, HEADER_LEN, HEADER_PARITY_LEN, Il2pError, Il2pHeader, Il2pParity,
     Il2pScrambler, MAX_BASELINE_BLOCK_DATA, PAYLOAD_MAX, SYNC_BYTES, SYNC_LEN, encode_raw,
     encode_ui_frame,

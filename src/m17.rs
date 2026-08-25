@@ -71,8 +71,8 @@
 //! # Example
 //!
 //! ```
-//! use warble::SampleRate;
-//! use warble::m17::{Address, Lsf, M17PacketTx, M17Receiver, PacketAssembler, M17FrameEvent};
+//! use yodel::SampleRate;
+//! use yodel::m17::{Address, Lsf, M17PacketTx, M17Receiver, PacketAssembler, M17FrameEvent};
 //!
 //! let lsf = Lsf::packet_data(Address::broadcast(), Address::from_callsign("N0CALL")?, 0);
 //! let payload = b"Hello, M17!";
@@ -93,7 +93,7 @@
 //!     }
 //! }
 //! assert_eq!(got.as_deref(), Some(&payload[..]));
-//! # Ok::<(), warble::m17::M17Error>(())
+//! # Ok::<(), yodel::m17::M17Error>(())
 //! ```
 
 use core::fmt;

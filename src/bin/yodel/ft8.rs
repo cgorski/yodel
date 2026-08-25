@@ -1,18 +1,18 @@
-//! `warble ft8`: FT8 transmission generation and capture decoding.
+//! `yodel ft8`: FT8 transmission generation and capture decoding.
 //!
-//! Two subcommands mirroring the library split (and the `warble wspr`
+//! Two subcommands mirroring the library split (and the `yodel wspr`
 //! shape): `gen` runs the TX pipeline (message → 79 symbols →
 //! GFSK-shaped 8-FSK WAV) and `decode` runs the std receive engine
 //! over a ~15 s 12 kHz capture.
 
 use clap::{Args, Subcommand};
 
-use warble::SampleRate;
-use warble::ft8::{Ft8Config, Ft8Decoder, Ft8DecoderConfig, Ft8Message, Ft8Modulator, Ft8Tail};
+use yodel::SampleRate;
+use yodel::ft8::{Ft8Config, Ft8Decoder, Ft8DecoderConfig, Ft8Message, Ft8Modulator, Ft8Tail};
 
 use crate::shared::{Output, check_wav_spec};
 
-/// Arguments of `warble ft8`: FT8 TX and capture RX.
+/// Arguments of `yodel ft8`: FT8 TX and capture RX.
 #[derive(Args)]
 pub struct Ft8Args {
     #[command(subcommand)]
@@ -62,7 +62,7 @@ enum Ft8Command {
     },
 }
 
-/// Runs `warble ft8`.
+/// Runs `yodel ft8`.
 pub fn ft8(args: &Ft8Args) -> Result<(), String> {
     match &args.command {
         Ft8Command::Gen {

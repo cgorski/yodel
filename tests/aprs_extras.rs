@@ -8,21 +8,21 @@
 //! the section at the end of the file.
 #![cfg(feature = "aprs")]
 
-use warble::geo::Ambiguity;
-use warble::units::{Humidity, Pressure, Rainfall, Speed, Temperature};
+use yodel::geo::Ambiguity;
+use yodel::units::{Humidity, Pressure, Rainfall, Speed, Temperature};
 
-use warble::aprs::{
+use yodel::aprs::{
     Addressee, AprsError, AprsPacket, Item, Latitude, Longitude, Message, MessageContent, Object,
     PositionWeather, PositionlessWeather, Symbol, Telemetry, TelemetryValue, Timestamp,
     WeatherReport,
 };
 
 fn lat(v: i64) -> Latitude {
-    Latitude::new(v * warble::geo::UNITS_PER_HUNDREDTH_MINUTE).unwrap()
+    Latitude::new(v * yodel::geo::UNITS_PER_HUNDREDTH_MINUTE).unwrap()
 }
 
 fn lon(v: i64) -> Longitude {
-    Longitude::new(v * warble::geo::UNITS_PER_HUNDREDTH_MINUTE).unwrap()
+    Longitude::new(v * yodel::geo::UNITS_PER_HUNDREDTH_MINUTE).unwrap()
 }
 
 // ---------------------------------------------------------------- weather

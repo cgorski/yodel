@@ -1,4 +1,4 @@
-//! # warble on ESP32-class RISC-V: copy-paste APRS examples
+//! # yodel on ESP32-class RISC-V: copy-paste APRS examples
 //!
 //! Two pure, HAL-agnostic modules you can lift straight into an
 //! ESP32-C3 / ESP32-C6 (riscv32imc/imac) firmware project:
@@ -10,7 +10,7 @@
 //!   they arrive from an ADC / I2S DMA buffer) into a decoder and get
 //!   FCS-valid AX.25/APRS frames back through a callback.
 //! * [`digipeater`] — **store-and-forward relay**: the two halves glued
-//!   to warble's `digipeat` core — RX audio chunks in, WIDEn-N relay
+//!   to yodel's `digipeat` core — RX audio chunks in, WIDEn-N relay
 //!   decision + dupe suppression, retransmission audio out into a
 //!   caller buffer.
 //!
@@ -18,7 +18,7 @@
 //!
 //! A bare-metal *binary* needs a panic handler, an entry-point/runtime
 //! crate (e.g. `riscv-rt` or `esp-hal`'s `#[main]`), and a linker script
-//! — all of which are owned by YOUR HAL choice, not by warble. Keeping
+//! — all of which are owned by YOUR HAL choice, not by yodel. Keeping
 //! this crate a plain `#![no_std]` library means:
 //!
 //! * it cross-compiles cleanly for `riscv32imac-unknown-none-elf` and
@@ -39,7 +39,7 @@
 //!
 //! ESP32-C3/C6 cores have **no FPU**: every `f32` operation would be
 //! emulated in software, dozens of times slower than an integer op.
-//! warble's `i16` PCM paths (used exclusively here) are fixed-point
+//! yodel's `i16` PCM paths (used exclusively here) are fixed-point
 //! integer arithmetic end to end, so the modem runs at full speed on a
 //! soft-float core. Nothing here allocates either — all buffers are
 //! caller-provided or fixed-size const-generic, so the examples work

@@ -28,9 +28,9 @@
 //!   the majority of cases at 48 kHz; the pinned floor documents the
 //!   observed behavior without promising perfection.
 
-use warble::demodulator::{AfskDemodulator, DemodulatorConfig};
-use warble::modulator::{Modulator, ModulatorConfig};
-use warble::{Bit, SampleRate};
+use yodel::demodulator::{AfskDemodulator, DemodulatorConfig};
+use yodel::modulator::{Modulator, ModulatorConfig};
+use yodel::{Bit, SampleRate};
 
 const RATES: [u32; 5] = [8_000, 11_025, 22_050, 44_100, 48_000];
 

@@ -3,15 +3,15 @@
 //! sample rates.
 #![cfg(feature = "tnc")]
 
-use warble::aprs::{
+use yodel::aprs::{
     Addressee, AprsPacket, Item, Latitude, Longitude, Message, MessageContent, Object, Position,
     PositionlessWeather, Status, Symbol, Telemetry, Timestamp, WeatherReport,
 };
-use warble::ax25::Address;
-use warble::geo::Ambiguity;
-use warble::tnc::{DefaultTncReceiver, TncConfig, TncReceiver, TncTransmitter};
-use warble::units::{Humidity, Pressure, Rainfall, Speed, Temperature};
-use warble::{ModemProfile, SampleRate, TonePair};
+use yodel::ax25::Address;
+use yodel::geo::Ambiguity;
+use yodel::tnc::{DefaultTncReceiver, TncConfig, TncReceiver, TncTransmitter};
+use yodel::units::{Humidity, Pressure, Rainfall, Speed, Temperature};
+use yodel::{ModemProfile, SampleRate, TonePair};
 
 const RATES: [u32; 2] = [11_025, 44_100];
 
@@ -26,11 +26,11 @@ fn addr(callsign: &[u8], ssid: u8) -> Address {
 
 /// From 1/100 arc-minutes, the unit these fixtures are written in.
 fn lat(hundredths: i64) -> Latitude {
-    Latitude::new(hundredths * warble::geo::UNITS_PER_HUNDREDTH_MINUTE).unwrap()
+    Latitude::new(hundredths * yodel::geo::UNITS_PER_HUNDREDTH_MINUTE).unwrap()
 }
 
 fn lon(hundredths: i64) -> Longitude {
-    Longitude::new(hundredths * warble::geo::UNITS_PER_HUNDREDTH_MINUTE).unwrap()
+    Longitude::new(hundredths * yodel::geo::UNITS_PER_HUNDREDTH_MINUTE).unwrap()
 }
 
 fn position_uncompressed() -> AprsPacket<'static> {
@@ -54,8 +54,8 @@ fn position_compressed() -> AprsPacket<'static> {
     // `tests/compressed.rs`'s subject.
     AprsPacket::Position(Position {
         ambiguity: Ambiguity::EXACT,
-        latitude: Latitude::new(-warble::geo::UNITS_PER_DEGREE).unwrap(),
-        longitude: Longitude::new(warble::geo::UNITS_PER_DEGREE).unwrap(),
+        latitude: Latitude::new(-yodel::geo::UNITS_PER_DEGREE).unwrap(),
+        longitude: Longitude::new(yodel::geo::UNITS_PER_DEGREE).unwrap(),
         symbol: Symbol::from_wire(b'\\', b'O'),
         messaging: true,
         compressed: true,
@@ -330,9 +330,9 @@ fn truncated_stream_yields_no_false_frame() {
 /// reaches the deframer intact.
 #[test]
 fn bad_fcs_counts_fcs_error() {
-    use warble::ax25::crc16_x25;
-    use warble::modulator::{Modulator, ModulatorConfig};
-    use warble::{Bit, SampleRate as Sr, nrzi};
+    use yodel::ax25::crc16_x25;
+    use yodel::modulator::{Modulator, ModulatorConfig};
+    use yodel::{Bit, SampleRate as Sr, nrzi};
 
     let sr = Sr::new(44_100).unwrap();
     let cfg = config(44_100);
@@ -422,7 +422,7 @@ fn garbage_frame_counts_malformed() {
 #[cfg(feature = "micE")]
 #[test]
 fn mic_e_loop() {
-    use warble::aprs::{MicE, MicEFix, MicEMessage};
+    use yodel::aprs::{MicE, MicEFix, MicEMessage};
 
     let report = MicE {
         latitude: lat(33 * 6000 + 2564),
@@ -658,7 +658,7 @@ fn preset_configs_valid_at_all_tested_rates() {
 ///   pre-emphasized banks are both dead.
 #[test]
 fn every_chain_bank_configuration_decodes() {
-    use warble::tnc::{ChainVoting, InputBandPass, SpaceGainSweep};
+    use yodel::tnc::{ChainVoting, InputBandPass, SpaceGainSweep};
 
     let rate = SampleRate::new(48_000).unwrap();
     let base = TncConfig::bell_202(rate).unwrap();

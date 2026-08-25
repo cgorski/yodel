@@ -15,7 +15,7 @@
 //!
 //! This is the crate's documented runtime-free concurrency idiom (std
 //! threads + bounded `sync_channel`s), recorded alongside the async
-//! discussion in `docs/ARCHITECTURE.md`: warble's DSP core is
+//! discussion in `docs/ARCHITECTURE.md`: yodel's DSP core is
 //! synchronous and allocation-free, so concurrency belongs at the I/O
 //! edges of the *application*, not inside the library. At ~110
 //! ns/sample one core decodes hundreds of real-time feeds, so a small
@@ -44,10 +44,10 @@
 //! [`MemorySink`]: every frame still arrives, and the channel can never
 //! hold more than its capacity by construction.
 //!
-//! # Using warble from async (tokio)
+//! # Using yodel from async (tokio)
 //!
 //! **The crate ships the adapter: `--features async`, module
-//! `warble::asynk`.** None of the glue below is something you have to
+//! `yodel::asynk`.** None of the glue below is something you have to
 //! write. The async analogue of this example's decode side is two
 //! lines — a bounded `Stream` of frames, each tagged with the feed it
 //! came from, a slow consumer stalling the decoders exactly as the slow
@@ -55,7 +55,7 @@
 //!
 //! ```text
 //! // N feeds decoded concurrently, frames tagged with the feed index:
-//! let mut frames = std::pin::pin!(warble::asynk::decode_many(feeds, cfg));
+//! let mut frames = std::pin::pin!(yodel::asynk::decode_many(feeds, cfg));
 //! while let Some((feed, frame)) = frames.next().await { … }
 //! ```
 //!
@@ -83,7 +83,7 @@
 //!
 //! If you are already on a runtime,
 //! [`examples/decode_many_tokio.rs`](decode_many_tokio.rs) is this same job built
-//! on `warble::asynk` instead of hand-rolled — `decode_many` merges N
+//! on `yodel::asynk` instead of hand-rolled — `decode_many` merges N
 //! feeds into one stream, tagging each frame with its feed index, and
 //! its `--slow` flag makes the bounded-channel backpressure visible.
 //!
@@ -118,7 +118,7 @@
 //! / `recv().await` bridge the sync→async boundary, and the bounded
 //! channel is the backpressure — a slow database stalls the decoders
 //! exactly as the slow sink stalls them here. Nothing else changes;
-//! `warble::asynk` is that ~20-line pattern, written once, with the
+//! `yodel::asynk` is that ~20-line pattern, written once, with the
 //! lending-borrow copy (`OwnedFrame`) and the channel bounds already
 //! decided.
 
@@ -127,8 +127,8 @@ use std::io::Write;
 use std::sync::mpsc::{Receiver, SyncSender, sync_channel};
 use std::sync::{Arc, Mutex};
 
-use warble::SampleRate;
-use warble::tnc::{DefaultTncReceiver, OwnedFrame, TncConfig};
+use yodel::SampleRate;
+use yodel::tnc::{DefaultTncReceiver, OwnedFrame, TncConfig};
 
 /// Size of the decode worker pool: bounded however many files arrive.
 pub const WORKERS: usize = 4;

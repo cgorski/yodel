@@ -1,6 +1,6 @@
-//! In-process proof of the `warble serve` bridge core.
+//! In-process proof of the `yodel serve` bridge core.
 //!
-//! The server core lives in the binary (`src/bin/warble/serve.rs`,
+//! The server core lives in the binary (`src/bin/yodel/serve.rs`,
 //! `mod serve`) as transport glue with no process-global I/O, so this
 //! test includes the SAME sources via `#[path]` (the technique of
 //! `tests/app_examples.rs`) and drives it directly:
@@ -25,13 +25,13 @@
 // The binary's `serve.rs` reaches its `shared` sibling through
 // `crate::shared`, so the include mirrors the binary's module layout
 // at this test crate's root: `shared` first, then the serve module.
-#[path = "../src/bin/warble/shared.rs"]
+#[path = "../src/bin/yodel/shared.rs"]
 #[allow(dead_code, unused_imports)]
 mod shared;
 
-#[path = "../src/bin/warble/serve.rs"]
+#[path = "../src/bin/yodel/serve.rs"]
 #[allow(dead_code, unused_imports)]
-mod warble_bin;
+mod yodel_bin;
 
 use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream};
@@ -39,14 +39,14 @@ use std::sync::mpsc::{self, RecvTimeoutError};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
-use warble_bin::serve::{
+use yodel_bin::serve::{
     MAX_CLIENTS, PcmSink, SampleSink, ServeStats, kiss_bytes, run_stream, run_tcp,
 };
 
-use warble::SampleRate;
-use warble::ax25::{Address, UiFrame};
-use warble::kiss::{KissCommand, KissDeframer};
-use warble::tnc::{DefaultTncReceiver, TncConfig, TncReceiver, TncTransmitter};
+use yodel::SampleRate;
+use yodel::ax25::{Address, UiFrame};
+use yodel::kiss::{KissCommand, KissDeframer};
+use yodel::tnc::{DefaultTncReceiver, TncConfig, TncReceiver, TncTransmitter};
 
 /// Everything in this file must finish well within this bound.
 const DEADLINE: Duration = Duration::from_secs(30);

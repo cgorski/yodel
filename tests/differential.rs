@@ -14,7 +14,7 @@
 //! noise level.
 //!
 //! All tests are `#[ignore]`-gated: they need the reference binaries
-//! via `WARBLE_REF_GEN` / `WARBLE_REF_DECODE`. Everything is seeded
+//! via `YODEL_REF_GEN` / `YODEL_REF_DECODE`. Everything is seeded
 //! (LCG) — no time, no external randomness.
 //!
 //! ## Normalization of the reference decoder's output
@@ -32,18 +32,18 @@
 use std::path::PathBuf;
 use std::process::Command;
 
-use warble::SampleRate;
-use warble::aprs::mic_e::{self, MicE, MicEFix, MicEMessage};
-use warble::aprs::{
+use yodel::SampleRate;
+use yodel::aprs::mic_e::{self, MicE, MicEFix, MicEMessage};
+use yodel::aprs::{
     Addressee, AprsPacket, CompressedCs, CompressionType, Item, Latitude, Longitude, Message,
     MessageContent, NmeaSource, Object, Position, PositionCs, PositionTimestamped, PositionWeather,
     PositionlessWeather, Status, Symbol, Telemetry, Timestamp, WeatherReport,
 };
-use warble::ax25::Address;
-use warble::geo::Ambiguity;
-use warble::tnc::{DefaultTncReceiver, TncConfig, TncTransmitter};
-use warble::units::{Humidity, Pressure, Rainfall, Speed, Temperature};
-use warble::{ModemProfile, TonePair};
+use yodel::ax25::Address;
+use yodel::geo::Ambiguity;
+use yodel::tnc::{DefaultTncReceiver, TncConfig, TncTransmitter};
+use yodel::units::{Humidity, Pressure, Rainfall, Speed, Temperature};
+use yodel::{ModemProfile, TonePair};
 
 const SAMPLE_RATE: u32 = 44_100;
 
@@ -54,7 +54,7 @@ const SAMPLE_RATE: u32 = 44_100;
 fn env_binary(var: &str) -> PathBuf {
     let path = std::env::var_os(var).unwrap_or_else(|| {
         panic!(
-            "{var} is not set. Set WARBLE_REF_GEN and WARBLE_REF_DECODE to the \
+            "{var} is not set. Set YODEL_REF_GEN and YODEL_REF_DECODE to the \
              reference generator/decoder binaries, then run `cargo test -- --ignored`."
         )
     });
@@ -115,7 +115,7 @@ fn run_ref_decoder(wav_path: &PathBuf) -> String {
 /// Like [`run_ref_decoder`] with extra leading arguments (e.g. a baud
 /// selection).
 fn run_ref_decoder_args(wav_path: &PathBuf, extra: &[&str]) -> String {
-    let decode = env_binary("WARBLE_REF_DECODE");
+    let decode = env_binary("YODEL_REF_DECODE");
     let output = Command::new(&decode)
         .args(extra)
         .arg(wav_path)
@@ -154,7 +154,7 @@ fn run_ref_generator(frame_file: &PathBuf, wav_name: &str) -> Vec<i16> {
 /// Like [`run_ref_generator`] with extra arguments (e.g. a baud
 /// selection).
 fn run_ref_generator_args(frame_file: &PathBuf, wav_name: &str, extra: &[&str]) -> Vec<i16> {
-    let gen_bin = env_binary("WARBLE_REF_GEN");
+    let gen_bin = env_binary("YODEL_REF_GEN");
     let wav_path = scratch_dir().join(wav_name);
     let output = Command::new(&gen_bin)
         .args(extra)
@@ -196,15 +196,15 @@ fn monitor_escape(bytes: &[u8]) -> String {
 /// Both variables are resolved *before* the skip decision, on purpose:
 /// [`ref_binary`] fails on a set-but-wrong path, so a typo in one is
 /// reported even when the other is absent. Testing `is_none()` first --
-/// which is what this did -- let `WARBLE_REF_GEN=/typo` with
-/// `WARBLE_REF_DECODE` unset skip in silence, the one combination that
+/// which is what this did -- let `YODEL_REF_GEN=/typo` with
+/// `YODEL_REF_DECODE` unset skip in silence, the one combination that
 /// slipped through the rule this suite is built on.
 fn ref_binaries_available() -> bool {
-    let generator = ref_binary("WARBLE_REF_GEN");
-    let decoder = ref_binary("WARBLE_REF_DECODE");
+    let generator = ref_binary("YODEL_REF_GEN");
+    let decoder = ref_binary("YODEL_REF_DECODE");
     if generator.is_none() || decoder.is_none() {
         eprintln!(
-            "skipping: set WARBLE_REF_GEN and WARBLE_REF_DECODE to the \
+            "skipping: set YODEL_REF_GEN and YODEL_REF_DECODE to the \
              reference generator/decoder binaries to run this test"
         );
         return false;
@@ -272,7 +272,7 @@ impl TxCase {
     }
 }
 
-const COMMENTS: [&[u8]; 4] = [b"", b"case ", b"warble diff ", b"trail "];
+const COMMENTS: [&[u8]; 4] = [b"", b"case ", b"yodel diff ", b"trail "];
 const SYMBOL_CODES: [u8; 5] = [b'#', b'>', b'j', b'O', b'-'];
 const SYMBOL_TABLES: [u8; 3] = [b'/', b'\\', b'Q'];
 
@@ -848,7 +848,7 @@ fn render_addr(a: Address) -> String {
 // ---------------------------------------------------------------------
 
 #[test]
-#[ignore = "requires WARBLE_REF_GEN / WARBLE_REF_DECODE"]
+#[ignore = "requires YODEL_REF_GEN / YODEL_REF_DECODE"]
 fn differential_corpus() {
     if !ref_binaries_available() {
         return;
@@ -981,7 +981,7 @@ const SHOOTOUT_FRAMES: usize = 50;
 const MIN_CLEAN_RECOVERED: usize = SHOOTOUT_FRAMES;
 
 #[test]
-#[ignore = "requires WARBLE_REF_GEN / WARBLE_REF_DECODE"]
+#[ignore = "requires YODEL_REF_GEN / YODEL_REF_DECODE"]
 fn snr_shootout() {
     if !ref_binaries_available() {
         return;
@@ -1074,7 +1074,7 @@ fn snr_shootout() {
 
 /// Rebuilds the raw UI-frame body bytes from a received frame so it
 /// can be compared byte-for-byte with what was transmitted.
-fn reassemble(frame: &warble::tnc::RxFrame<'_>) -> Vec<u8> {
+fn reassemble(frame: &yodel::tnc::RxFrame<'_>) -> Vec<u8> {
     let mut buf = [0u8; 512];
     let len = frame.ui_frame().build(&mut buf).unwrap();
     buf[..len].to_vec()
@@ -1101,12 +1101,12 @@ fn reassemble(frame: &warble::tnc::RxFrame<'_>) -> Vec<u8> {
 /// docs/BENCHMARKS.md), so full equality is asserted.
 #[cfg(feature = "fx25")]
 #[test]
-#[ignore = "requires WARBLE_REF_GEN / WARBLE_REF_DECODE"]
+#[ignore = "requires YODEL_REF_GEN / YODEL_REF_DECODE"]
 fn differential_fx25() {
-    use warble::demodulator::{AfskDemodulator, DemodulatorConfig};
-    use warble::fx25::{Fx25Receiver, WRAP_MAX, byte_bits, stuff_frame, wrap};
-    use warble::modulator::{Modulator, ModulatorConfig};
-    use warble::nrzi::{self, NrziDecoder};
+    use yodel::demodulator::{AfskDemodulator, DemodulatorConfig};
+    use yodel::fx25::{Fx25Receiver, WRAP_MAX, byte_bits, stuff_frame, wrap};
+    use yodel::modulator::{Modulator, ModulatorConfig};
+    use yodel::nrzi::{self, NrziDecoder};
 
     if !ref_binaries_available() {
         return;
@@ -1128,7 +1128,7 @@ fn differential_fx25() {
                 continue;
             };
             if let Some(Ok(frame)) = rx.push(nrzi.decode(line))
-                && let Ok(ui) = warble::ax25::UiFrame::parse(frame)
+                && let Ok(ui) = yodel::ax25::UiFrame::parse(frame)
             {
                 let mut header = format!("{}>{}", render_addr(ui.src), render_addr(ui.dest));
                 for digi in ui.path() {
@@ -1261,7 +1261,7 @@ fn receive_all_with(config: TncConfig, samples: &[i16]) -> Vec<(String, Vec<u8>)
 /// sub-corpus: our 300-baud TX -> reference decoder (`-B 300`), and
 /// reference generator (`-B 300`) -> our 300-baud receiver.
 #[test]
-#[ignore = "requires WARBLE_REF_GEN / WARBLE_REF_DECODE"]
+#[ignore = "requires YODEL_REF_GEN / YODEL_REF_DECODE"]
 fn differential_300_baud() {
     if !ref_binaries_available() {
         return;
@@ -1355,7 +1355,7 @@ fn differential_300_baud() {
 /// matching the 300-baud leg.
 #[cfg(feature = "g3ruh")]
 #[test]
-#[ignore = "requires WARBLE_REF_GEN / WARBLE_REF_DECODE"]
+#[ignore = "requires YODEL_REF_GEN / YODEL_REF_DECODE"]
 fn differential_9600_baud() {
     if !ref_binaries_available() {
         return;

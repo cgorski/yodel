@@ -2,24 +2,24 @@
 //! timestamped position reports (APRS 1.01 chapters 8 and 9).
 #![cfg(feature = "aprs")]
 
-use warble::aprs::{
+use yodel::aprs::{
     AprsError, AprsPacket, CompressedCs, CompressionOrigin, CompressionType, Latitude, Longitude,
     NmeaSource, Position, PositionCs, PositionTimestamped, Symbol, Timestamp,
 };
-use warble::geo::Ambiguity;
+use yodel::geo::Ambiguity;
 
 fn lat(v: i64) -> Latitude {
-    Latitude::new(v * warble::geo::UNITS_PER_HUNDREDTH_MINUTE).unwrap()
+    Latitude::new(v * yodel::geo::UNITS_PER_HUNDREDTH_MINUTE).unwrap()
 }
 
 fn lon(v: i64) -> Longitude {
-    Longitude::new(v * warble::geo::UNITS_PER_HUNDREDTH_MINUTE).unwrap()
+    Longitude::new(v * yodel::geo::UNITS_PER_HUNDREDTH_MINUTE).unwrap()
 }
 
 /// The chapter 9 example coordinates: 49.5 N, 72.75 W, symbol `/>`.
 /// Storage units per step of the compressed grid, both axes.
-const COMP_LAT_STEP: i64 = warble::geo::UNITS_PER_DEGREE / 380_926;
-const COMP_LON_STEP: i64 = warble::geo::UNITS_PER_DEGREE / 190_463;
+const COMP_LAT_STEP: i64 = yodel::geo::UNITS_PER_DEGREE / 380_926;
+const COMP_LON_STEP: i64 = yodel::geo::UNITS_PER_DEGREE / 190_463;
 
 /// The coordinates chapter 9's `/5L!!<*e7` vector carries.
 ///
@@ -29,7 +29,7 @@ const COMP_LON_STEP: i64 = warble::geo::UNITS_PER_DEGREE / 190_463;
 /// degrees. Rounding that to the nearest 1/100 arc-minute, which is
 /// what this crate used to store, moved the station 0.44 m.
 fn spec_latlon() -> (Latitude, Longitude) {
-    let deg = warble::geo::UNITS_PER_DEGREE;
+    let deg = yodel::geo::UNITS_PER_DEGREE;
     (
         Latitude::new(90 * deg - 15_427_503 * COMP_LAT_STEP).expect("in range"),
         Longitude::new(20_427_156 * COMP_LON_STEP - 180 * deg).expect("in range"),

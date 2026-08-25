@@ -1,7 +1,7 @@
-//! `warble m17`: M17 packet-mode transmission generation and capture
+//! `yodel m17`: M17 packet-mode transmission generation and capture
 //! decoding.
 //!
-//! Two subcommands mirroring the `warble wspr` / `warble ft8` shape:
+//! Two subcommands mirroring the `yodel wspr` / `yodel ft8` shape:
 //! `gen` runs the TX pipeline (LSF + packet superframe → RRC-shaped
 //! 4-level PAM WAV at 48 kHz) and `decode` runs the streaming receiver
 //! over a 48 kHz capture, printing the decoded LSF addresses, the
@@ -9,12 +9,12 @@
 
 use clap::{Args, Subcommand};
 
-use warble::SampleRate;
-use warble::m17::{Address, Lsf, M17FrameEvent, M17PacketTx, M17Receiver, PacketAssembler};
+use yodel::SampleRate;
+use yodel::m17::{Address, Lsf, M17FrameEvent, M17PacketTx, M17Receiver, PacketAssembler};
 
 use crate::shared::{Output, check_wav_spec};
 
-/// Arguments of `warble m17`: M17 packet-mode TX and capture RX.
+/// Arguments of `yodel m17`: M17 packet-mode TX and capture RX.
 #[derive(Args)]
 pub struct M17Args {
     #[command(subcommand)]
@@ -58,7 +58,7 @@ enum M17Command {
     },
 }
 
-/// Runs `warble m17`.
+/// Runs `yodel m17`.
 pub fn m17(args: &M17Args) -> Result<(), String> {
     match &args.command {
         M17Command::Gen {

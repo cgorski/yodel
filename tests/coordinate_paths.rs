@@ -50,8 +50,8 @@
 
 #![cfg(feature = "aprs")]
 
-use warble::aprs::{AprsPacket, Position, Symbol};
-use warble::geo::{
+use yodel::aprs::{AprsPacket, Position, Symbol};
+use yodel::geo::{
     Coordinates, GridPrecision, Latitude, LatitudeHemisphere, Longitude, LongitudeHemisphere,
     UNITS_PER_HUNDREDTH_MINUTE,
 };
@@ -182,7 +182,7 @@ fn position_built_from_degrees_writes_the_expected_wire() {
 #[cfg(feature = "micE")]
 #[test]
 fn mic_e_places_both_axes_and_mirrors_them() {
-    use warble::aprs::{MicE, MicEMessage};
+    use yodel::aprs::{MicE, MicEMessage};
 
     // Chapter 10's worked example: 33 deg 25.64 min N, 112 deg 07.00
     // min W.
@@ -210,7 +210,7 @@ fn mic_e_places_both_axes_and_mirrors_them() {
     let mut dest = [0u8; 6];
     let mut info = [0u8; 64];
     let len = report.encode(&mut dest, &mut info).expect("encoding");
-    let decoded = warble::aprs::mic_e::decode(&dest, &info[..len]).expect("decoding");
+    let decoded = yodel::aprs::mic_e::decode(&dest, &info[..len]).expect("decoding");
     assert_eq!(decoded.latitude, report.latitude);
     assert_eq!(decoded.longitude, report.longitude);
 
@@ -227,7 +227,7 @@ fn mic_e_places_both_axes_and_mirrors_them() {
     let mut dest = [0u8; 6];
     let mut info = [0u8; 64];
     let len = mirrored.encode(&mut dest, &mut info).expect("encoding");
-    let decoded = warble::aprs::mic_e::decode(&dest, &info[..len]).expect("decoding");
+    let decoded = yodel::aprs::mic_e::decode(&dest, &info[..len]).expect("decoding");
     assert_eq!(decoded.latitude, mirrored.latitude);
     assert_eq!(decoded.longitude, mirrored.longitude);
     assert_eq!(
@@ -265,7 +265,7 @@ fn compressed_spec_vector_places_both_axes() {
 /// the same bare `* 100`.
 #[test]
 fn nmea_places_both_axes() {
-    use warble::aprs::{Decoded, DecodedKind};
+    use yodel::aprs::{Decoded, DecodedKind};
 
     let wire = b"$GPGGA,123519,4807.038,N,01131.000,E,1,08,0.9,545.4,M,46.9,M,,*47";
     let DecodedKind::Nmea(sentence) = Decoded::decode(wire).kind else {

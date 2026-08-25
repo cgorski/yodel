@@ -1,7 +1,7 @@
 //! Permanent decode-performance regression benchmark.
 //!
 //! Mirrors `scripts/benchmark.sh`: each corpus WAV is decoded through
-//! the same pipeline the `warble` CLI uses (`DefaultTncReceiver` fed
+//! the same pipeline the `yodel` CLI uses (`DefaultTncReceiver` fed
 //! sample-by-sample; the receiver's multi-chain dedup means one emitted
 //! frame per unique decode, exactly what the script's `grep -c '>'`
 //! counts). The thresholds below mirror the "current best" recorded in
@@ -32,8 +32,8 @@
 
 use std::path::{Path, PathBuf};
 
-use warble::tnc::{DefaultTncReceiver, TncConfig};
-use warble::{ModemProfile, SampleRate};
+use yodel::tnc::{DefaultTncReceiver, TncConfig};
+use yodel::{ModemProfile, SampleRate};
 
 /// One pinned corpus track: file name, minimum frame count, and whether
 /// the count must match exactly (the clean canary track).
@@ -190,7 +190,7 @@ fn fixture(relative: &str) -> PathBuf {
 }
 
 /// Decodes one WAV through the CLI pipeline and returns the number of
-/// unique frames emitted (post-dedup, same as `warble decode | grep -c '>'`).
+/// unique frames emitted (post-dedup, same as `yodel decode | grep -c '>'`).
 fn decode_count(path: &Path) -> Result<usize, String> {
     decode_count_with(path, ModemProfile::BELL_202)
 }
@@ -230,14 +230,14 @@ fn decode_count_with(path: &Path, profile: ModemProfile) -> Result<usize, String
 }
 
 /// Decodes one WAV through the FX.25-aware receive path, mirroring
-/// `warble decode --fx25`: a bare demodulator feeding the correlation-tag
+/// `yodel decode --fx25`: a bare demodulator feeding the correlation-tag
 /// hunter, with a parallel plain-HDLC path.
 #[cfg(feature = "fx25")]
 fn decode_count_fx25(path: &Path) -> Result<usize, String> {
-    use warble::ax25::UiFrame;
-    use warble::demodulator::{AfskDemodulator, DemodulatorConfig};
-    use warble::fx25::Fx25Receiver;
-    use warble::nrzi::NrziDecoder;
+    use yodel::ax25::UiFrame;
+    use yodel::demodulator::{AfskDemodulator, DemodulatorConfig};
+    use yodel::fx25::Fx25Receiver;
+    use yodel::nrzi::NrziDecoder;
 
     let mut reader =
         hound::WavReader::open(path).map_err(|e| format!("opening {}: {e}", path.display()))?;
@@ -355,7 +355,7 @@ fn synthetic_noise_row_never_regresses() {
 
 /// Pins the FX.25 synthetic-noise row.
 ///
-/// The FX.25 receive path runs a bare [`warble::AfskDemodulator`] rather
+/// The FX.25 receive path runs a bare [`yodel::AfskDemodulator`] rather
 /// than the diversity bank, so it was the crate's largest deficit (60
 /// against the reference's 82) until the discriminator's decision
 /// statistic was given the same envelope smoothing the `TncReceiver`

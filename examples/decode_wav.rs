@@ -47,10 +47,10 @@
 //! real time with no end in sight — is the case that wants async: see
 //! [`examples/decode_pcm_tokio.rs`](decode_pcm_tokio.rs).
 
-use warble::SampleRate;
-use warble::aprs::AprsPacket;
-use warble::ax25::Address;
-use warble::tnc::{DefaultTncReceiver, RxFrame, TncConfig, TncReceiver};
+use yodel::SampleRate;
+use yodel::aprs::AprsPacket;
+use yodel::ax25::Address;
+use yodel::tnc::{DefaultTncReceiver, RxFrame, TncConfig, TncReceiver};
 
 /// How to produce an input file, printed whenever one is missing or
 /// unusable. An example that only says "usage: <input.wav>" leaves a

@@ -1,12 +1,12 @@
 [package]
-name = "warble"
+name = "yodel"
 version = "0.1.0"
 edition = "2024"
 rust-version = "1.96"
 license = "MIT OR Apache-2.0"
 description = "Bell 202 AFSK (1200/2200 Hz) software modem: no-std, allocation-free, streaming modulator"
-repository = "https://github.com/cgorski/warble"
-documentation = "https://docs.rs/warble"
+repository = "https://github.com/cgorski/yodel"
+documentation = "https://docs.rs/yodel"
 readme = "README.md"
 keywords = ["afsk", "bell202", "modem", "no-std", "embedded"]
 categories = ["embedded", "no-std", "encoding", "multimedia::audio"]
@@ -50,7 +50,7 @@ alloc = []
 # dependency: a consumer wanting only std::error::Error impls should not
 # pay for a WAV codec. WAV I/O lives behind the separate `wav` feature.
 std = ["alloc"]
-# WAV I/O (the `hound` codec) for std hosts; used by the `warble` CLI
+# WAV I/O (the `hound` codec) for std hosts; used by the `yodel` CLI
 # binary. Split out of `std` so plain-`std` builds stay dependency-free.
 wav = ["std", "dep:hound"]
 # NRZI differential line coding (layer between raw AFSK bits and HDLC).
@@ -111,15 +111,15 @@ m17 = []
 # High-level TNC pipeline: PCM samples <-> APRS packets over AX.25 UI
 # frames (composes the aprs + mod + demod layers).
 tnc = ["aprs", "mod", "demod"]
-# Convenience aggregate enabling everything the `warble` CLI binary
+# Convenience aggregate enabling everything the `yodel` CLI binary
 # needs; it is the single required-feature of the [[bin]] below.
-# `kiss` backs the `warble serve` KISS TNC server mode
-# (src/bin/warble/serve.rs).
-# wspr, ft8 and m17 ride along so the CLI's `warble wspr` /
-# `warble ft8` / `warble m17` subcommands (TX gen plus the receive
+# `kiss` backs the `yodel serve` KISS TNC server mode
+# (src/bin/yodel/serve.rs).
+# wspr, ft8 and m17 ride along so the CLI's `yodel wspr` /
+# `yodel ft8` / `yodel m17` subcommands (TX gen plus the receive
 # engines) are always available.
 cli = ["wav", "tnc", "micE", "kiss", "fx25", "il2p", "wspr", "ft8", "m17", "ptt", "dep:clap"]
-# Serial PTT for `warble ptt`: assert RTS or DTR on a USB-serial
+# Serial PTT for `yodel ptt`: assert RTS or DTR on a USB-serial
 # adapter to key a transmitter, hold it while a player runs, and drop
 # it again. CLI only, and the ONE place in this crate that can put a
 # signal on the air by itself, so its failure mode is deassert.
@@ -136,7 +136,7 @@ ptt = ["std", "dep:serialport"]
 # checks) is pure and proven with a fake source in tests/cli.rs
 # (mod live_capture_plumbing, which #[path]-includes the example).
 capture = ["std", "dep:cpal"]
-# Tokio adapter layer (`warble::asynk`): Stream-of-frames decoding,
+# Tokio adapter layer (`yodel::asynk`): Stream-of-frames decoding,
 # a one-call async KISS server, and a concurrent many-feeds decoder.
 # Off by default and enabled by nothing else: default builds compile
 # no async code and pull no tokio/futures. Combine with `wav` for
@@ -149,7 +149,7 @@ async = [
     "dep:futures-core",
     "dep:tokio-stream",
 ]
-# Embassy adapter layer (`warble::embassy`): an async chunk-drain loop
+# Embassy adapter layer (`yodel::embassy`): an async chunk-drain loop
 # over `SampleRing` + `TncReceiver` and a periodic-TX ticker helper.
 # Off by default and enabled by nothing else: default and embedded
 # builds compile none of it and pull no embassy crates. no_std-first —
@@ -160,7 +160,7 @@ embassy = ["tnc", "dep:embassy-time"]
 # WAV reading/writing for the `wav` feature (and thus the CLI); never
 # part of no_std or plain-`std` builds.
 hound = { version = "3", optional = true }
-# Argument parsing for the `warble` binary; activated ONLY by the `cli`
+# Argument parsing for the `yodel` binary; activated ONLY by the `cli`
 # feature, never part of no_std/library builds.
 clap = { version = "4", features = ["derive"], optional = true }
 # Sound-card input for the `capture` feature (the live_capture example
@@ -188,7 +188,7 @@ embassy-time = { version = "0.4", optional = true, default-features = false }
 # regardless of the `std` feature.
 hound = "3"
 # Runtime + test macros for the `async`-feature test suite
-# (tests/asynk.rs) and the doc examples of `warble::asynk`.
+# (tests/asynk.rs) and the doc examples of `yodel::asynk`.
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "sync", "net", "io-util", "io-std", "time"] }
 # Stream combinators for the same tests.
 tokio-stream = "0.1"
@@ -202,19 +202,19 @@ embassy-futures = "0.1"
 # Structured per-frame decision spans for the workstation digipeater
 # example (`examples/digipeater_station.rs`). Dev-dependencies are
 # NEVER part of the library build: `cargo tree -e normal` for a
-# consumer of warble is unchanged by these two lines.
+# consumer of yodel is unchanged by these two lines.
 tracing = "0.1"
 tracing-subscriber = "0.3"
 
 # The CLI binary: only built when the `cli` aggregate feature is enabled
 # (e.g. `cargo build --features cli` or `--all-features`).
 [[bin]]
-name = "warble"
-path = "src/bin/warble/main.rs"
+name = "yodel"
+path = "src/bin/yodel/main.rs"
 required-features = ["cli"]
 
 # tests/equivalence.rs freezes the pre-optimization G3RUH baseband
-# filter and uses `warble::BasebandDemodulator` at the top level, so it
+# filter and uses `yodel::BasebandDemodulator` at the top level, so it
 # needs `g3ruh` beyond its `mod`+`demod` cfg gate; declared here so
 # feature sets like `--features embassy` (default + embassy, no g3ruh)
 # skip it instead of failing to compile it.
@@ -271,8 +271,8 @@ name = "coverage_fill"
 required-features = ["tnc", "micE", "il2p"]
 
 # tests/roundtrip.rs is the modulator -> demodulator exact-recovery suite:
-# `warble::modulator::Modulator` forces `mod` and
-# `warble::demodulator::AfskDemodulator` forces `demod`, and the file
+# `yodel::modulator::Modulator` forces `mod` and
+# `yodel::demodulator::AfskDemodulator` forces `demod`, and the file
 # carries no cfg gate, so every set holding one half of the modem (or
 # neither) failed to COMPILE it with E0432 instead of skipping it. Declared
 # whole rather than per-test because 40 of its 45 tests go through
@@ -285,8 +285,8 @@ name = "roundtrip"
 required-features = ["mod", "demod"]
 
 # tests/noise.rs is the seeded-noise property suite; like roundtrip.rs it
-# imports `warble::modulator::Modulator` (`mod`) and
-# `warble::demodulator::AfskDemodulator` (`demod`) with no cfg gate.
+# imports `yodel::modulator::Modulator` (`mod`) and
+# `yodel::demodulator::AfskDemodulator` (`demod`) with no cfg gate.
 # Declared whole because every test in the file funnels through
 # `case_recovers`, which needs both halves of the modem.
 [[test]]
@@ -294,11 +294,11 @@ name = "noise"
 required-features = ["mod", "demod"]
 
 # tests/oracle.rs is the reference-implementation differential suite. Its
-# top-level imports are `warble::Modulator` (`mod`) and
-# `warble::AfskDemodulator` (`demod`); the AX.25/APRS layers are already
+# top-level imports are `yodel::Modulator` (`mod`) and
+# `yodel::AfskDemodulator` (`demod`); the AX.25/APRS layers are already
 # `#[cfg]`-gated inside the file (`mod full_stack` on `aprs`, `mod
 # mic_e_oracle` on `micE`), and `full_stack`'s own
-# `warble::ax25::tx_i16` / `warble::ax25::FrameReceiver` need nothing
+# `yodel::ax25::tx_i16` / `yodel::ax25::FrameReceiver` need nothing
 # beyond that same `mod`/`demod` pair. So `mod` + `demod` is the minimal
 # declaration: `--features aprs` now skips the file instead of failing on
 # E0432, and every set that does have the modem still compiles the AX.25

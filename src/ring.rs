@@ -59,7 +59,7 @@
 /// [module docs](self) for the intended ISR/main-loop usage.
 ///
 /// ```
-/// use warble::ring::SampleRing;
+/// use yodel::ring::SampleRing;
 ///
 /// let mut ring: SampleRing<8> = SampleRing::new();
 /// assert_eq!(ring.free(), 8);

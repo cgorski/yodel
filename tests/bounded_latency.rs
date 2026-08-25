@@ -4,9 +4,9 @@
 //! must leave clean-signal decoding intact.
 #![cfg(feature = "tnc")]
 
-use warble::SampleRate;
-use warble::ax25::{Address, RecoveryPolicy, crc16_x25};
-use warble::tnc::{ChainVoting, DefaultTncReceiver, TncConfig, TncReceiver, TncTransmitter};
+use yodel::SampleRate;
+use yodel::ax25::{Address, RecoveryPolicy, crc16_x25};
+use yodel::tnc::{ChainVoting, DefaultTncReceiver, TncConfig, TncReceiver, TncTransmitter};
 
 fn config() -> TncConfig {
     TncConfig::bell_202(SampleRate::new(44_100).unwrap()).unwrap()
@@ -20,8 +20,8 @@ fn addr(callsign: &[u8], ssid: u8) -> Address {
 /// bytes, zero stuffing) so a frame corrupted on purpose reaches the
 /// deframers intact.
 fn manual_afsk_samples(body: &[u8], fcs: u16) -> Vec<i16> {
-    use warble::modulator::{Modulator, ModulatorConfig};
-    use warble::{Bit, nrzi};
+    use yodel::modulator::{Modulator, ModulatorConfig};
+    use yodel::{Bit, nrzi};
 
     let mut bits: Vec<Bit> = Vec::new();
     let push_flag = |bits: &mut Vec<Bit>| {

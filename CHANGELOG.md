@@ -143,7 +143,7 @@ turned out to be, which approach was tried and abandoned.
   to 192. The four structs are unmoved; `Ambiguity` is one byte and fits
   their existing padding.
 
-- **New: `warble level`, a receive-level meter.** Reads the same stdin
+- **New: `yodel level`, a receive-level meter.** Reads the same stdin
   PCM every other subcommand takes and reports rms, peak, clipped-sample
   count, a verdict and the inferred squelch state, redrawing in place on
   a terminal and one line per window otherwise.
@@ -156,7 +156,7 @@ turned out to be, which approach was tried and abandoned.
   and peak saturates whether one sample is pinned or ten thousand. No
   new dependency.
 
-- **New: `warble ptt`, serial push-to-talk.** Keys a transmitter on RTS
+- **New: `yodel ptt`, serial push-to-talk.** Keys a transmitter on RTS
   or DTR while a player sends the audio, so the control line is held
   for exactly the player's lifetime. That shape is forced rather than
   chosen: PTT must be asserted before the first sample reaches the air
@@ -380,7 +380,7 @@ turned out to be, which approach was tried and abandoned.
   position, so no caller sees a moved station. This bumps the JSON Lines
   schema to **2**.
 
-- **`warble aprsis`** reads the live APRS-IS feed and writes TNC2
+- **`yodel aprsis`** reads the live APRS-IS feed and writes TNC2
   monitor lines, the format `decode --tnc2` already takes, so the two
   compose into a pipeline. `--filter` subscribes to a slice of the
   traffic on port 14580, which sends nothing without one; `--full-feed`
@@ -426,7 +426,7 @@ turned out to be, which approach was tried and abandoned.
   `Demodulator::i16_bits`, the baseband pair, `nrzi::encode_iter` or
   `scrambler::scramble_iter` was a silent no-op.
 
-- **`warble decode ... | head` exits quietly instead of panicking.**
+- **`yodel decode ... | head` exits quietly instead of panicking.**
   Rust ignores `SIGPIPE`, so the `print!` family turns a closed stdout
   into `failed printing to stdout: Broken pipe` and exit 101. Every
   subcommand that writes to stdout now goes through a buffered writer
@@ -435,13 +435,13 @@ turned out to be, which approach was tried and abandoned.
   decoding at that point rather than grinding through a capture nobody
   is reading.
 
-- **`warble aprsis ... | head` no longer reconnects to a volunteer
+- **`yodel aprsis ... | head` no longer reconnects to a volunteer
   server.** The sink write shared an `io::Result` with the socket reads,
   so a closed stdout was reported as "connection failed" and sent the
   retry loop back to Tier 2 on a doubling backoff. A broken pipe
   downstream now ends the run: there is nothing to reconnect *for*.
 
-- **`warble aprsis` bounds the line it will read.** `read_until` has no
+- **`yodel aprsis` bounds the line it will read.** `read_until` has no
   upper limit, so a server that streamed bytes without a terminator grew
   the buffer until the process died. Lines are now capped at the
   512-byte APRS-IS maximum, which the specification already says a
@@ -449,19 +449,19 @@ turned out to be, which approach was tried and abandoned.
   fit; an overlong line is dropped whole and the reader resynchronises
   on the next one.
 
-- **`warble serve` survives a client that stops reading.** The broadcast
+- **`yodel serve` survives a client that stops reading.** The broadcast
   loop held the client-list mutex across a blocking `write_all`, so one
   wedged peer could stall the accept loop and the shutdown sweep, which
   need the same mutex. The list is now snapshotted under the lock and
   written outside it, and admitted sockets carry a write timeout.
 
-- **`warble serve` gives a disconnected client its slot back.** Clients
+- **`yodel serve` gives a disconnected client its slot back.** Clients
   were removed only by a *failed broadcast write*, so on a quiet band
   with no traffic eight connect/disconnect cycles — an ordinary TNC
   reconnect loop over a few days — left eight dead sockets holding every
   slot and the server refused new clients until restarted.
 
-- **`warble serve` shuts down on a failing TX sink.** The decode loop
+- **`yodel serve` shuts down on a failing TX sink.** The decode loop
   read its audio source to exhaustion and never consulted the shutdown
   flag. A sound card or a piped PCM stream never reaches EOF, so a sink
   failure (full disk, closed pipe) left the run blocked on a thread join
@@ -581,9 +581,9 @@ WSPR, FT8 and M17 (packet data) modes.
 
 ### Tooling
 
-- `warble` CLI: encode, decode (with JSON Lines output), generate test
+- `yodel` CLI: encode, decode (with JSON Lines output), generate test
   signals, benchmark, and serve as a KISS TNC over TCP.
 - Optional tokio (`async`) and Embassy (`embassy`) adapters.
 
-[Unreleased]: https://github.com/cgorski/warble/compare/v0.1.0...HEAD
-[0.1.0]: https://github.com/cgorski/warble/releases/tag/v0.1.0
+[Unreleased]: https://github.com/cgorski/yodel/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/cgorski/yodel/releases/tag/v0.1.0

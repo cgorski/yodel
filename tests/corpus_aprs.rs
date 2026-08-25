@@ -40,9 +40,9 @@ use std::path::Path;
 
 use common::{Asymmetry, classify};
 
-use warble::SampleRate;
-use warble::aprs::{AprsPacket, DataExtension, DecodedKind};
-use warble::tnc::{DefaultTncReceiver, TncConfig};
+use yodel::SampleRate;
+use yodel::aprs::{AprsPacket, DataExtension, DecodedKind};
+use yodel::tnc::{DefaultTncReceiver, TncConfig};
 
 /// Corpus tracks, mirroring `tests/benchmark.rs`.
 const FILES: &[&str] = &[

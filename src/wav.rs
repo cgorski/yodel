@@ -1,10 +1,10 @@
 //! WAV input helpers (`wav` feature): header validation, byte-stream
 //! sniffing, and a whole-file sync decode.
 //!
-//! This is the library-side home of the WAV plumbing the `warble` CLI
+//! This is the library-side home of the WAV plumbing the `yodel` CLI
 //! uses: [`check_spec`] validates a header against what the modem
 //! accepts, [`sniff_pcm`] tells a WAV byte stream from raw s16le PCM by
-//! its first four bytes (the `warble decode -` behavior), and — with
+//! its first four bytes (the `yodel decode -` behavior), and — with
 //! the `tnc` feature — [`decode_frames`] / [`decode_sniffed`] run the
 //! audio through a Bell 202 receiver, handing each decoded frame to a
 //! caller-supplied sink. The `asynk` adapter layer
@@ -195,8 +195,8 @@ impl<R: Read> SniffedPcm<R> {
 
 /// Tells a WAV byte stream from raw s16le PCM by its first four bytes.
 ///
-/// This is the intake behind `warble decode -` and
-/// `warble serve --input -`, available to library users (and the
+/// This is the intake behind `yodel decode -` and
+/// `yodel serve --input -`, available to library users (and the
 /// `asynk` layer) so nobody re-implements the sniff: a stream opening
 /// with `RIFF` is parsed as WAV — the sample rate comes from the
 /// header, validated by [`check_spec`] — and anything else is treated

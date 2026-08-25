@@ -1,4 +1,4 @@
-//! `warble ptt`: key a transmitter over a serial control line.
+//! `yodel ptt`: key a transmitter over a serial control line.
 //!
 //! # Why this is a wrapper and not a transmit mode
 //!
@@ -16,7 +16,7 @@
 //! holds the line for its whole lifetime.
 //!
 //! ```text
-//! warble ptt --port /dev/ttyUSB0 -- sox packet.wav -t alsa default
+//! yodel ptt --port /dev/ttyUSB0 -- sox packet.wav -t alsa default
 //! ```
 //!
 //! # Failure mode
@@ -65,7 +65,7 @@ impl Signal {
     }
 }
 
-/// Arguments of `warble ptt`.
+/// Arguments of `yodel ptt`.
 #[derive(Args)]
 pub struct PttArgs {
     /// Serial port that keys the radio, e.g. `/dev/ttyUSB0`,
@@ -184,7 +184,7 @@ fn open_port(path: &str, invert: bool) -> Result<Box<dyn serialport::SerialPort>
     Ok(port)
 }
 
-/// Runs `warble ptt`.
+/// Runs `yodel ptt`.
 ///
 /// # Errors
 ///

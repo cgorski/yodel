@@ -46,10 +46,10 @@
 //!
 //! # What the async feature does
 //!
-//! warble's DSP core is synchronous, allocation-free and `no_std`. It
+//! yodel's DSP core is synchronous, allocation-free and `no_std`. It
 //! is **not** rewritten for async, and it should not be: decoding a
 //! sample is arithmetic, not I/O, so there is nothing to await. What
-//! `warble::asynk` provides is the *edge* — the decode loop is placed on
+//! `yodel::asynk` provides is the *edge* — the decode loop is placed on
 //! `spawn_blocking` (or fed from an `AsyncRead`), and frames arrive over
 //! a **bounded** channel exposed as a `Stream`. A slow consumer applies
 //! backpressure all the way to the reader and nothing is dropped.
@@ -61,7 +61,7 @@
 //!
 //! Three tokio tasks and a stream, mirroring the threaded version:
 //!
-//! * **decode** — [`warble::asynk::decode_stream`] over the input,
+//! * **decode** — [`yodel::asynk::decode_stream`] over the input,
 //!   yielding an `OwnedFrame` per FCS-valid frame. This is the task the
 //!   threaded version spends a thread on.
 //! * **sensor** — a simulated barometer on a 100 ms
@@ -110,10 +110,10 @@
 use std::time::Duration;
 
 use tokio_stream::StreamExt;
-use warble::SampleRate;
-use warble::aprs::{AprsPacket, Status};
-use warble::ax25::Address;
-use warble::tnc::{OwnedFrame, TncConfig, TncTransmitter};
+use yodel::SampleRate;
+use yodel::aprs::{AprsPacket, Status};
+use yodel::ax25::Address;
+use yodel::tnc::{OwnedFrame, TncConfig, TncTransmitter};
 
 /// Sample rate for the synthesized demo and for raw PCM input.
 const RATE_HZ: u32 = 48_000;
@@ -195,7 +195,7 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
 
     // The intake sniffs WAV vs raw s16le, exactly as the CLI does, so a
     // recording and an `arecord` pipe are the same call here.
-    let frames = warble::asynk::decode_stream(reader, raw_rate);
+    let frames = yodel::asynk::decode_stream(reader, raw_rate);
     let mut frames = std::pin::pin!(frames);
 
     // ---- sensor task --------------------------------------------

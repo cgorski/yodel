@@ -1,14 +1,14 @@
 //! Integration tests for the Mic-E encoder/decoder (`micE` feature).
 #![cfg(feature = "micE")]
 
-use warble::aprs::mic_e::{self, MicE, MicEError, MicEFix, MicEMessage};
-use warble::aprs::{Ambiguity, Latitude, Longitude, Symbol};
+use yodel::aprs::mic_e::{self, MicE, MicEError, MicEFix, MicEMessage};
+use yodel::aprs::{Ambiguity, Latitude, Longitude, Symbol};
 
 /// A coordinate magnitude in 1/100 arc-minutes, the unit every fixture
 /// in this file is written in. The storage unit is finer, so this
 /// rounds; anything asserting the finer value says so explicitly.
 fn hundredths(units: i64) -> i64 {
-    let step = warble::geo::UNITS_PER_HUNDREDTH_MINUTE;
+    let step = yodel::geo::UNITS_PER_HUNDREDTH_MINUTE;
     let half = if units < 0 { -step / 2 } else { step / 2 };
     (units + half) / step
 }
@@ -18,8 +18,8 @@ fn hundredths(units: i64) -> i64 {
 /// written in and the unit Mic-E carries on the wire.
 fn report(lat: i64, lon: i64) -> MicE<'static> {
     MicE {
-        latitude: Latitude::new(lat * warble::geo::UNITS_PER_HUNDREDTH_MINUTE).unwrap(),
-        longitude: Longitude::new(lon * warble::geo::UNITS_PER_HUNDREDTH_MINUTE).unwrap(),
+        latitude: Latitude::new(lat * yodel::geo::UNITS_PER_HUNDREDTH_MINUTE).unwrap(),
+        longitude: Longitude::new(lon * yodel::geo::UNITS_PER_HUNDREDTH_MINUTE).unwrap(),
         speed: 0,
         course: 0,
         symbol: Symbol::CAR,
@@ -675,8 +675,8 @@ fn round_trip_sweep() {
             None
         };
         let r = MicE {
-            latitude: Latitude::new(lat * warble::geo::UNITS_PER_HUNDREDTH_MINUTE).unwrap(),
-            longitude: Longitude::new(lon * warble::geo::UNITS_PER_HUNDREDTH_MINUTE).unwrap(),
+            latitude: Latitude::new(lat * yodel::geo::UNITS_PER_HUNDREDTH_MINUTE).unwrap(),
+            longitude: Longitude::new(lon * yodel::geo::UNITS_PER_HUNDREDTH_MINUTE).unwrap(),
             speed: next(800) as u16,
             course: next(361) as u16,
             symbol: Symbol::from_wire(
@@ -1038,7 +1038,7 @@ fn decode_errors() {
     assert_eq!(
         mic_e::decode(b"Y92UVT", INFO),
         Err(MicEError::BadLatitude {
-            got: 596_564 * warble::geo::UNITS_PER_HUNDREDTH_MINUTE
+            got: 596_564 * yodel::geo::UNITS_PER_HUNDREDTH_MINUTE
         })
     );
 }
@@ -1052,7 +1052,7 @@ fn encode_errors() {
     assert_eq!(
         r.encode(&mut dest, &mut info),
         Err(MicEError::BadLongitude {
-            got: 1_080_000 * warble::geo::UNITS_PER_HUNDREDTH_MINUTE
+            got: 1_080_000 * yodel::geo::UNITS_PER_HUNDREDTH_MINUTE
         })
     );
     // BadSpeed / BadCourse.
@@ -1105,7 +1105,7 @@ fn encode_errors() {
 /// existing typed error (dest context is required).
 #[test]
 fn aprs_parse_rejects_mic_e_ids() {
-    use warble::aprs::{AprsError, AprsPacket};
+    use yodel::aprs::{AprsError, AprsPacket};
     assert_eq!(
         AprsPacket::parse(INFO),
         Err(AprsError::InvalidDataType { got: b'`' })
@@ -1130,8 +1130,8 @@ fn aprs_parse_rejects_mic_e_ids() {
 /// type is unimplemented.
 #[test]
 fn decoded_needs_the_destination_and_decode_frame_supplies_it() {
-    use warble::aprs::{Decoded, DecodedKind};
-    use warble::ax25::Address;
+    use yodel::aprs::{Decoded, DecodedKind};
+    use yodel::ax25::Address;
 
     // Without a destination: labelled `NeedsDestination`; bytes never lost.
     for info in [INFO, b"'(_fn\"Oj/"] {
@@ -1221,8 +1221,8 @@ fn decoded_needs_the_destination_and_decode_frame_supplies_it() {
 /// they are 0.27% of the corpus.
 #[test]
 fn an_out_of_range_longitude_byte_is_refused_rather_than_repaired() {
-    use warble::aprs::{Decoded, DecodedKind};
-    use warble::ax25::Address;
+    use yodel::aprs::{Decoded, DecodedKind};
+    use yodel::ax25::Address;
 
     let dest = Address::new(b"S4PXYX", 0).expect("valid destination");
     // The frame exactly as received, six times, on two tracks.

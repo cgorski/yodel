@@ -9,14 +9,14 @@
 //! consciously.
 #![cfg(all(feature = "wspr", feature = "std"))]
 
-use warble::wspr::{
+use yodel::wspr::{
     FANO_DELTA, PACKED_LEN, SYMBOL_COUNT, WsprConfig, WsprDecoder, WsprDecoderConfig, WsprError,
     WsprMessage, WsprModulator, WsprRxError, deinterleave, fano_decode, interleave,
 };
-use warble::{MaidenheadGrid, SampleRate};
+use yodel::{MaidenheadGrid, SampleRate};
 
 /// A locator from text, panicking on invalid input (locator parsing has
-/// its own suite in `warble::geo`).
+/// its own suite in `yodel::geo`).
 fn grid(text: &str) -> MaidenheadGrid {
     MaidenheadGrid::new(text).expect("valid locator")
 }
@@ -122,7 +122,7 @@ fn unpack_rejects_garbage_tail_bits() {
 #[test]
 fn fano_decodes_ideal_metrics() {
     let msg = WsprMessage::new("N0CAL", grid("JN58"), 23).expect("valid");
-    let coded = warble::wspr::convolutional_encode(&msg.pack());
+    let coded = yodel::wspr::convolutional_encode(&msg.pack());
     let mut metrics = [[0i32; 2]; SYMBOL_COUNT];
     for (m, &c) in metrics.iter_mut().zip(coded.iter()) {
         m[usize::from(c)] = 8;

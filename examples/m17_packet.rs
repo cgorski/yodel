@@ -16,18 +16,18 @@
 //! The transmit side assembles preamble + LSF + packet frames + EOT as
 //! RRC-shaped 4-level PAM at 48 kHz; the receive side runs the matched
 //! filter, sync hunt, 4-level slicer, Viterbi FEC and superframe CRC —
-//! all through the public `warble::m17` API. This is baseband audio:
+//! all through the public `yodel::m17` API. This is baseband audio:
 //! on a real link this waveform drives (and comes back from) an FM
 //! radio's modulator/discriminator.
 
-use warble::SampleRate;
-use warble::m17::{Address, Lsf, M17FrameEvent, M17PacketTx, M17Receiver, PacketAssembler};
+use yodel::SampleRate;
+use yodel::m17::{Address, Lsf, M17FrameEvent, M17PacketTx, M17Receiver, PacketAssembler};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let dst = Address::broadcast();
     let src = Address::from_callsign("N0CALL")?;
     let lsf = Lsf::packet_data(dst, src, 0);
-    let message = b"Greetings from warble over M17 packet mode!";
+    let message = b"Greetings from yodel over M17 packet mode!";
 
     let sr = SampleRate::new(48_000)?;
     let mut tx = M17PacketTx::new(sr, lsf, message)?;

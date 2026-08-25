@@ -63,7 +63,7 @@ pub struct StatusGrid {
 /// text; `encoded_len` is therefore always `1 + text.len()`:
 ///
 /// ```
-/// use warble::aprs::{AprsError, Status};
+/// use yodel::aprs::{AprsError, Status};
 ///
 /// let status = Status { text: b"Net Control Center" };
 /// assert_eq!(status.encoded_len(), 1 + 18);
@@ -84,7 +84,7 @@ pub struct StatusGrid {
 /// # Reading the structured parts
 ///
 /// ```
-/// use warble::aprs::{AprsError, Status};
+/// use yodel::aprs::{AprsError, Status};
 ///
 /// // Chapter 16's own example: beam heading 110 degrees, ERP 490 W.
 /// let status = Status { text: b"Hello^B7" };

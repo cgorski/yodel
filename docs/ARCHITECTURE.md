@@ -1,4 +1,4 @@
-# warble architecture
+# yodel architecture
 
 The contributor front door: how the crate is layered, what every file
 does, where the seams are, which of them creak, and which modes fit
@@ -50,7 +50,7 @@ orchestration:
 profiles / presets:
     types.rs               SampleRate, BaudRate, TonePair, ModemProfile
 CLI:
-    bin/warble/            the `warble` binary: main.rs (clap tree +
+    bin/yodel/            the `yodel` binary: main.rs (clap tree +
                            dispatch), one module per subcommand
                            (decode, encode, gen, bench, serve, aprsis,
                            level, ptt, wspr, ft8, m17), shared.rs
@@ -115,7 +115,7 @@ the arrows are plain function/type composition, not trait objects.
 | `src/tnc/tx.rs` | `TncTransmitter` and its lazy sample iterators. |
 | `src/asynk.rs` | `async`-gated tokio adapters: frame `Stream`s, the one-call KISS server, the many-feeds decoder. |
 | `src/embassy.rs` | `embassy`-gated no_std adapters: the `SampleSource` seam, an async chunk-drain decode loop, and a periodic-TX ticker. |
-| `src/bin/warble/` | The `cli`-gated binary: `main.rs` holds the clap command tree and dispatch; `decode.rs`/`encode.rs`/`gen.rs`/`bench.rs`/`serve.rs`/`aprsis.rs`/`level.rs`/`wspr.rs`/`ft8.rs`/`m17.rs`/`ptt.rs` hold one subcommand each (`serve.rs` includes the transport-agnostic bridge core as its nested `serve` module); `json.rs` holds the JSON Lines projection of the library types; `shared.rs` holds the modem presets/overrides and WAV/PCM input plumbing. **`ptt.rs` is the only part of this crate that can put a signal on the air by itself**, so it is built the other way round from everything else here: the failure mode of every path through it, including a panic or a hung child, is to release the line. |
+| `src/bin/yodel/` | The `cli`-gated binary: `main.rs` holds the clap command tree and dispatch; `decode.rs`/`encode.rs`/`gen.rs`/`bench.rs`/`serve.rs`/`aprsis.rs`/`level.rs`/`wspr.rs`/`ft8.rs`/`m17.rs`/`ptt.rs` hold one subcommand each (`serve.rs` includes the transport-agnostic bridge core as its nested `serve` module); `json.rs` holds the JSON Lines projection of the library types; `shared.rs` holds the modem presets/overrides and WAV/PCM input plumbing. **`ptt.rs` is the only part of this crate that can put a signal on the air by itself**, so it is built the other way round from everything else here: the failure mode of every path through it, including a panic or a hung child, is to release the line. |
 
 ## The PHY seam
 
@@ -360,7 +360,7 @@ answered first.
 | `ft8` | `ft8.rs`; the buffered receive engine (`ft8/rx.rs`) additionally needs `std` | — (standalone) | Sibling of `wspr`, same TX/no_std-math vs std-engine split. |
 | `m17` | `m17.rs` | — (standalone) | A baseband PAM modem with its own framing; shares nothing with the AFSK chain. Entirely no_std and alloc-free, so no std-gated half exists. |
 | `tnc` | `tnc.rs` | `aprs`, `mod`, `demod` | The orchestrator needs the full column. |
-| `cli` | `bin/warble/` | `wav`, `tnc`, `micE`, `kiss`, `fx25`, `il2p`, `wspr`, `ft8`, `m17`, `ptt`, `dep:clap` | Aggregate for the binary. `kiss` is exercised by `warble serve` (the KISS TNC server, described under "The serve shape and the async verdict" below). Note `g3ruh` is **not** in this list, so a `--features cli` build has no `--preset g3ruh`; `--all-features` does. |
+| `cli` | `bin/yodel/` | `wav`, `tnc`, `micE`, `kiss`, `fx25`, `il2p`, `wspr`, `ft8`, `m17`, `ptt`, `dep:clap` | Aggregate for the binary. `kiss` is exercised by `yodel serve` (the KISS TNC server, described under "The serve shape and the async verdict" below). Note `g3ruh` is **not** in this list, so a `--features cli` build has no `--preset g3ruh`; `--all-features` does. |
 | `capture` | `examples/live_capture.rs` only | `std`, `dep:cpal` | Sound-card input for ONE example; off by default, enabled by nothing else, never a library-consumer dependency (`cargo tree -e normal` is unchanged). `--all-features` compiles cpal, so tests must never OPEN a device. The example's plumbing is pure and proven with a fake source. |
 | `async` | `asynk/` (tokio adapters: frame `Stream`s, one-call KISS server, many-feeds decoder) | `std`, `tnc`, `kiss`, `dep:tokio`, `dep:futures-core`, `dep:tokio-stream` | Operator override of the async NO verdict (see below). Off by default, enabled by nothing else; default and embedded builds never compile it or its dependencies. |
 | `embassy` | `embassy.rs` (async chunk-drain decode loop over `SampleRing` + `TncReceiver`, embassy-time TX ticker) | `tnc`, `dep:embassy-time` | Operator override of the pattern-doc-only verdict (see "The embassy verdict" below). no_std-first: the feature does NOT imply `std`. Off by default, enabled by nothing else; default and embedded-matrix builds never compile it or its dependency. |
@@ -382,7 +382,7 @@ nothing about files, pipes, or sound cards. Live audio input therefore
 lands entirely at the edges, as a **combination** of three thin
 adapters rather than one device abstraction in the library:
 
-1. **CLI input abstraction** (`bin/warble/decode.rs`): `warble decode`
+1. **CLI input abstraction** (`bin/yodel/decode.rs`): `yodel decode`
    accepts a WAV path (unchanged, byte-stable output), or `-` for
    stdin. Stdin is sniffed for a `RIFF` header. WAV streams decode
    with their own header; anything else is raw PCM read until EOF
@@ -394,7 +394,7 @@ adapters rather than one device abstraction in the library:
    format is provably identical.
 2. **Pipe recipes** (README §"Live decode from your sound card"):
    any capture tool (ALSA recorder, sox, ffmpeg) becomes a live
-   front end via `... | warble decode --sample-rate 48000 -`. This
+   front end via `... | yodel decode --sample-rate 48000 -`. This
    is the zero-new-dependency path and the recommended default.
 3. **Optional cpal example** (`examples/live_capture.rs`, `capture`
    feature): for users who want the binary-free "just open the mic"
@@ -418,10 +418,10 @@ at a wrong clock silently yields nothing.
 
 ## The serve shape and the async verdict
 
-**The serve shape.** `warble serve` is the third input/output edge:
+**The serve shape.** `yodel serve` is the third input/output edge:
 instead of printing decoded frames or writing a WAV once, it holds
 both edges open and bridges them to KISS byte streams. The core lives
-in the binary (`src/bin/warble/serve.rs`, `mod serve`) as transport
+in the binary (`src/bin/yodel/serve.rs`, `mod serve`) as transport
 glue over the EXISTING layers: KISS framing from `src/kiss.rs`
 (encoder iterator + streaming deframer, nothing reimplemented), the
 modem from `src/tnc.rs`, FX.25 from `src/fx25.rs`. Two transports:
@@ -444,7 +444,7 @@ and timeout-guarded clean shutdown. Audio edges reuse the
 arrives exactly the way the live-decode section above describes.
 
 **ASYNC VERDICT: NO** *(superseded; see below)*. The KISS server
-forced a question: should warble grow an async feature (tokio
+forced a question: should yodel grow an async feature (tokio
 adapters, an async `Stream` of frames)? It was evaluated and answered
 **no**, for four reasons, recorded here so the decision does not get
 re-litigated by accident:
@@ -465,18 +465,18 @@ re-litigated by accident:
    `examples/decode_many_threads.rs` (std threads, backpressure
    proven in `tests/app_examples.rs`), and its header documents the
    tokio transposition (async edges + `spawn_blocking` + bounded
-   `tokio::sync::mpsc`), as does the README's "Using warble from
+   `tokio::sync::mpsc`), as does the README's "Using yodel from
    async (tokio)" subsection.
 4. **Ecosystem norm.** Sans-io cores keep async adapters out of the
    core crate (quinn-proto, rustls, embedded-hal); a separate adapter
    crate remains possible if demand ever materializes.
 
 The KISS server is therefore `std::net` + `std::thread`: a handful of
-clients, CI-testable, no runtime. That is still true of `warble serve`
+clients, CI-testable, no runtime. That is still true of `yodel serve`
 today; what changed is that an optional adapter layer now sits beside
 it.
 
-**SUPERSEDED (operator decision).** warble now ships an optional
+**SUPERSEDED (operator decision).** yodel now ships an optional
 `async` cargo feature: the tokio adapter layer in `src/asynk.rs` (a
 `Stream` of `OwnedFrame`s from a WAV or any `AsyncRead`, a one-call
 KISS-over-TCP server, and a concurrent many-feeds decoder). This is a
@@ -490,12 +490,12 @@ tokio/futures). What changed is the weight given to beginner
 ergonomics on capable machines: the "~20 lines of tokio idiom every
 async user already knows" turned out to be exactly the 20 lines a
 newcomer gets wrong (unbounded channels, DSP on the reactor, dropped
-frames), so warble now ships them once, correctly, behind a flag. The
+frames), so yodel now ships them once, correctly, behind a flag. The
 result is one crate that covers the whole stack from a bare-metal
 microcontroller to a multicore server. The adapter stays thin:
 `asynk` duplicates no DSP, reuses the library `kiss` and `wav`
 modules, keeps every channel bounded (backpressure, never loss), and
-runs the sync receiver on `spawn_blocking`. The std-threads `warble
+runs the sync receiver on `spawn_blocking`. The std-threads `yodel
 serve` and `examples/decode_many_threads.rs` remain for people who
 want no runtime.
 
@@ -552,7 +552,7 @@ pattern-docs-only argument:
   library could implement. The embassy adapter had glue to ship (an
   async chunk-drain loop with a yield point, a ticker over
   `embassy-time`); the RTIC equivalents are RTIC's own `#[shared]`
-  lock and monotonic, so warble's role reduces to *types placed in
+  lock and monotonic, so yodel's role reduces to *types placed in
   resources*: a `SampleRing` in a `#[shared]` resource pushed by the
   DMA ISR, a `TncReceiver` in the decode task's `#[local]`.
 - **A `rtic` feature would be an empty namespace.** With nothing to
@@ -726,7 +726,7 @@ fielding.
 | Preset | Named config preset (the `ModemProfile`/`DevicePreset` pattern) |
 | Example | A runnable `examples/` program |
 | README walkthrough | Beginner-facing narrative section |
-| CLI integration | Subcommand/flag wiring in the `warble` binary |
+| CLI integration | Subcommand/flag wiring in the `yodel` binary |
 | Feasibility table | RAM/CPU numbers, MEASURED/ESTIMATED labelled |
 
 A framing layer over an existing waveform is excused the preset row,
@@ -777,12 +777,12 @@ IL2P". **Continuous symbol-clock tracking for M17**, whose receiver
 re-acquires timing per 40 ms frame; a Gardner-style continuous tracker
 is the obvious next lever for real soundcard clock skew.
 
-### `warble::json`: a serialization projection of the APRS/AX.25 types
+### `yodel::json`: a serialization projection of the APRS/AX.25 types
 
 **Status: shipped in the binary, not promoted to the library.**
-`warble decode --output-format jsonl` emits one JSON object per
+`yodel decode --output-format jsonl` emits one JSON object per
 decoded frame (schema in `README.md`), and the writer lives in
-`src/bin/warble/json.rs`, not in `src/`.
+`src/bin/yodel/json.rs`, not in `src/`.
 
 *Why it is not in the library.* The core is `#![no_std]`,
 allocation-free and **zero-dependency**, the combination the crate
@@ -804,15 +804,15 @@ currently rejected:
   promise than "these accessors exist". Nobody has asked for it from a
   library entry point yet; every user so far wants the CLI.
 
-*What the shape already buys.* `src/bin/warble/json.rs` is written as
-if it were already `warble::json`: the writer (`Object`, `Array`)
+*What the shape already buys.* `src/bin/yodel/json.rs` is written as
+if it were already `yodel::json`: the writer (`Object`, `Array`)
 appends to a caller-owned `&mut String` with closing braces written by
 `Drop`, every projection is a free function of one library type
 (`push_position_body`, `push_weather_fields`, `push_third_party`, …)
 with no trait and no derive, and the byte-versus-string problem is
 solved once in `Object::field_bytes` by the `_hex` sibling rule
 (`info` always, `info_hex` only when the bytes are not valid UTF-8).
-That is the signature set a `warble::json` module would export, so
+That is the signature set a `yodel::json` module would export, so
 promoting it is a file move and a feature gate, not a rewrite.
 
 *What promoting it would cost.* A `json = ["alloc"]` feature; deciding
@@ -895,7 +895,7 @@ synthesis and the STFT/Costas search all carry over.
   through intermediate stations and mailbox-style message pickup.
 - **APRS gateway semantics.** Defined directed commands (`@APRSIS`
   grid/message forms) let a gateway station inject traffic into APRS-IS;
-  relevant to us because warble already speaks APRS.
+  relevant to us because yodel already speaks APRS.
 
 **GPL boundary (binding).** JS8Call, the only existing
 implementation, is **GPL**, so its code cannot be a source for this

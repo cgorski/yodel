@@ -92,14 +92,14 @@ const BASE91_OFFSET: u8 = 33;
 /// # Common path: one line, valid by construction
 ///
 /// ```
-/// use warble::aprs::{AprsError, Latitude, Longitude, Position, Symbol};
+/// use yodel::aprs::{AprsError, Latitude, Longitude, Position, Symbol};
 ///
 /// let pos = Position::new(
 ///     Latitude::from_degrees(49.0583)?,
 ///     Longitude::from_degrees(-72.0292)?,
 ///     Symbol::CAR,
 /// )
-/// .with_comment(b"warble");
+/// .with_comment(b"yodel");
 /// let mut buf = [0u8; 64];
 /// let len = pos.build(&mut buf)?;
 /// assert!(buf[..len].starts_with(b"!"));
@@ -109,7 +109,7 @@ const BASE91_OFFSET: u8 = 33;
 /// # Power user: fully typed symbol, exhaustively matched
 ///
 /// ```
-/// use warble::aprs::{
+/// use yodel::aprs::{
 ///     AprsError, Latitude, Longitude, OverlayId, Position, Symbol, SymbolCode, SymbolTable,
 /// };
 ///
@@ -130,7 +130,7 @@ const BASE91_OFFSET: u8 = 33;
 /// # Raw hatch: out-of-spec wire bytes round-trip exactly
 ///
 /// ```
-/// use warble::aprs::{AprsError, Latitude, Longitude, Position, Symbol};
+/// use yodel::aprs::{AprsError, Latitude, Longitude, Position, Symbol};
 ///
 /// // No spec blesses '~' as a table selector; hold it anyway.
 /// let pos = Position::new(Latitude::new(0)?, Longitude::new(0)?, Symbol::from_wire(b'~', b'$'));
@@ -407,7 +407,7 @@ impl<'a> Position<'a> {
     ///
     /// ```
     /// # #[cfg(feature = "aprs")] {
-    /// use warble::aprs::{AprsPacket, DataExtension};
+    /// use yodel::aprs::{AprsPacket, DataExtension};
     ///
     /// let AprsPacket::Position(p) =
     ///     AprsPacket::parse(b"!4903.50N/07201.75W>125/007/A=000984 rolling")?
@@ -423,7 +423,7 @@ impl<'a> Position<'a> {
     /// assert_eq!(p.altitude_feet(), Some(984));
     /// assert_eq!(p.comment, b"/A=000984 rolling");
     /// # }
-    /// # Ok::<(), warble::aprs::AprsError>(())
+    /// # Ok::<(), yodel::aprs::AprsError>(())
     /// ```
     #[must_use]
     pub fn altitude_feet(&self) -> Option<i32> {

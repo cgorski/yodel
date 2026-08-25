@@ -11,15 +11,15 @@
 //! consciously.
 #![cfg(all(feature = "ft8", feature = "std"))]
 
-use warble::SampleRate;
-use warble::ft8::{
+use yodel::SampleRate;
+use yodel::ft8::{
     CHECK_ROWS, CODEWORD_BITS, Ft8Config, Ft8Decoder, Ft8DecoderConfig, Ft8Error, Ft8Message,
     Ft8Modulator, Ft8RxError, Ft8Tail, LDPC_MAX_ITERS, PARITY_BITS, add_crc, ldpc_check,
     ldpc_decode, ldpc_encode, message_from_codeword, unpack_message, verify_crc,
 };
 
 /// A grid trailer from locator text, panicking on invalid input (locator
-/// parsing has its own suite in `warble::geo`).
+/// parsing has its own suite in `yodel::geo`).
 fn grid(text: &str) -> Ft8Tail {
     Ft8Tail::grid(text).expect("valid locator")
 }
@@ -94,7 +94,7 @@ fn check_rows_are_orthogonal_to_codewords() {
     // derived sparse H against the embedded generator).
     let mut seed = 0xC0DE_C0DE_C0DEu64;
     for _ in 0..100 {
-        let mut payload = [0u8; warble::ft8::PAYLOAD_LEN];
+        let mut payload = [0u8; yodel::ft8::PAYLOAD_LEN];
         for b in payload.iter_mut() {
             *b = (splitmix64(&mut seed) >> 32) as u8;
         }
@@ -133,7 +133,7 @@ fn check_rows_shape() {
 // ---- LDPC min-sum unit tests ----
 
 /// Ideal LLRs for a codeword: +4 for bit 0, −4 for bit 1.
-fn ideal_llrs(codeword: &[u8; warble::ft8::CODEWORD_LEN]) -> [f32; CODEWORD_BITS] {
+fn ideal_llrs(codeword: &[u8; yodel::ft8::CODEWORD_LEN]) -> [f32; CODEWORD_BITS] {
     let mut llr = [0.0f32; CODEWORD_BITS];
     for (pos, slot) in llr.iter_mut().enumerate() {
         let bit = (codeword[pos / 8] >> (7 - pos % 8)) & 1;
@@ -293,14 +293,14 @@ fn unpack_renders_standard_and_free_text() {
 #[test]
 fn unpack_rejects_unsupported_types() {
     // i3 = 2 (EU VHF contest): rejected with the rich error.
-    let mut payload = [0u8; warble::ft8::PAYLOAD_LEN];
+    let mut payload = [0u8; yodel::ft8::PAYLOAD_LEN];
     payload[9] = 2 << 3;
     assert_eq!(
         unpack_message(&payload),
         Err(Ft8Error::UnsupportedMessageType)
     );
     // i3 = 0, n3 = 1 (DXpedition): rejected.
-    let mut payload = [0u8; warble::ft8::PAYLOAD_LEN];
+    let mut payload = [0u8; yodel::ft8::PAYLOAD_LEN];
     payload[9] = 0x40; // n3 = 1
     assert_eq!(
         unpack_message(&payload),
@@ -459,5 +459,5 @@ fn snr_estimate_tracks_actual_snr() {
         d.snr_db
     );
     assert!(d.sync_score > 0.0);
-    let _ = message_from_codeword(&[0u8; warble::ft8::CODEWORD_LEN]);
+    let _ = message_from_codeword(&[0u8; yodel::ft8::CODEWORD_LEN]);
 }
