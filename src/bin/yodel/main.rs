@@ -26,6 +26,8 @@ mod level;
 mod m17;
 #[cfg(feature = "ptt")]
 mod ptt;
+#[cfg(feature = "audio")]
+mod transmit;
 // `gen` is a reserved keyword in edition 2024, so the module keeps the
 // subcommand's file name but a different module name.
 #[path = "gen.rs"]
@@ -115,6 +117,20 @@ enum Command {
     /// hung player.
     #[cfg(feature = "ptt")]
     Ptt(ptt::PttArgs),
+
+    /// Play a WAV to a sound card while keying a transmitter, holding
+    /// the line until the last sample has actually left the device:
+    /// `yodel transmit --port /dev/ttyUSB0 --device USB packet.wav`.
+    ///
+    /// Unlike `ptt`, which hands the audio to an external player, this
+    /// owns the sound card and the control line together, so it can
+    /// key, play, drain the device's buffering, and only then unkey.
+    /// A player's exit cannot express that: it means the samples were
+    /// written to the device, not converted by it, and a player that
+    /// discards its undrained buffer takes the end of the frame -- the
+    /// FCS -- with it.
+    #[cfg(feature = "audio")]
+    Transmit(transmit::TransmitArgs),
 }
 
 fn main() -> ExitCode {
@@ -138,6 +154,8 @@ fn main() -> ExitCode {
         Command::Level(args) => level::level(&args),
         #[cfg(feature = "ptt")]
         Command::Ptt(args) => ptt::ptt(&args),
+        #[cfg(feature = "audio")]
+        Command::Transmit(args) => transmit::transmit(&args),
     };
     match result {
         Ok(()) => ExitCode::SUCCESS,

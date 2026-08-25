@@ -85,7 +85,27 @@ yodel decode traffic.wav
 
 # Build a position beacon and write it as audio.
 yodel encode --from N0CALL-9 --lat 39.1 --lon -94.6 --out beacon.wav
+
+# Put it on the air: key the radio, play it, and hold the line until
+# the last sample has actually left the sound card.
+yodel transmit --port /dev/ttyUSB0 --device USB beacon.wav
 ```
+
+`transmit` owns the sound card and the PTT line in one process, which is
+what makes the sequence provable: key, lead-in, play, **drain the
+device's buffering**, unkey. Handing playback to an external player
+cannot express that last part — a player exiting means it wrote its
+samples *to* the device, not that the device converted them, and one
+that discards its undrained buffer takes the end of the frame, and so
+the FCS, with it. Holding PTT longer cannot recover samples that were
+thrown away.
+
+The on-air timings are separate from the electrical ones, and both
+matter on a marginal path: `encode --txdelay` sets the HDLC preamble a
+receiver's clock recovery locks onto, `encode --txtail` keeps the
+modulator running past the checksum, while `transmit --lead` and
+`--drain` cover the transmitter's turn-on and the sound card's latency.
+`yodel transmit --list-devices` shows what it can play through.
 
 ## Design
 

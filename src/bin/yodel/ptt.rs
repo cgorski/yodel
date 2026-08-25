@@ -63,6 +63,20 @@ impl Signal {
             Signal::Dtr => "DTR",
         }
     }
+
+    /// How the keyed state reads for a log line, `--invert` included.
+    ///
+    /// Which way the line is driven is exactly the thing an operator
+    /// gets wrong when a radio will not key, so the message says what
+    /// was actually done rather than only which line was chosen.
+    pub const fn describe(self, invert: bool) -> &'static str {
+        match (self, invert) {
+            (Signal::Rts, false) => "RTS high",
+            (Signal::Rts, true) => "RTS low",
+            (Signal::Dtr, false) => "DTR high",
+            (Signal::Dtr, true) => "DTR low",
+        }
+    }
 }
 
 /// Arguments of `yodel ptt`.
@@ -130,7 +144,7 @@ pub struct PttArgs {
 /// The release lives in `Drop` rather than at the end of the happy
 /// path so that an error return, a `?`, or a panic in the player
 /// plumbing cannot leave a transmitter keyed.
-struct Keyed {
+pub struct Keyed {
     port: Box<dyn serialport::SerialPort>,
     signal: Signal,
     invert: bool,
@@ -138,7 +152,7 @@ struct Keyed {
 
 impl Keyed {
     /// Asserts the line and returns the guard that will release it.
-    fn assert(mut port: Box<dyn serialport::SerialPort>, signal: Signal, invert: bool) -> Self {
+    pub fn assert(mut port: Box<dyn serialport::SerialPort>, signal: Signal, invert: bool) -> Self {
         let _ = set_line(&mut port, signal, !invert);
         Self {
             port,
@@ -174,7 +188,7 @@ fn set_line(
 /// See the module docs: some drivers assert RTS at open, which keys the
 /// radio before any of this code runs. Dropping both lines first is
 /// what makes opening the port safe.
-fn open_port(path: &str, invert: bool) -> Result<Box<dyn serialport::SerialPort>, String> {
+pub fn open_port(path: &str, invert: bool) -> Result<Box<dyn serialport::SerialPort>, String> {
     let mut port = serialport::new(path, 9600)
         .timeout(Duration::from_millis(50))
         .open()

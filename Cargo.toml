@@ -1,6 +1,6 @@
 [package]
 name = "yodel"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2024"
 rust-version = "1.96"
 license = "MIT OR Apache-2.0"
@@ -118,7 +118,22 @@ tnc = ["aprs", "mod", "demod"]
 # wspr, ft8 and m17 ride along so the CLI's `yodel wspr` /
 # `yodel ft8` / `yodel m17` subcommands (TX gen plus the receive
 # engines) are always available.
-cli = ["wav", "tnc", "micE", "kiss", "fx25", "il2p", "wspr", "ft8", "m17", "ptt", "dep:clap"]
+cli = ["wav", "tnc", "micE", "kiss", "fx25", "il2p", "wspr", "ft8", "m17", "ptt", "audio", "dep:clap"]
+# Sound-card OUTPUT for `yodel transmit` (cpal). Paired with `ptt`, it
+# is what lets one process own the audio device and the control line at
+# the same time, which is the only way to key, play, WAIT FOR THE LAST
+# SAMPLE TO LEAVE, and then unkey.
+#
+# Handing playback to an external player cannot make that guarantee:
+# the player's exit says it wrote its last sample to the device, not
+# that the device converted it, and a player that discards its undrained
+# buffer at exit takes the end of the frame -- the FCS -- with it. No
+# amount of holding PTT afterwards recovers samples that were thrown
+# away. See src/bin/yodel/transmit.rs.
+#
+# CLI only. The library still never opens an audio device, so library
+# consumers and the embedded matrix never see cpal.
+audio = ["std", "dep:cpal"]
 # Serial PTT for `yodel ptt`: assert RTS or DTR on a USB-serial
 # adapter to key a transmitter, hold it while a player runs, and drop
 # it again. CLI only, and the ONE place in this crate that can put a

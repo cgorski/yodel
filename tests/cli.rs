@@ -157,6 +157,185 @@ fn encode_position_decode_round_trip() {
     let _ = std::fs::remove_file(&wav);
 }
 
+/// Encodes the same position twice and returns (default frames, frames
+/// with `--txdelay ms`), so a test can compare the two lead-ins.
+fn encode_pair_frames(ms: &str) -> (u32, u32) {
+    let mut frames = [0u32; 2];
+    for (slot, txdelay) in frames.iter_mut().zip([None, Some(ms)]) {
+        let wav = scratch("txdelay");
+        let path = wav.to_string_lossy().into_owned();
+        let mut args = vec![
+            "encode", "--out", &path, "--from", "N0CALL-9", "--to", "APRS", "--rate", "48000",
+        ];
+        if let Some(ms) = txdelay {
+            args.extend_from_slice(&["--txdelay", ms]);
+        }
+        args.extend_from_slice(&["position", "--lat", "40.0", "--lon", "-105.0"]);
+        let (ok, _, stderr) = run(&args);
+        assert!(ok, "encode failed: {stderr}");
+        let reader = hound::WavReader::open(&path).expect("open wav");
+        *slot = reader.duration();
+        let (ok, stdout, _) = run(&["decode", &path]);
+        assert!(ok, "decode failed for txdelay {txdelay:?}");
+        assert!(
+            stdout.contains("N0CALL-9>APRS"),
+            "txdelay {txdelay:?} did not round-trip: {stdout}"
+        );
+    }
+    (frames[0], frames[1])
+}
+
+/// `--txdelay` lengthens the on-air preamble by the requested amount,
+/// and the frame behind it still decodes.
+///
+/// The default is 32 flags (~213 ms at 1200 baud), so asking for 500 ms
+/// should add ~287 ms — 13 776 samples at 48 kHz. The tolerance covers
+/// the rounding up to a whole flag octet.
+#[test]
+fn txdelay_lengthens_the_preamble_and_still_decodes() {
+    let (default_frames, delayed_frames) = encode_pair_frames("500");
+    let added_ms = f64::from(delayed_frames - default_frames) / 48.0;
+    assert!(
+        (added_ms - 287.0).abs() < 10.0,
+        "expected ~287 ms of extra preamble, got {added_ms:.1} ms \
+         ({default_frames} -> {delayed_frames} frames)"
+    );
+}
+
+/// Encodes a beacon with `--txtail ms`, chops `cut_ms` off the end of the
+/// audio, and reports whether the frame still decodes.
+///
+/// Chopping the end is not an artificial insult: it is what a transmit
+/// path does. Between handing the last sample to an audio device and
+/// that sample leaving the radio there is real latency, and a player
+/// that exits discards whatever has not been converted yet. Measured
+/// against a USB codec, ~33 ms went missing exactly that way.
+fn decodes_after_truncation(txtail_ms: &str, cut_ms: u32) -> bool {
+    let wav = scratch("txtail");
+    let path = wav.to_string_lossy().into_owned();
+    let (ok, _, stderr) = run(&[
+        "encode", "--out", &path, "--from", "N0CALL", "--to", "APRS", "--rate", "48000",
+        "--txtail", txtail_ms, "position", "--lat", "40.0", "--lon", "-105.0",
+    ]);
+    assert!(ok, "encode failed: {stderr}");
+
+    let reader = hound::WavReader::open(&path).expect("open wav");
+    let spec = reader.spec();
+    let samples: Vec<i16> = reader
+        .into_samples::<i16>()
+        .collect::<Result<_, _>>()
+        .expect("read samples");
+    let cut = (spec.sample_rate as u64 * u64::from(cut_ms) / 1000) as usize;
+    let kept = samples.len().saturating_sub(cut);
+
+    let chopped = scratch("txtail-cut");
+    let chopped_path = chopped.to_string_lossy().into_owned();
+    let mut writer = hound::WavWriter::create(&chopped, spec).expect("create wav");
+    for s in &samples[..kept] {
+        writer.write_sample(*s).expect("write sample");
+    }
+    writer.finalize().expect("finalize");
+
+    let (ok, stdout, _) = run(&["decode", &chopped_path]);
+    assert!(ok, "decode exited non-zero");
+    stdout.contains("N0CALL>APRS")
+}
+
+/// The default TXTail keeps a frame decodable when the transmit path
+/// eats the end of the audio, and the library's framing minimum does not.
+///
+/// Both halves matter. The first is the property we want; the second
+/// proves the test can still fail, so a regression here cannot hide
+/// behind a truncation that was never big enough to bite.
+#[test]
+fn txtail_protects_the_checksum_from_a_clipped_tail() {
+    const CUT_MS: u32 = 33;
+    assert!(
+        decodes_after_truncation("150", CUT_MS),
+        "the default TXTail should absorb a {CUT_MS} ms clip, leaving the FCS intact"
+    );
+    assert!(
+        !decodes_after_truncation("0", CUT_MS),
+        "with only the library's two framing flags (13.3 ms at 1200 Bd) a {CUT_MS} ms clip \
+         must reach the FCS -- if this passes, the truncation is not exercising the tail \
+         and the assertion above proves nothing"
+    );
+}
+
+/// A TXTail past the accepted range is refused rather than clamped.
+#[test]
+fn txtail_out_of_range_is_rejected() {
+    let wav = scratch("txtail-range");
+    let path = wav.to_string_lossy().into_owned();
+    let (ok, _, stderr) = run(&[
+        "encode", "--out", &path, "--from", "N0CALL", "--to", "APRS", "--txtail", "501",
+        "position", "--lat", "40.0", "--lon", "-105.0",
+    ]);
+    assert!(!ok, "an out-of-range --txtail should fail");
+    assert!(
+        stderr.contains("--txtail") && stderr.contains("500"),
+        "error should name the flag and its range: {stderr}"
+    );
+}
+
+/// `--txdelay 0` is refused, not rounded up to a single delimiting flag.
+#[test]
+fn txdelay_zero_is_rejected_not_rounded() {
+    let wav = scratch("txdelay-zero");
+    let path = wav.to_string_lossy().into_owned();
+    let (ok, _, stderr) = run(&[
+        "encode",
+        "--out",
+        &path,
+        "--from",
+        "N0CALL",
+        "--to",
+        "APRS",
+        "--txdelay",
+        "0",
+        "position",
+        "--lat",
+        "40.0",
+        "--lon",
+        "-105.0",
+    ]);
+    assert!(!ok, "--txdelay 0 should fail");
+    assert!(
+        stderr.contains("--txdelay"),
+        "error should name the flag: {stderr}"
+    );
+}
+
+/// A TXDelay past the accepted range is refused rather than clamped:
+/// flags are transmitted, so an accidental extra digit would hold a
+/// transmitter up on a shared channel.
+#[test]
+fn txdelay_out_of_range_is_rejected() {
+    let wav = scratch("txdelay-range");
+    let path = wav.to_string_lossy().into_owned();
+    let (ok, _, stderr) = run(&[
+        "encode",
+        "--out",
+        &path,
+        "--from",
+        "N0CALL",
+        "--to",
+        "APRS",
+        "--txdelay",
+        "2001",
+        "position",
+        "--lat",
+        "40.0",
+        "--lon",
+        "-105.0",
+    ]);
+    assert!(!ok, "an out-of-range --txdelay should fail");
+    assert!(
+        stderr.contains("--txdelay") && stderr.contains("2000"),
+        "error should name the flag and its range: {stderr}"
+    );
+}
+
 #[test]
 fn encode_message_decode_round_trip() {
     let wav = scratch("msg");

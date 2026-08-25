@@ -199,6 +199,61 @@ pub fn parse_address(text: &str) -> Result<Address, String> {
     Address::new(call.as_bytes(), ssid).map_err(|e| format!("bad callsign '{text}': {e}"))
 }
 
+/// The largest TXDelay the CLI accepts, in milliseconds.
+///
+/// Well under the 2550 ms a KISS `TXDELAY` octet can express, and
+/// deliberately so: flags are transmitted, so every extra millisecond is
+/// key-down time on a shared channel. Two seconds is already far past
+/// what the slowest relay sequencer needs, and past it the setting is
+/// much more likely to be a typo than an intention.
+pub const MAX_TXDELAY_MS: u32 = 2_000;
+
+/// The largest TXTail the CLI accepts, in milliseconds.
+///
+/// Bounded far lower than the preamble: a tail exists only to keep the
+/// modulator running until the last data bit is certainly out, and every
+/// millisecond past that is airtime spent saying nothing on a shared
+/// channel.
+pub const MAX_TXTAIL_MS: u32 = 500;
+
+/// The CLI's default TXTail, in milliseconds.
+///
+/// The library's [`hdlc::DEFAULT_TAIL_FLAGS`] is two flags -- 13.3 ms at
+/// 1200 baud. That is the right *framing* answer (one flag closes the
+/// frame, the second guards a receiver that missed the boundary) but it
+/// is not a transmit tail, and a WAV built for a radio needs both.
+///
+/// Any real transmit path has latency between "the last sample was
+/// handed to the audio device" and "the last sample left the radio", and
+/// some players discard whatever has not yet been converted when they
+/// exit. Measured against a USB codec here, ~33 ms went missing that
+/// way -- comfortably more than 13.3 ms, so the truncation ate the tail
+/// flags *and* the FCS behind them, and every frame failed its CRC while
+/// looking perfect at the transmitter.
+///
+/// 150 ms sits at the low end of the 100-300 ms that Dire Wolf and
+/// hardware TNCs use for exactly this, so a clipped tail costs flags
+/// instead of the checksum.
+pub const DEFAULT_TXTAIL_MS: u32 = 150;
+
+/// Converts a TXDelay or TXTail in milliseconds into a count of HDLC flags.
+///
+/// Operators configure TNCs in milliseconds, not in flag octets, so that
+/// is what the CLI takes. The conversion is baud-dependent: a flag is
+/// eight bits, so it occupies `8000 / baud` milliseconds -- 6.67 ms at
+/// 1200 baud, which is what makes the library's 32-flag preamble the
+/// documented ~213 ms.
+///
+/// Rounding is upward, so a requested time is never quietly shortened,
+/// and the result is at least one flag: HDLC needs a flag to delimit the
+/// frame at all, so a zero-flag result would not be a very short lead-in
+/// but a malformed transmission.
+pub fn flags_for_ms(ms: u32, baud: u32) -> usize {
+    let bit_ms = u64::from(ms) * u64::from(baud);
+    let flags = bit_ms.div_ceil(8_000);
+    usize::try_from(flags).unwrap_or(usize::MAX).max(1)
+}
+
 /// Formats an address as `CALL` or `CALL-SSID`.
 pub fn format_address(addr: &Address) -> String {
     let call = String::from_utf8_lossy(addr.callsign.as_bytes()).into_owned();

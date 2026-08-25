@@ -11,6 +11,84 @@ turned out to be, which approach was tried and abandoned.
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-08-25
+
+### Fixed
+
+- **The end of every transmission could be cut off, taking the FCS with
+  it.** Confirmed on the air, against a real radio: frames were built
+  correctly, modulated correctly and keyed correctly, and then failed
+  their CRC at every receiver. A symbol-by-symbol comparison of what
+  was sent against what an SDR heard put the errors at **0% through the
+  body and 100% in the last ~40 symbols** — the transmission simply
+  stopped early, and the checksum lives at the end.
+
+  Two independent causes, each now fixed, and each sufficient on its
+  own (verified separately over the air):
+
+  1. **The tail was far too short.** `hdlc::DEFAULT_TAIL_FLAGS` is two
+     flags — 13.3 ms at 1200 baud. That is the right *framing* answer
+     and the wrong *transmit* one: any real path has latency between
+     the last sample reaching an audio device and leaving the radio.
+     Measured here, ~33 ms went missing, which is more than 13.3 ms, so
+     the clipping ate the tail flags and then the FCS. `encode` now
+     takes `--txtail <MS>`, defaulting to 150 ms of flags — the low end
+     of the 100-300 ms that Dire Wolf and hardware TNCs use for exactly
+     this.
+
+  2. **Nothing owned the audio device and the control line together.**
+     `ptt` hands playback to an external player, and a player exiting
+     means it wrote its last sample *to* the device, not that the device
+     converted it — some discard whatever is undrained at exit. Holding
+     PTT longer cannot recover samples that were thrown away, which is
+     why `--tail` never helped. See `transmit` below.
+
+  Flags rather than trailing silence, deliberately: a tail keeps the
+  modulator running, which is what a receiver's clock recovery expects
+  and what every TNC does. Silence would hold the carrier up saying
+  nothing.
+
+### Added
+
+- **`yodel transmit`: playback and PTT in one process.** Owns the sound
+  card and the serial line together, so the sequence is provable rather
+  than hoped for: key, `--lead`, play every sample, `--drain` the
+  device's buffering with silence, `--tail`, unkey. `--drain` is the
+  step an external player cannot be asked for, and it is what lets a
+  frame survive even with `--txtail 0` (confirmed on the air).
+
+  The split is the point: the WAV ends at its closing flags, the way a
+  TNC's output does and an operator expects, and the device's slack is
+  handled at the device rather than baked into the signal. Everything
+  is tunable — `--device`, `--list-devices`, `--port`, `--signal`,
+  `--invert`, `--lead`, `--drain`, `--tail`, `--max`. Omitting `--port`
+  plays without keying, for checking levels safely.
+
+  New `audio` feature (cpal), enabled by `cli`. The library still never
+  opens an audio device, so library consumers and the embedded matrix
+  are unaffected.
+
+- **`yodel encode --txdelay <MS>`, the on-air lead-in.** The transmit
+  preamble was fixed at the library's 32 HDLC flags (~213 ms at 1200
+  baud) — a known-good interoperability value, but the low end of what
+  a slow transmitter, a relay with a sequencer, or a distant receiver
+  whose squelch has to open will sit through. `TncConfig::with_flags`
+  could already set it; nothing on the CLI could reach it.
+
+  Taken in milliseconds rather than flags, because that is the unit
+  every TNC is configured in and the flag count depends on the baud
+  rate. Rounding is upward, so a requested delay is never quietly
+  shortened. `--txdelay 0` is refused rather than rounded up to the one
+  flag that merely delimits the frame: that is not a very short lead-in
+  but a transmission no receiver can lock onto.
+
+  Distinct from `transmit --lead`, which holds the control line before
+  any audio: that is the electrical delay, letting the transmitter's
+  output stage settle; this is the on-air one, letting the far end's
+  squelch, AGC and clock recovery settle. A marginal path wants both.
+
+## [0.1.0] - 2026-08-25
+
 ### Changed (breaking)
 
 - **Coordinates are stored exactly for every APRS position format.**
@@ -256,6 +334,28 @@ turned out to be, which approach was tried and abandoned.
   indefinite". MEASURED: 24 packets across both faults, now 0.
 
 ### Added
+
+- **`yodel encode --txdelay <MS>`, the on-air lead-in.** The transmit
+  preamble was fixed at the library's 32 HDLC flags — ~213 ms at 1200
+  baud, a known-good interoperability value, but the low end of what a
+  slow transmitter, a relay with a sequencer, or a distant receiver
+  whose squelch has to open will sit through. `TncConfig::with_flags`
+  could already set it; nothing on the CLI could reach it, so the one
+  audience that needs it most — someone keying a real radio — was the
+  one that could not change it.
+
+  Taken in milliseconds rather than in flags, because that is the unit
+  every TNC on the air is configured in, and because the flag count a
+  given delay works out to depends on the baud rate (a flag is eight
+  bits, so `8000 / baud` ms). Rounding is upward, so a requested delay
+  is never quietly shortened. Absent, the 32-flag default is untouched.
+
+  Distinct from `yodel ptt --lead`, which holds the control line up
+  before the player starts: that one is the electrical delay, letting
+  the transmitter's output stage settle, and this one is the on-air
+  delay carried inside the WAV, letting the far end's squelch, AGC and
+  clock recovery settle. They solve different problems and a marginal
+  path wants both.
 
 - **docs.rs builds the whole API.** Without
   `[package.metadata.docs.rs]`, docs.rs builds default features only —
@@ -532,7 +632,7 @@ turned out to be, which approach was tried and abandoned.
   MEASURED over 30 051 live packets, 115 exceed 256 bytes and every one
   of them that had a builder failed to re-serialize.
 
-## [0.1.0] - unreleased
+### Initial release
 
 First release. Everything below is new.
 
@@ -585,5 +685,6 @@ WSPR, FT8 and M17 (packet data) modes.
   signals, benchmark, and serve as a KISS TNC over TCP.
 - Optional tokio (`async`) and Embassy (`embassy`) adapters.
 
-[Unreleased]: https://github.com/cgorski/yodel/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/cgorski/yodel/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/cgorski/yodel/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/cgorski/yodel/releases/tag/v0.1.0
