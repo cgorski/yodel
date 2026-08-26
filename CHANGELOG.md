@@ -11,7 +11,89 @@ turned out to be, which approach was tried and abandoned.
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-08-26
+
+### Added
+
+- **`Latitude::from_hundredths_minute` / `Longitude::from_hundredths_minute`,
+  and the matching `hundredths_minute` readers.** A signed total in
+  1/100 arc-minutes -- `degrees * 6000 + minutes * 100 + hundredths` --
+  which is the shape a `DDMM.hh` field, an integer-only tracker and
+  every test fixture already had. `new` counts storage units and
+  `from_degrees_minutes` wants the parts split with a hemisphere;
+  neither fits, so callers scaled by hand, and six of them got it wrong.
+
 ### Fixed
+
+- **Coordinate fixtures across six files were on the wrong unit, and
+  the differential harness could not run at all.** `Latitude::new`
+  counts storage units; a 1/100 arc-minute total handed to it is off by
+  57 138 900 000 and is still a legal latitude, so it is accepted in
+  silence and the position becomes 0000.00N/00000.00W.
+
+  `tests/differential.rs` had it in `rand_lat`/`rand_lon` and in its
+  Mic-E block, so all 320 cases collapsed to null island and the suite
+  panicked during corpus generation -- meaning the advertised "320/320
+  in both directions" was not reproducible. `tests/aprs_differential.rs`,
+  `tests/oracle.rs`, `tests/snr.rs`, `tests/mic_e.rs` and
+  `tests/coverage_fill.rs` had it in fixtures that still passed, because
+  a round trip through 0/0 is a perfectly good round trip. The oracle's
+  Mic-E case is the sharpest: it is documented as covering "longitude
+  over 100 degrees (offset flag)" and, at 0 degrees, never exercised the
+  offset flag once.
+
+  Fixed at every site. **MEASURED after the fix, with the reference
+  tools present: 320/320 byte-for-byte in both directions, WSPR 5/5 on
+  all three legs, FT8 13/13 at all four encoding stages, oracle 31/31,
+  and all seven pinned benchmark rows at their floors.**
+
+- **`aprs_differential` asserted that we reproduce a precision we
+  deliberately refuse to publish.** The position row required exact
+  agreement with the reference decoder on every frame, and reported 57
+  disagreements out of 1 724. All 57 are the same thing: Mic-E frames
+  declaring position ambiguity, where this crate masks *both* axes to
+  the declared precision -- a deliberate fix, see
+  `docs/APRS_CONFORMANCE.md` §3 -- and the reference masks only the
+  latitude, because that is the axis the wire blanks for it. Neither is
+  wrong, in digits the sender said not to trust.
+
+  Positions are now compared at the precision the sender declared, and
+  the relaxation is counted against a ceiling (`MAX_AMBIGUITY_RELAXED`)
+  so it cannot quietly spread to cover the corpus. MEASURED: 59 frames
+  relaxed, 0 disagreements.
+
+- **The ESP32 beacon example transmitted from 0000.00N/00000.00W.**
+  `examples/esp32-riscv`'s `fill_position_beacon` documents its two
+  coordinate arguments as "signed 1/100 arc-minutes (degrees × 6000)"
+  and offers `294_350` for 49.0583° N, then handed that number straight
+  to `Latitude::new`, which counts coordinate *storage* units --
+  57 138 900 000 of them to the hundredth. 294 350 units is 8.6
+  micro-degrees, a legal latitude, so nothing rejected it: anyone
+  following the documented contract keyed up a valid APRS frame
+  reporting null island. The function now scales its arguments, so the
+  unit it documents is the unit it takes.
+
+  `tests/esp32_examples.rs` covered this and agreed with it, because it
+  converted to storage units before calling the beacon and then compared
+  against the same converted value -- a round trip that holds for any
+  unit, including the wrong one. It now passes hundredths in and asserts
+  the decode against the scaled position, so the two units have to
+  agree.
+
+- **`scripts/benchmark.sh` compared yodel against nothing when the
+  reference decoder was broken.** Every `ref` column is a `grep` over
+  the decoder's trailer, so a decoder that dies in the dynamic loader
+  contributes an empty string and the table prints a blank cell beside
+  yodel's real number -- in a shootout whose only purpose is the
+  comparison. It now probes the decoder first and refuses to print a
+  table it cannot fill.
+
+- **`scripts/benchmark.sh` generated the synthetic inputs to `/tmp`
+  under names nothing else knew.** `tests/benchmark.rs` looks for the
+  same three recordings under `scratch/`, so running the benchmark
+  script did not enable the three pinned synthetic rows, and they were
+  skipped by everyone who had not reverse-engineered the filenames. Both
+  now come from `scripts/gen-bench-inputs.sh`.
 
 - **`decode --tnc2` invented packets when handed audio.** That flag
   means "the input is TNC2 monitor text", so no modem runs and the bytes
@@ -700,6 +782,7 @@ WSPR, FT8 and M17 (packet data) modes.
   signals, benchmark, and serve as a KISS TNC over TCP.
 - Optional tokio (`async`) and Embassy (`embassy`) adapters.
 
-[Unreleased]: https://github.com/cgorski/yodel/compare/v0.1.1...HEAD
+[Unreleased]: https://github.com/cgorski/yodel/compare/v0.1.2...HEAD
+[0.1.2]: https://github.com/cgorski/yodel/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/cgorski/yodel/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/cgorski/yodel/releases/tag/v0.1.0
