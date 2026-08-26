@@ -146,10 +146,21 @@ pub fn fill_position_beacon(
     // `Latitude`/`Longitude` validate the ±90°/±180° ranges at
     // construction; `Symbol::CAR` is the `/>` map glyph (pick any of
     // the named constants, e.g. Symbol::HOUSE, Symbol::JOGGER, ...).
+    //
+    // `from_hundredths_minute`, NOT `Latitude::new`: `new` counts
+    // coordinate storage units, of which there are 57 138 900 000 to
+    // the hundredth of an arc-minute. Handing it a hundredths count is
+    // off by that factor and is still a legal latitude -- 294 350 units
+    // is 8.6 micro-degrees, not 49.0583 degrees -- so nothing rejects
+    // it and the beacon keys up from 0000.00N/00000.00W. This example
+    // did exactly that. The constructor below takes the unit this
+    // function documents, and it range-checks instead of overflowing.
     let packet = AprsPacket::Position(
         Position::new(
-            Latitude::new(lat_hundredths_min).map_err(|e| TncError::Aprs(e.into()))?,
-            Longitude::new(lon_hundredths_min).map_err(|e| TncError::Aprs(e.into()))?,
+            Latitude::from_hundredths_minute(lat_hundredths_min)
+                .map_err(|e| TncError::Aprs(e.into()))?,
+            Longitude::from_hundredths_minute(lon_hundredths_min)
+                .map_err(|e| TncError::Aprs(e.into()))?,
             Symbol::CAR,
         )
         .with_comment(comment),

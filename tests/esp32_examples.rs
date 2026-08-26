@@ -31,12 +31,24 @@ use yodel::ax25::{Address, PathHop, UiFrame};
 use yodel::digipeat::WideLimit;
 use yodel::tnc::{DefaultTncReceiver, TncConfig, TncReceiver, TncTransmitter};
 
-/// 49.0583° N in signed 1/100 arc-minutes (degrees × 6000).
-/// In 1/100 arc-minutes, the unit the ESP32 example's API takes.
+/// 49.0583° N in signed 1/100 arc-minutes (degrees × 6000): the unit
+/// `fill_position_beacon` documents and takes.
 const LAT_HUNDREDTHS: i64 = 294_350;
-const LAT: i64 = LAT_HUNDREDTHS * yodel::geo::UNITS_PER_HUNDREDTH_MINUTE;
 /// 72.0292° W in signed 1/100 arc-minutes.
 const LON_HUNDREDTHS: i64 = -432_175;
+
+/// The same two positions in coordinate STORAGE units, for building the
+/// typed value the decode must equal.
+///
+/// The two units must be spelled separately here. Passing storage units
+/// to the beacon is what this test used to do, and it passed while the
+/// example's documented contract ("signed 1/100 arc-minutes") was
+/// wrong by a factor of 57 138 900 000 -- so a caller following the
+/// documentation beaconed from 0000.00N/00000.00W and the round trip
+/// still agreed with itself. Asserting the decode against
+/// `LAT_HUNDREDTHS` scaled here, while handing the beacon
+/// `LAT_HUNDREDTHS` raw, is what makes the two units disagree out loud.
+const LAT: i64 = LAT_HUNDREDTHS * yodel::geo::UNITS_PER_HUNDREDTH_MINUTE;
 const LON: i64 = LON_HUNDREDTHS * yodel::geo::UNITS_PER_HUNDREDTH_MINUTE;
 
 fn addr(call: &[u8], ssid: u8) -> Address {
@@ -51,8 +63,14 @@ fn addr(call: &[u8], ssid: u8) -> Address {
 #[test]
 fn beacon_round_trips_through_main_crate_receiver() {
     let mut pcm = vec![0i16; beacon::MAX_BEACON_SAMPLES];
-    let n = beacon::fill_position_beacon(addr(b"N0CALL", 9), LAT, LON, b"yodel esp32", &mut pcm)
-        .expect("beacon must render");
+    let n = beacon::fill_position_beacon(
+        addr(b"N0CALL", 9),
+        LAT_HUNDREDTHS,
+        LON_HUNDREDTHS,
+        b"yodel esp32",
+        &mut pcm,
+    )
+    .expect("beacon must render");
     assert!(n > 0, "beacon must produce samples");
     assert_eq!(
         n % beacon::SAMPLES_PER_BIT,
@@ -90,7 +108,13 @@ fn beacon_round_trips_through_main_crate_receiver() {
 fn beacon_reports_buffer_too_small() {
     let mut tiny = [0i16; 16];
     assert_eq!(
-        beacon::fill_position_beacon(addr(b"N0CALL", 9), LAT, LON, b"", &mut tiny),
+        beacon::fill_position_beacon(
+            addr(b"N0CALL", 9),
+            LAT_HUNDREDTHS,
+            LON_HUNDREDTHS,
+            b"",
+            &mut tiny
+        ),
         Err(beacon::BeaconError::BufferTooSmall)
     );
 }
