@@ -739,6 +739,73 @@ impl Latitude {
         }
     }
 
+    /// Creates a latitude from a **signed total** in hundredths of an
+    /// arc-minute, north positive.
+    ///
+    /// `degrees * 6000 + minutes * 100 + hundredths`, negated for the
+    /// southern hemisphere. This is the shape a test fixture, a
+    /// integer-only tracker or anything reading a `DDMM.hh` field
+    /// naturally has, where [`Self::from_degrees_minutes`] wants the
+    /// parts separately and a hemisphere.
+    ///
+    /// # Why this exists beside [`Self::new`]
+    ///
+    /// [`Self::new`] counts *storage* units, of which there are
+    /// [`UNITS_PER_HUNDREDTH_MINUTE`] (57 138 900 000) to the hundredth.
+    /// Handing it a hundredths total is off by that factor and is
+    /// nevertheless a **legal latitude** -- about nine millionths of a
+    /// degree -- so it is accepted in silence and the position quietly
+    /// becomes 0000.00N. Both arguments are `i64`, so the compiler
+    /// cannot help.
+    ///
+    /// That is not a hypothetical: it happened in five test fixtures
+    /// and in the ESP32 beacon example, where it made a documented
+    /// API transmit from null island. `scripts/check-coordinate-units.sh`
+    /// now refuses the spelling, and this constructor is what it points
+    /// at.
+    ///
+    /// ```
+    /// use yodel::geo::Latitude;
+    ///
+    /// // 49 degrees 03.50 minutes north.
+    /// let lat = Latitude::from_hundredths_minute(49 * 6000 + 350)?;
+    /// let dm = lat.degrees_minutes();
+    /// assert_eq!((dm.degrees, dm.hundredths_of_minute), (49, 350));
+    ///
+    /// // Negative is south, and the round trip is exact.
+    /// let south = Latitude::from_hundredths_minute(-(33 * 6000 + 2564))?;
+    /// assert_eq!(south.hundredths_minute(), -(33 * 6000 + 2564));
+    /// # Ok::<(), yodel::geo::GeoError>(())
+    /// ```
+    ///
+    /// # Errors
+    ///
+    /// [`GeoError::BadLatitude`] beyond 90 degrees, which is any
+    /// magnitude above `90 * 6000`.
+    pub const fn from_hundredths_minute(hundredths_of_minute: i64) -> Result<Self, GeoError> {
+        match hundredths_of_minute.checked_mul(UNITS_PER_HUNDREDTH_MINUTE) {
+            Some(units) => Self::new(units),
+            // Only reachable far outside the valid range, and the range
+            // check is what the caller wanted anyway.
+            None => Err(GeoError::BadLatitude { got: i64::MAX }),
+        }
+    }
+
+    /// The value as a signed total in hundredths of an arc-minute,
+    /// north positive: the exact inverse of
+    /// [`Self::from_hundredths_minute`] for any value built by it.
+    ///
+    /// Rounds to nearest, like [`Self::degrees_minutes`], so a
+    /// coordinate carrying finer detail than the wire resolution (from
+    /// a `!DAO!` refinement or a five-place NMEA sentence) reports the
+    /// nearest hundredth rather than truncating toward the equator.
+    #[must_use]
+    pub const fn hundredths_minute(self) -> i64 {
+        let dm = degrees_minutes(self.0);
+        let magnitude = dm.degrees as i64 * 6000 + dm.hundredths_of_minute as i64;
+        if self.0 < 0 { -magnitude } else { magnitude }
+    }
+
     /// Which side of the equator this latitude is on.
     ///
     /// The equator itself reports [`LatitudeHemisphere::North`], which
@@ -846,6 +913,50 @@ impl Longitude {
             LongitudeHemisphere::East => Self::new(magnitude),
             LongitudeHemisphere::West => Self::new(-magnitude),
         }
+    }
+
+    /// Creates a longitude from a **signed total** in hundredths of an
+    /// arc-minute, east positive.
+    ///
+    /// `degrees * 6000 + minutes * 100 + hundredths`, negated for the
+    /// western hemisphere. See
+    /// [`Latitude::from_hundredths_minute`] for why this exists beside
+    /// [`Self::new`] -- in short, `new` counts storage units, a
+    /// hundredths total handed to it is a legal longitude near
+    /// Greenwich, and nothing rejects the mistake.
+    ///
+    /// ```
+    /// use yodel::geo::Longitude;
+    ///
+    /// // 72 degrees 01.75 minutes west.
+    /// let lon = Longitude::from_hundredths_minute(-(72 * 6000 + 175))?;
+    /// let dm = lon.degrees_minutes();
+    /// assert_eq!((dm.degrees, dm.hundredths_of_minute), (72, 175));
+    /// assert_eq!(lon.hundredths_minute(), -(72 * 6000 + 175));
+    /// # Ok::<(), yodel::geo::GeoError>(())
+    /// ```
+    ///
+    /// # Errors
+    ///
+    /// [`GeoError::BadLongitude`] beyond 180 degrees, which is any
+    /// magnitude above `180 * 6000`.
+    pub const fn from_hundredths_minute(hundredths_of_minute: i64) -> Result<Self, GeoError> {
+        match hundredths_of_minute.checked_mul(UNITS_PER_HUNDREDTH_MINUTE) {
+            Some(units) => Self::new(units),
+            None => Err(GeoError::BadLongitude { got: i64::MAX }),
+        }
+    }
+
+    /// The value as a signed total in hundredths of an arc-minute, east
+    /// positive: the exact inverse of [`Self::from_hundredths_minute`]
+    /// for any value built by it.
+    ///
+    /// Rounds to nearest; see [`Latitude::hundredths_minute`].
+    #[must_use]
+    pub const fn hundredths_minute(self) -> i64 {
+        let dm = degrees_minutes(self.0);
+        let magnitude = dm.degrees as i64 * 6000 + dm.hundredths_of_minute as i64;
+        if self.0 < 0 { -magnitude } else { magnitude }
     }
 
     /// Which side of the prime meridian this longitude is on.
