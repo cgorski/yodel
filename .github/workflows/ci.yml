@@ -138,6 +138,19 @@ jobs:
       - uses: actions/checkout@v4
       - run: scripts/check-public-api-exercised.sh
 
+  # `Latitude::new` counts storage units and a 1/100 arc-minute count
+  # handed to it is a legal latitude near the equator, so the mistake
+  # compiles, passes its own round trip, and moves every affected
+  # fixture to 0000.00N/00000.00W. It reached five test files and the
+  # ESP32 beacon example before anyone ran the suites that could see it.
+  # Pure text analysis, so this needs no toolchain.
+  coordinate-units:
+    name: coordinate constructions name their unit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: scripts/check-coordinate-units.sh
+
   # docs/COVERAGE.md cites a few hundred tests by name and says they are
   # checked mechanically. This is what does the checking; without it the
   # claim decays into a few hundred hand-maintained rows that read as

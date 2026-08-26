@@ -1407,10 +1407,17 @@ fn parse_latitude(
     value_index: usize,
     hemisphere_index: usize,
 ) -> Result<Option<Latitude>, NmeaError> {
+    // `units`, not `hundredths`: `parse_coordinate` composes through
+    // `UNITS_PER_DEGREE`/`UNITS_PER_MINUTE` and returns coordinate
+    // storage units, which is what `Latitude::new` counts. The binding
+    // was named `hundredths` and read as though it were, which is the
+    // spelling `scripts/check-coordinate-units.sh` now refuses -- the
+    // value was right and only the name was wrong, but that is the
+    // whole difficulty with this unit: both are `i64`.
     match parse_coordinate(body, value_index, hemisphere_index, Axis::Latitude)? {
-        Some(hundredths) => Latitude::new(hundredths)
+        Some(units) => Latitude::new(units)
             .map(Some)
-            .map_err(|_| NmeaError::BadLatitude { got: hundredths }),
+            .map_err(|_| NmeaError::BadLatitude { got: units }),
         None => Ok(None),
     }
 }
@@ -1421,10 +1428,11 @@ fn parse_longitude(
     value_index: usize,
     hemisphere_index: usize,
 ) -> Result<Option<Longitude>, NmeaError> {
+    // Storage units, not hundredths of a minute; see `parse_latitude`.
     match parse_coordinate(body, value_index, hemisphere_index, Axis::Longitude)? {
-        Some(hundredths) => Longitude::new(hundredths)
+        Some(units) => Longitude::new(units)
             .map(Some)
-            .map_err(|_| NmeaError::BadLongitude { got: hundredths }),
+            .map_err(|_| NmeaError::BadLongitude { got: units }),
         None => Ok(None),
     }
 }
