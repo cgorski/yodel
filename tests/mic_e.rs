@@ -373,11 +373,11 @@ fn spec_chapter_10_ignores_the_low_longitude_digits() {
 #[test]
 fn coordinates_carries_the_declared_ambiguity() {
     const BLURRED: MicE<'static> = MicE {
-        latitude: match Latitude::new(-(52 * 6000 + 900)) {
+        latitude: match Latitude::new(-(52 * 6000 + 900) * yodel::geo::UNITS_PER_HUNDREDTH_MINUTE) {
             Ok(l) => l,
             Err(_) => panic!("in range"),
         },
-        longitude: match Longitude::new(3010) {
+        longitude: match Longitude::new(3010 * yodel::geo::UNITS_PER_HUNDREDTH_MINUTE) {
             Ok(l) => l,
             Err(_) => panic!("in range"),
         },

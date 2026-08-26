@@ -431,8 +431,14 @@ mod full_stack {
     fn oracle_position() -> AprsPacket<'static> {
         AprsPacket::Position(Position {
             ambiguity: Ambiguity::EXACT,
-            latitude: Latitude::new(42 * 6000 + 37 * 100 + 14).unwrap(),
-            longitude: Longitude::new(-(71 * 6000 + 20 * 100 + 83)).unwrap(),
+            latitude: Latitude::new(
+                (42 * 6000 + 37 * 100 + 14) * yodel::geo::UNITS_PER_HUNDREDTH_MINUTE,
+            )
+            .unwrap(),
+            longitude: Longitude::new(
+                -(71 * 6000 + 20 * 100 + 83) * yodel::geo::UNITS_PER_HUNDREDTH_MINUTE,
+            )
+            .unwrap(),
             symbol: Symbol::DIGI,
             messaging: false,
             compressed: false,
@@ -1068,8 +1074,14 @@ mod full_stack {
             // custom message set, old fix, altitude and ambiguity 2.
             mic_e_to_oracle(
                 &MicE {
-                    latitude: Latitude::new(-(33 * 6000 + 25 * 100)).unwrap(),
-                    longitude: Longitude::new(112 * 6000 + 7 * 100 + 74).unwrap(),
+                    latitude: Latitude::new(
+                        -(33 * 6000 + 25 * 100) * yodel::geo::UNITS_PER_HUNDREDTH_MINUTE,
+                    )
+                    .unwrap(),
+                    longitude: Longitude::new(
+                        (112 * 6000 + 7 * 100 + 74) * yodel::geo::UNITS_PER_HUNDREDTH_MINUTE,
+                    )
+                    .unwrap(),
                     speed: 105,
                     course: 60,
                     symbol: Symbol::CAR,

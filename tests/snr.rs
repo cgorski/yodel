@@ -21,7 +21,7 @@
 use yodel::SampleRate;
 use yodel::aprs::{AprsPacket, Latitude, Longitude, Position, Status, Symbol};
 use yodel::ax25::Address;
-use yodel::geo::Ambiguity;
+use yodel::geo::{Ambiguity, UNITS_PER_HUNDREDTH_MINUTE};
 use yodel::tnc::{DefaultTncReceiver, TncConfig, TncReceiver, TncTransmitter};
 
 /// 64-bit LCG (Knuth MMIX constants). Deterministic.
@@ -65,8 +65,14 @@ fn frame_samples(i: usize, sr_hz: u32) -> Vec<i16> {
     let packet = if i.is_multiple_of(2) {
         AprsPacket::Position(Position {
             ambiguity: Ambiguity::EXACT,
-            latitude: Latitude::new((i as i64 - 15) * 6000 + (i as i64) * 37).unwrap(),
-            longitude: Longitude::new((15 - i as i64) * 6000 - (i as i64) * 53).unwrap(),
+            latitude: Latitude::new(
+                ((i as i64 - 15) * 6000 + (i as i64) * 37) * UNITS_PER_HUNDREDTH_MINUTE,
+            )
+            .unwrap(),
+            longitude: Longitude::new(
+                ((15 - i as i64) * 6000 - (i as i64) * 53) * UNITS_PER_HUNDREDTH_MINUTE,
+            )
+            .unwrap(),
             symbol: Symbol::HOUSE,
             messaging: i.is_multiple_of(4),
             compressed: i.is_multiple_of(6),

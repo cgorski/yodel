@@ -514,8 +514,8 @@ fn untested_public_accessors() {
     // And they are what `encode` emits, not just what the accessor
     // claims.
     let report = MicE::new(
-        Latitude::new(33 * 6000 + 2564).unwrap(),
-        Longitude::new(-(112 * 6000 + 700)).unwrap(),
+        Latitude::new((33 * 6000 + 2564) * yodel::geo::UNITS_PER_HUNDREDTH_MINUTE).unwrap(),
+        Longitude::new(-(112 * 6000 + 700) * yodel::geo::UNITS_PER_HUNDREDTH_MINUTE).unwrap(),
         20,
         251,
         Symbol::from_wire(b'/', b'j'),

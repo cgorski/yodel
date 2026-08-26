@@ -9,7 +9,7 @@
 use yodel::SampleRate;
 use yodel::aprs::{AprsPacket, Latitude, Longitude, Position, Symbol};
 use yodel::ax25::Address;
-use yodel::geo::Ambiguity;
+use yodel::geo::{Ambiguity, UNITS_PER_HUNDREDTH_MINUTE};
 use yodel::tnc::{DefaultTncReceiver, SpaceGainSweep, TncConfig, TncReceiver, TncTransmitter};
 
 const SR: u32 = 48_000;
@@ -21,8 +21,8 @@ fn config() -> TncConfig {
 fn packet() -> AprsPacket<'static> {
     AprsPacket::Position(Position {
         ambiguity: Ambiguity::EXACT,
-        latitude: Latitude::new(34 * 6000 + 1234).unwrap(),
-        longitude: Longitude::new(-(118 * 6000 + 4321)).unwrap(),
+        latitude: Latitude::new((34 * 6000 + 1234) * UNITS_PER_HUNDREDTH_MINUTE).unwrap(),
+        longitude: Longitude::new(-(118 * 6000 + 4321) * UNITS_PER_HUNDREDTH_MINUTE).unwrap(),
         symbol: Symbol::CAR,
         messaging: false,
         compressed: false,
