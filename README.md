@@ -1764,14 +1764,17 @@ Tuning notes:
   scrambler, the FX.25/RS(255,k) FEC layer, the TNC pipeline and the
   CLI. Every cell cites at least one passing test.
 * **Differential harness**: `tests/differential.rs` checks the stack
-  against an independent reference implementation (external oracle,
-  `#[ignore]`d unless the reference binaries are configured) over a
-  seeded 320-case corpus spanning 16 packet kinds. Agreement is
-  100 % (320/320) in both directions: our transmit against the
-  reference decoder, and the reference generator against our receiver.
-  An SNR shootout decodes the *same* noisy WAV with both decoders and
-  asserts ours recovers at least as many frames as the reference at
-  every asserted level (we tie 50/50 from clean down to 1.5 dB).
+  against an independent reference implementation over a seeded
+  320-case corpus spanning 16 packet kinds. Agreement is 100 %
+  (320/320) in both directions: our transmit against the reference
+  decoder, and the reference generator against our receiver. An SNR
+  shootout decodes the *same* noisy WAV with both decoders and asserts
+  ours recovers at least as many frames as the reference at every
+  asserted level (we tie 50/50 from clean down to 1.5 dB). The two
+  cross-implementation directions need the reference binaries and are
+  ignored by default; building the corpus and round-tripping all 320
+  cases through our own encoder and decoder needs nothing, and runs on
+  every `cargo test`.
 * **Fuzz robustness**: `tests/fuzz_decode.rs` drives every decoder and
   parser with hundreds of thousands of seeded random, truncated and
   corrupted inputs, covering bytes, bits, frames and raw PCM (including

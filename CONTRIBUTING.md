@@ -38,17 +38,32 @@ seams" and "Modes considered and declined".
 
 ```sh
 cargo build                     # default features (mod + demod)
-cargo test --all-features       # the full suite: 378 unit tests +
-                                # 54 integration test files + 167 doctests.
+cargo test --all-features       # the full suite: 397 unit tests +
+                                # 55 integration test files + 171 doctests
+                                # (164 run, 7 `rust,ignore` fences).
                                 # Re-derive these rather than trusting them;
                                 # they drift with every test added.
 ```
 
-Ten suites carry `#[ignore]`d tests, 62 of them in `tests/` as of this
-writing (`grep -c '#\[ignore' tests/*.rs` re-derives the split). Nine
-need an external binary, the operator-provided audio corpus, or the
-generated WAVs under `scratch/`, and pass with a skip message when those
-are absent: `tests/oracle.rs`, `tests/differential.rs`,
+Ten suites carry ignored tests, 55 of them in `tests/` as of this
+writing, plus the 7 ignored doctest fences below for 62 in a full run.
+Re-derive with the attribute anchored to its own line:
+
+```sh
+grep -c '^[[:space:]]*#\[ignore' tests/*.rs | awk -F: '{s+=$2} END {print s}'
+```
+
+The anchor matters. An unanchored `grep -c '#\[ignore'` also counts every
+prose mention of the attribute in a doc comment, and this file used to
+quote its result as "62 in `tests/`" -- a number that was really the
+whole-run total, doctests included, matching only because three comment
+lines happened to pad the difference. Two of those comments were added
+in the same change that noticed.
+
+Nine of the ten suites need an external binary, the operator-provided
+audio corpus, or the generated WAVs under `scratch/`, and pass with a
+skip message when those are absent: `tests/oracle.rs`,
+`tests/differential.rs`,
 `tests/aprs_differential.rs`, `tests/il2p_differential.rs`,
 `tests/wspr_differential.rs`, `tests/ft8_differential.rs`,
 `tests/benchmark.rs`, `tests/corpus_aprs.rs` and `tests/cli.rs`. The
@@ -71,12 +86,22 @@ easy to miscount by eye.
 
 ## Lint gates
 
-Both must be clean before any commit:
+All of these must be clean before any commit:
 
 ```sh
 cargo fmt --check
 cargo clippy --all-features --all-targets -- -D warnings
+scripts/check-coordinate-units.sh
 ```
+
+The third is a text audit, not a compiler pass, because the property it
+checks is invisible to the compiler: `Latitude::new` and
+`Longitude::new` count coordinate *storage* units, the wire carries
+1/100 arc-minutes, both are `i64`, and a hundredths count handed to
+`new` is a legal latitude near the equator. It rejects any construction
+whose argument does not name its unit. Reach for
+`Latitude::from_hundredths_minute` or `from_degrees_minutes` rather than
+scaling by hand.
 
 ## Embedded matrix
 
@@ -236,9 +261,9 @@ way: status report text (126 corpus frames, never compared), station
 capabilities (8), Ultimeter records (57), and timestamps as values.
 `DFS` cannot be done this way, because the reference does not decode it.
 
-## Two ways a test suite lies to you
+## Three ways a test suite lies to you
 
-Both were found in this suite.
+All three were found in this suite.
 
 ### A set-but-wrong `YODEL_REF_*` path used to pass
 
@@ -284,6 +309,38 @@ what "13/13" is out of.
 The general shape to watch for: *if the input set were empty, would this
 test still pass?* Ratchet floors (`MIN_COMPARED`) are the same defence
 at the other end of the file.
+
+### A suite CI compiles but never runs rots at the fixtures
+
+CI compiles every `#[ignore]`d suite -- `--all-features` builds them,
+and `scripts/check-embedded.sh tests` builds them once per feature set --
+so an `#[ignore]`d suite is protected against the errors a compiler can
+see and against nothing else. `tests/differential.rs` and
+`tests/aprs_differential.rs` had **fixtures on the old coordinate unit**:
+`Latitude::new(49 * 6000 + 350)` and a `rand_lat` composing
+`deg * 6000 + min * 100 + hundredths`, handed straight to a constructor
+that counts storage units. Both still compiled. Both are the exact
+hazard `tests/coordinate_paths.rs` was written to prevent, right down to
+the literal in its own header comment.
+
+The cost was total: every one of the 320 differential cases collapsed to
+0000.00N/00000.00W, and the very first case failed its own
+encode-decode identity, so the whole suite panicked during corpus
+generation before it ever reached the reference binaries. Any run would
+have said so immediately -- nobody ran one.
+
+Two lessons, and the second is the one that generalises:
+
+1. **Run the ignored suites after touching anything they name.** A unit
+   change, a constructor rename, a wire-format tweak: `cargo test
+   --release -- --ignored` with the `YODEL_REF_*` variables set, before
+   the commit that claims a tier-4 number.
+2. **A fixture written in a bare literal outlives the unit it was
+   written in.** `tests/coordinate_paths.rs` says this in its header and
+   the differentials violated it anyway, because they are the files
+   nobody re-reads. Compose fixtures through the named constant
+   (`UNITS_PER_HUNDREDTH_MINUTE`) or a physical-quantity constructor, so
+   the compiler or the value moves with the unit.
 
 ### Checking that every public function is exercised
 
@@ -736,6 +793,50 @@ export YODEL_REF_DECODE=/path/to/reference-decoder
 cargo test --all-features -- --ignored
 ```
 
+#### Name the interface, because the name is not available
+
+A reference project may not be named in a tracked file, which means a
+variable cannot be documented as "point this at *X*". Describe the
+**interface** instead. It is not a courtesy: two binaries shipped by the
+same project, with the same stem, can differ entirely, and "wav-writing
+generator" does not choose between them. That cost a debugging session
+here -- the WSPR generator variable was pointed at a sibling that writes
+a `.c2` file, the run failed with an empty message, and nothing said
+what had been expected.
+
+| Variable | Interface it must satisfy |
+|---|---|
+| `YODEL_REF_GEN` | AX.25 generator. `-n <count> -o <file.wav>`, plus `-B <baud>` and `-X 1` (FX.25) and `-I 1` (IL2P). Writes a WAV. |
+| `YODEL_REF_DECODE` | AX.25 decoder. Takes a WAV path, accepts `-B <baud>` and `-P <profile>`, prints one monitor line per frame and a `<n> packets decoded` trailer. |
+| `YODEL_REF_APRS` | APRS **text** decoder. Reads TNC2 monitor lines on stdin, prints a human-readable dissection. Not the audio decoder above. |
+| `YODEL_REF_WSPR_ENCODE` | Prints WSPR channel symbols for a message (a `-c`-style flag). |
+| `YODEL_REF_WSPR_GEN` | `"message" f0 DT fspread delay nwav nfiles snr`, positional, writes a **WAV**. Distinct from the encoder above even where the two share a name. |
+| `YODEL_REF_WSPR_DECODE` | Takes a WSPR WAV or `.c2` and prints decoded messages. |
+| `YODEL_REF_FT8_ENCODE` | Prints FT8 **intermediates**: the 77 source bits, the CRC, the parity bits and the 79 symbols. |
+| `YODEL_REF_FT8_GEN` | `"message" f0 DT fdop delay nfiles snr`, positional, writes a WAV. |
+| `YODEL_REF_FT8_DECODE` | `<MaxIt> <Norder> <file.wav>`, prints decoded messages. |
+
+Keep the paths in a gitignored file rather than retyping them --
+`scratch/` is already ignored, so `scratch/ref-env.sh` full of `export`
+lines works and never reaches the tree.
+
+Every suite asserts the exit status of what it runs and prints **argv,
+the status and both streams** on failure. Keep it that way: a CLI that
+rejects its arguments prints usage to *stdout*, so a message carrying
+only stderr reports a failure and no reason.
+
+**On macOS**, a Homebrew upgrade can leave a reference binary linked
+against a library version that no longer exists, and it will then die in
+the dynamic loader before `main`. Setting `DYLD_LIBRARY_PATH` is not a
+reliable fix, because macOS strips `DYLD_*` from the environment of
+SIP-protected shells, so it may not survive to the binary. Relink the
+binary once instead:
+
+```sh
+install_name_tool -change /old/path/libfoo.dylib /actual/path/libfoo.dylib BINARY
+codesign -f -s - BINARY
+```
+
 ### WSPR interoperability
 
 `tests/wspr_differential.rs` is the same idea one layer up. It exists
@@ -848,6 +949,50 @@ bug can *only* be caught by tier 3 or 4, that is a gap in tiers 1–2;
 close it by adding a synthetic or vector-based test that reproduces it.
 The long-term goal is for `reference/` to be a cross-check we could
 delete without losing confidence.
+
+## Before a release
+
+CI runs tiers 1 and 2 on every push. Tiers 3 and 4 run nowhere but on a
+maintainer's machine, and the numbers this project advertises come from
+them, so they are a release gate rather than a nicety.
+
+Every claim below was found stale or unverifiable at least once, in each
+case because the suite behind it had not been run since the change that
+broke it.
+
+```sh
+# 1. Everything CI runs, locally.
+cargo fmt --check
+cargo clippy --all-features --all-targets -- -D warnings
+cargo test --all-features
+RUSTDOCFLAGS='-D warnings' cargo doc --all-features --no-deps
+scripts/check-public-api-exercised.sh
+scripts/check-coordinate-units.sh
+scripts/check-coverage-citations.sh
+scripts/check-embedded.sh
+cargo publish --dry-run --all-features
+
+# 2. The corpus and reference tiers. See "The `reference/` directory"
+#    for the variables; keep them in a gitignored scratch/ref-env.sh.
+. scratch/ref-env.sh
+scripts/gen-bench-inputs.sh
+cargo test --release --all-features --no-fail-fast -- --ignored
+```
+
+`--no-fail-fast` is not optional: cargo stops at the first failing test
+*binary*, and the ignored tier spans a dozen of them, so without it a
+single early failure hides the state of everything after it
+alphabetically.
+
+The second command must report **every** ignored test passing, not
+"passing or skipped". A skip means a variable is unset or an input is
+missing, and a release measured with half the tier skipped is exactly
+the situation this checklist exists to prevent. `61 passed` with one
+skipped is a red result.
+
+Then re-derive anything the release notes assert -- frame counts,
+coverage percentages, `320/320` -- from that run's output rather than
+from the previous release's notes.
 
 ## Commit hygiene
 

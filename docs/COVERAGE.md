@@ -66,15 +66,26 @@ Tiers are `CONTRIBUTING.md`'s (1–2 hermetic and CI-gating, 3 needs
 
 | Tier | Needs | Cases | Where |
 |---|---|---|---|
-| 1–2 | nothing | 1010 fns + 149 doctests = **1159** | everything `cargo test --all-features` runs; the only tier CI gates |
-| 3 | `corpus/` or `scratch/` WAVs | 6 | `tests/corpus_aprs.rs` (2), `tests/benchmark.rs` (4) |
+| 1–2 | nothing | 1156 fns + 164 doctests = **1320** | everything `cargo test --all-features` runs; the only tier CI gates |
+| 3 | `corpus/` or `scratch/` WAVs | 8 | `tests/corpus_aprs.rs` (3), `tests/benchmark.rs` (4), `tests/cli.rs` (1) |
 | 4 | the external reference binaries | 46 | `tests/oracle.rs` (31), `tests/differential.rs` (5), `tests/wspr_differential.rs` (3), `tests/ft8_differential.rs` (3), `tests/aprs_differential.rs` (2; one of them also wants `corpus/`), `tests/il2p_differential.rs` (2) |
-| — | nothing; `#[ignore]`d on runtime cost alone | 1 | `tests/ber.rs::ber_curve_fine_sweep` (dense 0.5 dB-step sweep) |
-| — | nothing; not compiled by a default run | 9 | the `rust,ignore` fences: 6 in `README.md`, 3 in `docs/EMBEDDED.md`; see the doctest note below |
+| — | nothing; ignored on runtime cost alone | 1 | `tests/ber.rs::ber_curve_fine_sweep` (dense 0.5 dB-step sweep) |
+| — | nothing; not compiled by a default run | 7 | the `rust,ignore` fences: 4 in `README.md`, 3 in `docs/EMBEDDED.md`; see the doctest note below |
 
 The ignored total is external material, one cost-gated sweep, and the
 `rust,ignore` fences. That is the whole of the gap between the passed
-count and the case count.
+count and the case count: 1320 passed, 8 + 46 + 1 = 55 ignored in
+`tests/`, 7 ignored fences, 62 ignored in all.
+
+Every number in that table is derivable from one run and one `grep`, and
+none of them were, before the run that produced this revision. The
+previous version undercounted tier 3 by two whole files, missed
+`tests/cli.rs` entirely, and quoted a fence count that no longer
+matched the sources. Re-derive rather than edit: the test totals come
+from aggregating `^test result:` over `cargo test --all-features`, and
+the per-file ignore counts from
+`grep -c '^[[:space:]]*#\[ignore' tests/*.rs` -- anchored, or it also
+counts doc comments that merely mention the attribute.
 
 ### What moved, per file
 
