@@ -72,7 +72,7 @@ use yodel::aprs::{
     DecodedKind, Latitude, Longitude, NmeaSource, Position, PositionCs, Symbol, WeatherReport,
     mic_e,
 };
-use yodel::geo::Ambiguity;
+use yodel::geo::{Ambiguity, UNITS_PER_HUNDREDTH_MINUTE};
 use yodel::tnc::{DefaultTncReceiver, TncConfig};
 use yodel::units::{Bearing, Distance, Humidity, Rainfall, Speed, Temperature};
 
@@ -261,6 +261,23 @@ const MAX_GAP: &[(&str, usize)] = &[
     ("wx rain midnight", 0),
 ];
 
+/// Ceiling on how many position comparisons may be relaxed to the
+/// sender's declared precision (see [`position_slack_degrees`]).
+///
+/// A ceiling rather than a floor, and the reason is the shape of the
+/// mistake it guards. Relaxing a comparison is the one edit that can
+/// only ever make this test greener, so it is exactly the edit that
+/// must be bounded: without this, widening the ambiguity allowance --
+/// or a parser regression that started reporting ambiguity where the
+/// wire declares none -- would turn every position disagreement in the
+/// corpus into a pass, and the row would keep reporting a confident
+/// zero.
+///
+/// MEASURED: 59 of 2182 frames declare ambiguity, all Mic-E, all from a
+/// single sender. The ceiling is a little above that so the corpus can
+/// grow, and far below the 1 724 positions the row compares.
+const MAX_AMBIGUITY_RELAXED: usize = 70;
+
 /// Exact frame counts for `synthetic_formats_agree_with_reference_decoder`.
 ///
 /// Equalities rather than ratchets: every frame in that test is one it
@@ -367,6 +384,13 @@ struct Weather {
 #[derive(Debug, Clone, Default)]
 struct Fields {
     position: Option<Degrees>,
+    /// How many low-order position digits the *sender* declared masked.
+    ///
+    /// Only ever set on our side, and only to relax the position
+    /// comparison to the precision the sender actually claimed. See
+    /// [`position_slack_degrees`] for why that is a difference of
+    /// interpretation rather than a defect on either side.
+    position_ambiguity: Ambiguity,
     course: Option<u16>,
     /// Degrees of slack the course comparison is allowed, which is the
     /// resolution the *source* carries rather than a fudge factor.
@@ -406,6 +430,60 @@ fn degrees(coordinates: Coordinates) -> Degrees {
         latitude: coordinates.latitude.to_degrees(),
         longitude: coordinates.longitude.to_degrees(),
     }
+}
+
+/// Records a position *and* the precision its sender declared.
+///
+/// Always prefer this to assigning `fields.position` directly: the
+/// ambiguity travels with the coordinate through
+/// [`position_slack_degrees`], and a position recorded without it is
+/// silently compared as though the sender had claimed full resolution.
+fn set_position(fields: &mut Fields, coordinates: Coordinates) {
+    fields.position = Some(degrees(coordinates));
+    fields.position_ambiguity = coordinates.ambiguity;
+}
+
+/// The degrees of slack the position comparison is allowed, which is
+/// the resolution the *sender* declared rather than a fudge factor.
+///
+/// [`Ambiguity::EXACT`] gives [`TOLERANCE_DEG`], the reference's display
+/// rounding and nothing more.
+///
+/// # Why an ambiguous position may legitimately differ
+///
+/// APRS position ambiguity blanks low-order digits. Chapter 6 spells it
+/// with literal spaces in the latitude, and the longitude has no way to
+/// spell it at all -- Mic-E cannot blank a longitude digit, and chapter
+/// 10 therefore leaves discarding the corresponding low-order longitude
+/// digits to the receiver.
+///
+/// This crate does that discarding: `coordinates()` masks **both** axes
+/// with `geo::Ambiguity::mask`, which was a deliberate fix (see
+/// `docs/APRS_CONFORMANCE.md` §3 -- the crate had been publishing a
+/// longitude up to 33 km finer than the sender declared). The reference
+/// decoder masks only the latitude, because that is the axis the wire
+/// blanks for it.
+///
+/// So on an ambiguous frame the two implementations disagree by
+/// construction, in the digits the sender said not to trust, and
+/// neither is wrong. MEASURED on this corpus: 59 frames declare
+/// ambiguity, all from one sender, and every disagreement they produce
+/// is exactly this. Comparing them at full resolution asserted that we
+/// reproduce a precision we deliberately refuse to publish.
+///
+/// The slack is granted only where the sender's own declaration
+/// justifies it, and never on an exact position -- an unconditional
+/// tolerance would swallow the value defects this row exists to catch,
+/// and the relaxation is counted and ratcheted
+/// ([`MAX_AMBIGUITY_RELAXED`]) so it cannot quietly grow to cover the
+/// corpus.
+fn position_slack_degrees(ambiguity: Ambiguity) -> f64 {
+    if ambiguity == Ambiguity::EXACT {
+        return TOLERANCE_DEG;
+    }
+    #[allow(clippy::cast_precision_loss)] // ratio of two exact integers
+    let step = ambiguity.step() as f64 / yodel::geo::UNITS_PER_DEGREE as f64;
+    step + TOLERANCE_DEG
 }
 
 /// Records a speed in both units the reference prints.
@@ -555,7 +633,7 @@ fn packet_fields(packet: &AprsPacket<'_>) -> Fields {
     let mut fields = Fields::default();
     match packet {
         AprsPacket::Position(p) => {
-            fields.position = Some(degrees(p.coordinates()));
+            set_position(&mut fields, p.coordinates());
             set_symbol(&mut fields, p.symbol);
             if let Some(ext) = &p.extension {
                 apply_extension(&mut fields, ext);
@@ -563,7 +641,7 @@ fn packet_fields(packet: &AprsPacket<'_>) -> Fields {
             fields.altitude_feet = p.altitude_feet();
         }
         AprsPacket::PositionCs(p) => {
-            fields.position = Some(degrees(p.coordinates()));
+            set_position(&mut fields, p.coordinates());
             set_symbol(&mut fields, p.position.symbol);
             apply_cs(&mut fields, p.cs);
             if let Some(feet) = p.position.altitude_feet() {
@@ -571,7 +649,7 @@ fn packet_fields(packet: &AprsPacket<'_>) -> Fields {
             }
         }
         AprsPacket::PositionTimestamped(p) => {
-            fields.position = Some(degrees(p.coordinates()));
+            set_position(&mut fields, p.coordinates());
             set_symbol(&mut fields, p.position.symbol);
             if let Some(ext) = &p.position.extension {
                 apply_extension(&mut fields, ext);
@@ -582,19 +660,19 @@ fn packet_fields(packet: &AprsPacket<'_>) -> Fields {
             }
         }
         AprsPacket::PositionWeather(w) => {
-            fields.position = Some(degrees(w.coordinates()));
+            set_position(&mut fields, w.coordinates());
             set_symbol(&mut fields, w.symbol);
             apply_weather(&mut fields, &w.weather);
             fields.altitude_feet = extension::altitude_feet(w.rest);
         }
         AprsPacket::Weather(w) => apply_weather(&mut fields, &w.weather),
         AprsPacket::Object(o) => {
-            fields.position = Some(degrees(o.coordinates()));
+            set_position(&mut fields, o.coordinates());
             set_symbol(&mut fields, o.symbol);
             fields.altitude_feet = extension::altitude_feet(o.comment);
         }
         AprsPacket::Item(i) => {
-            fields.position = Some(degrees(i.coordinates()));
+            set_position(&mut fields, i.coordinates());
             set_symbol(&mut fields, i.symbol);
             fields.altitude_feet = extension::altitude_feet(i.comment);
         }
@@ -614,6 +692,8 @@ fn our_fields(dest_call: &[u8; 6], source_ssid: u8, info: &[u8]) -> Fields {
         DecodedKind::Packet(p) => packet_fields(&p),
         DecodedKind::Nmea(sentence) => {
             let mut fields = Fields {
+                // NMEA has no ambiguity spelling at all, so the default
+                // `Ambiguity::EXACT` is exact rather than a fallback.
                 position: sentence.position().map(degrees),
                 course: sentence.course().map(Bearing::degrees),
                 altitude_feet: sentence.altitude().map(Distance::feet),
@@ -650,8 +730,10 @@ fn our_fields(dest_call: &[u8; 6], source_ssid: u8, info: &[u8]) -> Fields {
         // Mic-E is not an `AprsPacket` variant: it needs the destination.
         _ => match mic_e::decode(dest_call, info) {
             Ok(m) => {
+                let coordinates = m.coordinates();
                 let mut fields = Fields {
-                    position: Some(degrees(m.coordinates())),
+                    position: Some(degrees(coordinates)),
+                    position_ambiguity: coordinates.ambiguity,
                     course: Some(m.course),
                     altitude_feet: m
                         .altitude
@@ -1151,6 +1233,7 @@ fn aprs_fields_agree_with_reference_decoder() {
     let mut tallies: BTreeMap<&str, Tally> = BTreeMap::new();
     let mut symbol_pairs: Vec<((u8, u8), String)> = Vec::new();
     let rendered: Vec<&str> = lines.lines().collect();
+    let mut ambiguity_relaxed = 0usize;
 
     for (index, (a, b)) in ours.iter().zip(theirs.iter()).enumerate() {
         let c = dtis[index];
@@ -1160,13 +1243,20 @@ fn aprs_fields_agree_with_reference_decoder() {
             line: rendered.get(index).copied().unwrap_or(""),
         };
 
+        // Compared at the precision the sender declared, not at full
+        // resolution: see `position_slack_degrees`. Relaxations are
+        // counted so the allowance cannot quietly spread.
+        let slack = position_slack_degrees(a.position_ambiguity);
+        if a.position_ambiguity != Ambiguity::EXACT && a.position.is_some() {
+            ambiguity_relaxed += 1;
+        }
         tallies.entry("position").or_default().compare(
             &frame,
             a.position,
             b.position,
             |x: Degrees, y: Degrees| {
-                (x.latitude - y.latitude).abs() <= TOLERANCE_DEG
-                    && (x.longitude - y.longitude).abs() <= TOLERANCE_DEG
+                (x.latitude - y.latitude).abs() <= slack
+                    && (x.longitude - y.longitude).abs() <= slack
             },
         );
 
@@ -1289,6 +1379,10 @@ fn aprs_fields_agree_with_reference_decoder() {
     // ---- report ------------------------------------------------------
     println!("frames: {}", ours.len());
     println!(
+        "positions compared at the sender's declared precision: {ambiguity_relaxed} \
+         (ceiling {MAX_AMBIGUITY_RELAXED})"
+    );
+    println!(
         "\n{:<18} {:>9} {:>9} {:>10} {:>7}",
         "field", "compared", "disagree", "only ours", "gap"
     );
@@ -1347,6 +1441,13 @@ fn aprs_fields_agree_with_reference_decoder() {
             ));
         }
     }
+    if ambiguity_relaxed > MAX_AMBIGUITY_RELAXED {
+        failures.push(format!(
+            "{ambiguity_relaxed} position comparisons were relaxed to the sender's \
+             declared precision, ceiling is {MAX_AMBIGUITY_RELAXED} — the allowance \
+             is spreading, or ambiguity is being read where the wire declares none"
+        ));
+    }
     for (name, t) in &tallies {
         if !t.disagreements.is_empty() {
             failures.push(format!(
@@ -1389,8 +1490,10 @@ fn compressed_position(cs: CompressedCs) -> PositionCs<'static> {
     PositionCs {
         position: Position {
             ambiguity: Ambiguity::EXACT,
-            latitude: Latitude::new(49 * 6000 + 3000).expect("latitude"),
-            longitude: Longitude::new(-(72 * 6000 + 4500)).expect("longitude"),
+            latitude: Latitude::new((49 * 6000 + 3000) * UNITS_PER_HUNDREDTH_MINUTE)
+                .expect("latitude"),
+            longitude: Longitude::new(-(72 * 6000 + 4500) * UNITS_PER_HUNDREDTH_MINUTE)
+                .expect("longitude"),
             symbol: Symbol::CAR,
             messaging: true,
             compressed: true,
@@ -1525,8 +1628,10 @@ fn synthetic_formats_agree_with_reference_decoder() {
     for miles in [1u16, 5, 20, 50, 100, 1000, 9999] {
         let position = Position {
             ambiguity: Ambiguity::EXACT,
-            latitude: Latitude::new(49 * 6000 + 350).expect("latitude"),
-            longitude: Longitude::new(-(72 * 6000 + 175)).expect("longitude"),
+            latitude: Latitude::new((49 * 6000 + 350) * UNITS_PER_HUNDREDTH_MINUTE)
+                .expect("latitude"),
+            longitude: Longitude::new(-(72 * 6000 + 175) * UNITS_PER_HUNDREDTH_MINUTE)
+                .expect("longitude"),
             symbol: Symbol::from_wire(b'/', b'#'),
             messaging: false,
             compressed: false,
