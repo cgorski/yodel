@@ -40,7 +40,7 @@ use yodel::aprs::{
     PositionlessWeather, Status, Symbol, Telemetry, Timestamp, WeatherReport,
 };
 use yodel::ax25::Address;
-use yodel::geo::Ambiguity;
+use yodel::geo::{Ambiguity, LatitudeHemisphere, LongitudeHemisphere, UNITS_PER_HUNDREDTH_MINUTE};
 use yodel::tnc::{DefaultTncReceiver, TncConfig, TncTransmitter};
 use yodel::units::{Humidity, Pressure, Rainfall, Speed, Temperature};
 use yodel::{ModemProfile, TonePair};
@@ -276,15 +276,29 @@ const COMMENTS: [&[u8]; 4] = [b"", b"case ", b"yodel diff ", b"trail "];
 const SYMBOL_CODES: [u8; 5] = [b'#', b'>', b'j', b'O', b'-'];
 const SYMBOL_TABLES: [u8; 3] = [b'/', b'\\', b'Q'];
 
-/// A latitude in 1/100 arc-minutes for quadrant `q & 1` (0 north).
+/// A latitude in coordinate storage units for quadrant `q & 1`
+/// (0 north), drawn on the 1/100 arc-minute grid.
+///
+/// The draw is composed in hundredths of an arc-minute -- the
+/// resolution every wire format here carries -- and scaled to storage
+/// units at the end, because that is what `Latitude::new` counts. The
+/// scaling is not cosmetic: a bare hundredths count is a legal
+/// magnitude, so `Latitude::new` accepts it silently and every case in
+/// the corpus becomes 0000.00N/00000.00W. Staying on the hundredths
+/// grid also matters, because both the uncompressed and Mic-E formats
+/// round to it on the way out and an off-grid value would fail its own
+/// round trip for reasons that are nobody's bug.
 fn rand_lat(rng: &mut Lcg, q: u64) -> i64 {
-    let v = (rng.next(90) * 6000 + rng.next(60) * 100 + rng.next(100)) as i64;
+    let hundredths = (rng.next(90) * 6000 + rng.next(60) * 100 + rng.next(100)) as i64;
+    let v = hundredths * UNITS_PER_HUNDREDTH_MINUTE;
     if q & 1 == 0 { v } else { -v }
 }
 
-/// A longitude in 1/100 arc-minutes for quadrant bit `q & 2` (0 east).
+/// A longitude in coordinate storage units for quadrant bit `q & 2`
+/// (0 east), drawn on the 1/100 arc-minute grid. See [`rand_lat`].
 fn rand_lon(rng: &mut Lcg, q: u64) -> i64 {
-    let v = (rng.next(180) * 6000 + rng.next(60) * 100 + rng.next(100)) as i64;
+    let hundredths = (rng.next(180) * 6000 + rng.next(60) * 100 + rng.next(100)) as i64;
+    let v = hundredths * UNITS_PER_HUNDREDTH_MINUTE;
     if q & 2 == 0 { v } else { -v }
 }
 
@@ -363,12 +377,27 @@ fn build_and_round_trip(packet: &AprsPacket<'_>, kind: &str, i: usize) -> Vec<u8
     info
 }
 
-/// Builds the canonical (wire-stable) form of a `csT`-bearing report:
-/// the exponential course/speed/range/altitude wire codes round *to
-/// the nearest representable value* on build (and the altitude parse
-/// truncates to whole feet), so build+parse is iterated to its fixed
-/// point (converges in a few steps because the parsed value only moves
-/// toward a representable code) and the fixed point is asserted.
+/// Builds the canonical (wire-stable) form of a report whose wire
+/// format cannot hold every value we can ask for, and asserts the
+/// round trip at the fixed point instead of on the first build.
+///
+/// Two independent quantizations need this:
+///
+/// * the exponential course/speed/range/altitude `csT` wire codes round
+///   *to the nearest representable value* on build (and the altitude
+///   parse truncates to whole feet);
+/// * **any base-91 compressed position**, `csT` or not. The compressed
+///   coordinate grid is one step per 900 000 000 storage units, and the
+///   1/100 arc-minute grid the cases are drawn on is 57 138 900 000 --
+///   neither divides the other, so a legal drawn coordinate is almost
+///   never representable and build lands on a neighbouring grid point.
+///   That is the format's documented resolution, not a defect, so
+///   `pos_compressed_nodata` belongs here rather than in
+///   [`build_and_round_trip`] despite carrying no `cs` field at all.
+///
+/// build+parse is iterated to its fixed point (a few steps: the parsed
+/// value only ever moves toward a representable code) and the fixed
+/// point is asserted.
 fn canonicalize_cs(packet: &AprsPacket<'_>, kind: &str, i: usize) -> Vec<u8> {
     let mut buf = [0u8; 256];
     let len = packet.build(&mut buf).unwrap();
@@ -481,7 +510,9 @@ fn generate_corpus() -> Vec<TxCase> {
                         comment: &comment,
                     });
                     let kind = "pos_compressed_nodata";
-                    (kind, dest, build_and_round_trip(&p, kind, i), false)
+                    // Compressed: quantized to the base-91 coordinate
+                    // grid, so the fixed point is the only stable form.
+                    (kind, dest, canonicalize_cs(&p, kind, i), false)
                 }
                 3..=5 => {
                     let (kind, cs, t) = match kind_idx {
@@ -554,7 +585,17 @@ fn generate_corpus() -> Vec<TxCase> {
                         cs: CompressedCs::NoData,
                         compression_type: CompressionType::default(),
                     });
-                    (kind, dest, build_and_round_trip(&p, kind, i), false)
+                    // Same split as kinds 2 and 3..=5: the compressed
+                    // spelling quantizes the coordinate to the base-91
+                    // grid and only its fixed point round-trips, while
+                    // the uncompressed one carries the drawn hundredths
+                    // exactly and must round-trip on the first build.
+                    let info = if compressed {
+                        canonicalize_cs(&p, kind, i)
+                    } else {
+                        build_and_round_trip(&p, kind, i)
+                    };
+                    (kind, dest, info, false)
                 }
                 8 => {
                     let id = tag(i);
@@ -729,9 +770,15 @@ fn generate_corpus() -> Vec<TxCase> {
                         lon_deg * 6000 + rng.next(60) as i64 * 100 + (4 + rng.next(95)) as i64;
                     let lon = if q & 2 == 0 { lon_mag } else { -lon_mag };
                     let status = [b"/status " as &[u8], &tag(i)].concat();
+                    // `lat`/`lon` are hundredths of an arc-minute,
+                    // because that is the grid Mic-E carries and the
+                    // grid the ambiguity blanking above operates on.
+                    // The typed constructors count storage units, so
+                    // scale here rather than blanking in units and
+                    // losing the digit arithmetic.
                     let report = MicE {
-                        latitude: Latitude::new(lat).unwrap(),
-                        longitude: Longitude::new(lon).unwrap(),
+                        latitude: Latitude::new(lat * UNITS_PER_HUNDREDTH_MINUTE).unwrap(),
+                        longitude: Longitude::new(lon * UNITS_PER_HUNDREDTH_MINUTE).unwrap(),
                         // Speed <= 189 keeps the SP byte printable;
                         // course % 100 in 4..=98 keeps SE printable.
                         speed: rng.next(190) as u16,
@@ -841,6 +888,138 @@ fn render_addr(a: Address) -> String {
     } else {
         format!("{call}-{}", a.ssid.value())
     }
+}
+
+// ---------------------------------------------------------------------
+// Direction (a) on its own: the half of this file that needs nothing.
+// ---------------------------------------------------------------------
+
+/// The corpus builds, and every case round-trips through our own
+/// encoder and decoder to an equal typed value.
+///
+/// **This test is deliberately not `#[ignore]`d.** [`generate_corpus`]
+/// asserts direction (a) for all 320 cases and touches no external
+/// binary, but its only callers were the five reference-gated tests
+/// below, each of which returns early from [`ref_binaries_available`]
+/// before reaching it. So on any machine without the reference tools --
+/// which is every CI runner -- the whole 320-case fixture was compiled
+/// and never executed.
+///
+/// That gap was not hypothetical. The fixtures drifted onto the wrong
+/// coordinate unit (see CONTRIBUTING.md, "A suite CI compiles but never
+/// runs rots at the fixtures"), every case collapsed to
+/// 0000.00N/00000.00W, and case 0 failed this very assertion -- for as
+/// long as it took someone to run the suite by hand. Direction (a) is
+/// the cheapest and most fixture-sensitive of the three directions, so
+/// it is the one that belongs in the default run: it costs
+/// milliseconds, needs no audio, and fails loudly the moment a fixture
+/// stops meaning what it says.
+///
+/// Directions (b) and (c) stay `#[ignore]`d, because those genuinely
+/// need the reference binaries.
+#[test]
+fn corpus_round_trips_without_any_reference_binary() {
+    let cases = generate_corpus();
+    assert!(
+        cases.len() >= MIN_CORPUS_CASES,
+        "corpus too small: {} cases, floor is {MIN_CORPUS_CASES}",
+        cases.len()
+    );
+
+    // Every kind in the rotation must actually be represented. A
+    // `match` arm that stopped producing cases would otherwise shrink
+    // the corpus silently, and the floor above is loose enough to
+    // absorb one missing kind (320 - 20 = 300).
+    let mut kinds: Vec<&'static str> = cases.iter().map(|c| c.kind).collect();
+    kinds.sort_unstable();
+    kinds.dedup();
+    assert_eq!(
+        kinds.len(),
+        KINDS,
+        "expected {KINDS} distinct packet kinds, got {}: {kinds:?}",
+        kinds.len()
+    );
+}
+
+/// The coordinate fixtures are in storage units and land exactly on the
+/// 1/100 arc-minute grid.
+///
+/// This is the assertion that would have caught the unit drift on the
+/// day it landed, and it is worth stating separately from the corpus
+/// round trip because it names the defect instead of merely tripping
+/// over it.
+///
+/// Two independent properties, and both are needed:
+///
+/// * **Scale.** A hundredths count handed to `Latitude::new` is a legal
+///   latitude of about nine millionths of a degree, so every draw reads
+///   back as 0 degrees 0.00 minutes. Requiring the draws to span whole
+///   degrees fails immediately under the wrong unit and cannot be
+///   satisfied by accident.
+/// * **Grid.** Storage units are finer than the wire resolution, so a
+///   draw that is merely *large* can still sit between two representable
+///   hundredths and fail its own round trip through the uncompressed and
+///   Mic-E formats for reasons that are nobody's bug. Rebuilding each
+///   draw from its own degrees/hundredths reading pins it to the grid.
+#[test]
+fn coordinate_fixtures_are_storage_units_on_the_hundredths_grid() {
+    let mut rng = Lcg::new(0x5EED_D1FF_0000_0001);
+    let mut max_lat_degrees = 0u16;
+    let mut max_lon_degrees = 0u16;
+
+    for _ in 0..200 {
+        let lat = Latitude::new(rand_lat(&mut rng, 0)).expect("latitude in range");
+        // The two spellings must agree, which is what makes
+        // `from_hundredths_minute` a safe replacement anywhere a
+        // fixture currently scales by hand.
+        assert_eq!(
+            Latitude::from_hundredths_minute(lat.hundredths_minute()).expect("in range"),
+            lat
+        );
+        let dm = lat.degrees_minutes();
+        assert_eq!(
+            Latitude::from_degrees_minutes(
+                dm.degrees,
+                dm.hundredths_of_minute,
+                LatitudeHemisphere::North
+            )
+            .expect("latitude in range"),
+            lat,
+            "a drawn latitude is not on the 1/100 arc-minute grid"
+        );
+        max_lat_degrees = max_lat_degrees.max(dm.degrees);
+
+        let lon = Longitude::new(rand_lon(&mut rng, 0)).expect("longitude in range");
+        assert_eq!(
+            Longitude::from_hundredths_minute(lon.hundredths_minute()).expect("in range"),
+            lon
+        );
+        let dm = lon.degrees_minutes();
+        assert_eq!(
+            Longitude::from_degrees_minutes(
+                dm.degrees,
+                dm.hundredths_of_minute,
+                LongitudeHemisphere::East
+            )
+            .expect("longitude in range"),
+            lon,
+            "a drawn longitude is not on the 1/100 arc-minute grid"
+        );
+        max_lon_degrees = max_lon_degrees.max(dm.degrees);
+    }
+
+    assert!(
+        max_lat_degrees > 45,
+        "drawn latitudes reach only {max_lat_degrees} degrees; the fixtures are \
+         composed in hundredths of an arc-minute and must be scaled by \
+         UNITS_PER_HUNDREDTH_MINUTE before `Latitude::new`, which counts \
+         storage units"
+    );
+    assert!(
+        max_lon_degrees > 90,
+        "drawn longitudes reach only {max_lon_degrees} degrees; see the latitude \
+         message above"
+    );
 }
 
 // ---------------------------------------------------------------------
