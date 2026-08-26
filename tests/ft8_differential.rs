@@ -498,22 +498,25 @@ fn we_decode_the_reference_transmission() {
         // fdop/delay 0 keep the channel clean; a high SNR disables the
         // noise generator, so this measures conformance and not
         // sensitivity (tests/ft8_rx.rs pins that).
+        let base = BASE_HZ.to_string();
+        let args = [case.text, &base, "0.0", "0.0", "0.0", "1", "20"];
         let status = Command::new(&generator)
             .current_dir(&dir)
-            .args([
-                case.text,
-                &BASE_HZ.to_string(),
-                "0.0",
-                "0.0",
-                "0.0",
-                "1",
-                "20",
-            ])
+            .args(args)
             .output()
             .expect("run the reference generator");
+        // argv, status and both streams: a CLI that rejects its
+        // arguments prints usage to stdout, so a stderr-only message
+        // reports a failure and no reason. See the same note in
+        // tests/wspr_differential.rs.
         assert!(
             status.status.success(),
-            "reference generator failed: {}",
+            "reference generator failed ({})\n  binary: {}\n  args:   {:?}\n\
+             --- stdout ---\n{}\n  --- stderr ---\n{}",
+            status.status,
+            generator.display(),
+            args,
+            String::from_utf8_lossy(&status.stdout),
             String::from_utf8_lossy(&status.stderr)
         );
 

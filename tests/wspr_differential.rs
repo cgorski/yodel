@@ -397,14 +397,27 @@ fn we_decode_the_reference_transmission() {
         // args: message f0 DT fspread delay nwav nfiles snr
         // f0 = 0 is the sub-band centre; fspread/delay 0 keep the
         // channel clean; snr >= 90 disables the noise generator.
+        let args = [text.as_str(), "0", "0.0", "0.0", "0.0", "1", "1", "99"];
         let status = Command::new(&generator)
             .current_dir(&dir)
-            .args([&text, "0", "0.0", "0.0", "0.0", "1", "1", "99"])
+            .args(args)
             .output()
             .expect("run the reference generator");
+        // Report argv, status and BOTH streams. A CLI that does not
+        // recognise its arguments prints usage to *stdout* and exits
+        // non-zero, so a message carrying only stderr says "failed:"
+        // and then nothing at all -- which is what this said while the
+        // variable was pointed at a sibling binary of the right name
+        // and the wrong interface. The usage text names the interface
+        // the variable actually wants.
         assert!(
             status.status.success(),
-            "reference generator failed: {}",
+            "reference generator failed ({})\n  binary: {}\n  args:   {:?}\n\
+             --- stdout ---\n{}\n  --- stderr ---\n{}",
+            status.status,
+            generator.display(),
+            args,
+            String::from_utf8_lossy(&status.stdout),
             String::from_utf8_lossy(&status.stderr)
         );
 

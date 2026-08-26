@@ -133,14 +133,24 @@ fn we_decode_the_reference_il2p_transmission() {
     let path = dir.join("il2p_reference.wav");
 
     // The generator's IL2P transmit option; n=1 selects its stronger FEC.
+    let count = FRAME_COUNT.to_string();
+    let args = ["-I", "1", "-n", &count, "-o"];
     let output = Command::new(&generator)
-        .args(["-I", "1", "-n", &FRAME_COUNT.to_string(), "-o"])
+        .args(args)
         .arg(&path)
         .output()
         .expect("run the reference generator");
+    // argv, status and both streams; see tests/wspr_differential.rs for
+    // why stderr alone is not enough.
     assert!(
         output.status.success(),
-        "reference generator failed: {}",
+        "reference generator failed ({})\n  binary: {}\n  args:   {:?} {}\n\
+         --- stdout ---\n{}\n  --- stderr ---\n{}",
+        output.status,
+        generator.display(),
+        args,
+        path.display(),
+        String::from_utf8_lossy(&output.stdout),
         String::from_utf8_lossy(&output.stderr)
     );
 
