@@ -16,10 +16,23 @@ updates:
     schedule:
       interval: weekly
       day: monday
-    # One pull request for the lot. The dependency requirements in
-    # Cargo.toml are deliberately loose ("3", "4", "1"), so nearly every
-    # update here is a lockfile bump; fifteen separate pull requests for
-    # fifteen patch releases would train everyone to stop reading them.
+    # Update Cargo.lock, never the requirements in Cargo.toml.
+    #
+    # The default strategy also widens the requirements, and the first
+    # thing it did here was propose cpal 0.16 -> 0.17, which renames
+    # `SampleRate` to a type alias and removes `Device::name()`. CI caught
+    # it, which is the system working -- but a semver-major bump is an API
+    # migration, and a migration is not a thing a bot can open on a Monday
+    # and have anyone merge on the strength of a green tick.
+    #
+    # Keeping the lockfile current is the whole reason it is tracked. That
+    # is what this does; crossing a major version stays a decision someone
+    # makes on purpose.
+    versioning-strategy: lockfile-only
+    # One pull request for the lot. The requirements in Cargo.toml are
+    # deliberately loose ("3", "4", "1"), so nearly every update here is a
+    # patch-level lockfile bump; fifteen separate pull requests for fifteen
+    # of them would train everyone to stop reading them.
     groups:
       cargo:
         patterns: ["*"]
