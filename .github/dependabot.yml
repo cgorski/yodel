@@ -1,0 +1,43 @@
+# Cargo.lock is tracked on purpose (see .gitignore for the reasoning:
+# reproducible CI, bisectable dependency regressions, and a
+# `cargo install --locked` that resolves what was actually reviewed).
+#
+# The cost of that choice is that the lockfile does not update itself.
+# Left alone it pins whatever was current on release day, so a
+# `cargo install --locked yodel` keeps handing users those versions long
+# after upstream has moved -- including past a fix for an advisory the
+# audit workflow is meanwhile reporting every Monday. Committing the
+# lockfile only pays off if something keeps it moving.
+version: 2
+
+updates:
+  - package-ecosystem: cargo
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    # One pull request for the lot. The dependency requirements in
+    # Cargo.toml are deliberately loose ("3", "4", "1"), so nearly every
+    # update here is a lockfile bump; fifteen separate pull requests for
+    # fifteen patch releases would train everyone to stop reading them.
+    groups:
+      cargo:
+        patterns: ["*"]
+    open-pull-requests-limit: 3
+    commit-message:
+      prefix: "build(deps)"
+
+  # No entry for examples/esp32-riscv on purpose: its only dependency is
+  # `yodel` itself by path, and it gitignores its lockfile, so there is
+  # nothing there for dependabot to bump.
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    groups:
+      actions:
+        patterns: ["*"]
+    commit-message:
+      prefix: "ci(deps)"
