@@ -241,13 +241,19 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .default_input_device()
         .ok_or("no default input device; check your OS sound settings")?;
     let config = device.default_input_config()?;
-    let device_hz = config.sample_rate().0;
+    // cpal 0.18: `SampleRate` is a plain `u32` alias, not a newtype.
+    let device_hz = config.sample_rate();
     let channels = usize::from(config.channels());
     let plan = plan_rate(device_hz)?;
     eprintln!(
         "input: '{}' at {device_hz} Hz, {channels} channel(s); decoding at {} Hz \
          (keeping 1 in {})",
-        device.name().unwrap_or_else(|_| "<unnamed>".into()),
+        // cpal 0.18 removed `name()`. `Device: Display` looks like the
+        // replacement but panics via `to_string()` when `description()`
+        // fails, so go through `description()` and keep the fallback.
+        device
+            .description()
+            .map_or_else(|_| "<unnamed>".to_owned(), |d| d.name().to_owned()),
         plan.decode_hz,
         plan.keep_every
     );
@@ -262,8 +268,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let (tx_chunks, rx_chunks) = std::sync::mpsc::channel::<Vec<i16>>();
     let err_fn = |e| eprintln!("stream error: {e}");
     let stream = match config.sample_format() {
+        // cpal 0.18 takes the config by value (`StreamConfig` is `Copy`).
         cpal::SampleFormat::I16 => device.build_input_stream(
-            &config.into(),
+            config.into(),
             move |data: &[i16], _| {
                 let _ = tx_chunks.send(data.to_vec());
             },
@@ -271,7 +278,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             None,
         )?,
         cpal::SampleFormat::F32 => device.build_input_stream(
-            &config.into(),
+            config.into(),
             move |data: &[f32], _| {
                 let _ = tx_chunks.send(data.iter().map(|&s| plumbing::f32_to_i16(s)).collect());
             },

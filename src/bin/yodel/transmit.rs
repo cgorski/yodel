@@ -143,7 +143,7 @@ pub fn transmit(args: &TransmitArgs) -> Result<(), String> {
     }
 
     let device = pick_device(args.device.as_deref())?;
-    let name = device.name().unwrap_or_else(|_| "<unnamed>".to_owned());
+    let name = device_name(&device);
     let config = pick_config(&device, rate)?;
     let channels = config.channels as usize;
 
@@ -253,8 +253,9 @@ fn build_stream(
     };
 
     let stream = device
+        // cpal 0.18 takes the config BY VALUE (`StreamConfig` is `Copy`).
         .build_output_stream(
-            config,
+            *config,
             move |out: &mut [f32], _: &cpal::OutputCallbackInfo| fill(out),
             on_error,
             None,
@@ -287,6 +288,21 @@ fn read_wav(path: &str) -> Result<(Vec<i16>, u32), String> {
 }
 
 /// Finds the output device, by leading-substring match or the default.
+/// The device's name, or a placeholder when the backend will not say.
+///
+/// cpal 0.18 removed `DeviceTrait::name()`. `Device` does implement
+/// `Display`, which looks like the obvious replacement and is a trap: that
+/// impl propagates a failed `description()` as `fmt::Error`, and
+/// `to_string()` PANICS on a `Display` that errors. Panicking part-way
+/// through enumerating audio devices is not acceptable in a tool that can
+/// key a transmitter, so go through `description()`, which keeps the
+/// failure a value -- exactly what the old `name()` did.
+fn device_name(device: &cpal::Device) -> String {
+    device
+        .description()
+        .map_or_else(|_| "<unnamed>".to_owned(), |d| d.name().to_owned())
+}
+
 fn pick_device(want: Option<&str>) -> Result<cpal::Device, String> {
     let host = cpal::default_host();
     let Some(want) = want else {
@@ -299,8 +315,8 @@ fn pick_device(want: Option<&str>) -> Result<cpal::Device, String> {
         .output_devices()
         .map_err(|e| format!("cannot enumerate output devices: {e}"))?;
     for d in devices {
-        if let Ok(name) = d.name()
-            && name.to_lowercase().starts_with(&needle)
+        if let Ok(desc) = d.description()
+            && desc.name().to_lowercase().starts_with(&needle)
         {
             return Ok(d);
         }
@@ -316,7 +332,7 @@ fn pick_device(want: Option<&str>) -> Result<cpal::Device, String> {
 /// and a modem that quietly transmits at the wrong baud rate is worse
 /// than one that declines to transmit at all.
 fn pick_config(device: &cpal::Device, rate: u32) -> Result<cpal::StreamConfig, String> {
-    let name = device.name().unwrap_or_else(|_| "<unnamed>".to_owned());
+    let name = device_name(device);
     let supported = device
         .supported_output_configs()
         .map_err(|e| format!("cannot query '{name}': {e}"))?;
@@ -327,11 +343,11 @@ fn pick_config(device: &cpal::Device, rate: u32) -> Result<cpal::StreamConfig, S
         }
         seen.push(format!(
             "{}-{} Hz",
-            c.min_sample_rate().0,
-            c.max_sample_rate().0
+            c.min_sample_rate(),
+            c.max_sample_rate()
         ));
-        if c.min_sample_rate().0 <= rate && rate <= c.max_sample_rate().0 {
-            return Ok(c.with_sample_rate(cpal::SampleRate(rate)).into());
+        if c.min_sample_rate() <= rate && rate <= c.max_sample_rate() {
+            return Ok(c.with_sample_rate(rate).into());
         }
     }
     Err(format!(
@@ -348,22 +364,27 @@ fn pick_config(device: &cpal::Device, rate: u32) -> Result<cpal::StreamConfig, S
 /// Lists the output devices, marking the default.
 fn list_devices() -> Result<(), String> {
     let host = cpal::default_host();
+    // Deliberately NOT `device_name`: this value is only ever compared
+    // against the names below to place the `[default]` marker. Falling
+    // back to "<unnamed>" here would make every unnamed device match
+    // every other one; an empty string matches nothing, which is right.
     let default = host
         .default_output_device()
-        .and_then(|d| d.name().ok())
+        .and_then(|d| d.description().ok())
+        .map(|d| d.name().to_owned())
         .unwrap_or_default();
     let devices = host
         .output_devices()
         .map_err(|e| format!("cannot enumerate output devices: {e}"))?;
     for d in devices {
-        let name = d.name().unwrap_or_else(|_| "<unnamed>".to_owned());
+        let name = device_name(&d);
         let mark = if name == default { "  [default]" } else { "" };
         let rates = d.supported_output_configs().map_or_else(
             |_| String::new(),
             |cs| {
                 let mut v: Vec<String> = cs
                     .filter(|c| c.sample_format() == cpal::SampleFormat::F32)
-                    .map(|c| format!("{}-{}", c.min_sample_rate().0, c.max_sample_rate().0))
+                    .map(|c| format!("{}-{}", c.min_sample_rate(), c.max_sample_rate()))
                     .collect();
                 v.dedup();
                 if v.is_empty() {

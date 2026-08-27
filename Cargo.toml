@@ -1,6 +1,6 @@
 [package]
 name = "yodel"
-version = "0.1.4"
+version = "0.2.0"
 edition = "2024"
 rust-version = "1.96"
 license = "MIT OR Apache-2.0"
@@ -184,7 +184,7 @@ hound = { version = "3", optional = true }
 clap = { version = "4", features = ["derive"], optional = true }
 # Sound-card input for the `capture` feature (the live_capture example
 # only); never part of no_std, library, or default builds.
-cpal = { version = "0.16", optional = true }
+cpal = { version = "0.18", optional = true }
 serialport = { version = "4", optional = true, default-features = false }
 # The tokio adapter layer (`async` feature only): runtime handle for
 # spawn/spawn_blocking, bounded mpsc channels, async read helpers
@@ -200,7 +200,7 @@ tokio-stream = { version = "0.1", optional = true }
 # periodic-TX helper. no_std, alloc-free; the platform HAL supplies the
 # time driver at link time. Never part of no_std-core, default, or
 # embedded-matrix builds.
-embassy-time = { version = "0.4", optional = true, default-features = false }
+embassy-time = { version = "0.5", optional = true, default-features = false }
 
 [dev-dependencies]
 # Kept as a plain dev-dependency so the test suite can use WAV fixtures
@@ -214,7 +214,7 @@ tokio-stream = "0.1"
 # Host-side time driver for the `embassy`-feature tests and example
 # (`std` supplies a std-clock driver; dev-only, so library consumers
 # and the embedded matrix never see it).
-embassy-time = { version = "0.4", features = ["std", "generic-queue-8"] }
+embassy-time = { version = "0.5", features = ["std", "generic-queue-8"] }
 # `block_on` + `join` for the same tests/example: a dependency-free
 # busy-poll executor, enough to run the adapter on a host.
 embassy-futures = "0.1"
