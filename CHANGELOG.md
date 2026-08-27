@@ -11,6 +11,53 @@ turned out to be, which approach was tried and abandoned.
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-08-27
+
+The minor bump is required by one signature: `TxTicker::every` takes an
+`embassy_time::Duration`, so moving embassy-time across a major version
+moves a type that is part of this crate's public API. Nothing else in the
+API changed, and consumers who do not enable the `embassy` feature are
+unaffected.
+
+### Changed
+
+- **BREAKING (`embassy` feature only): embassy-time 0.4 -> 0.5.** If you
+  enable `embassy`, move your own dependency to embassy-time 0.5 in the
+  same change; `TxTicker::every` now takes a 0.5 `Duration`, and a 0.4
+  one will not compile against it.
+
+  This is not optional churn. embassy-time resolves its time driver
+  through a global singleton, so a yodel pinned to 0.4 sitting next to a
+  HAL that provides a 0.5 driver links two incompatible copies of the
+  crate and fails to find a driver at all. Tracking the ecosystem is the
+  only configuration that actually works on a real board.
+
+- **cpal 0.16 -> 0.18.2** (`audio` and `capture` features). Not
+  breaking: cpal appears nowhere in the library's public API -- only in
+  the `yodel transmit` binary and the `live_capture` example -- so
+  library consumers see no change. Three upstream changes had to be
+  answered:
+
+  - `SampleRate` became a plain `u32` alias instead of a newtype, so the
+    `.0` projections and `SampleRate(rate)` constructions are gone.
+  - `build_*_stream` now takes `StreamConfig` by value (it is `Copy`).
+  - `DeviceTrait::name()` was removed. The replacement is *not*
+    `Device`'s new `Display` impl, tempting as it looks: that impl
+    propagates a failed `description()` as `fmt::Error`, and
+    `to_string()` panics on a `Display` that errors -- so a device that
+    declines to describe itself would abort an enumeration loop in a tool
+    whose whole job is to key a transmitter. Device names now go through
+    `description()`, which keeps the failure a value and preserves the
+    old `<unnamed>` fallback exactly.
+
+  cpal 0.18 also stopped auto-starting streams on build; both call sites
+  here already called `play()` explicitly, so playback and capture are
+  unaffected.
+
+- **Lockfile refreshed** to current versions across the tree (34
+  packages), all held to Rust 1.96-compatible releases, so the MSRV the
+  manifest promises still holds.
+
 ## [0.1.4] - 2026-08-27
 
 ### Fixed
@@ -890,7 +937,8 @@ WSPR, FT8 and M17 (packet data) modes.
   signals, benchmark, and serve as a KISS TNC over TCP.
 - Optional tokio (`async`) and Embassy (`embassy`) adapters.
 
-[Unreleased]: https://github.com/cgorski/yodel/compare/v0.1.4...HEAD
+[Unreleased]: https://github.com/cgorski/yodel/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/cgorski/yodel/compare/v0.1.4...v0.2.0
 [0.1.4]: https://github.com/cgorski/yodel/compare/v0.1.3...v0.1.4
 [0.1.3]: https://github.com/cgorski/yodel/compare/v0.1.2...v0.1.3
 [0.1.2]: https://github.com/cgorski/yodel/compare/v0.1.1...v0.1.2
