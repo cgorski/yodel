@@ -1,0 +1,43 @@
+# The advisory database moves on its own.
+#
+# ci.yml runs cargo-deny on every pull request, which catches a bad
+# dependency at the moment someone proposes it. It cannot catch the
+# commoner case: nothing in this repository changes, RUSTSEC publishes an
+# advisory against something already in Cargo.lock, and the crate keeps
+# shipping it until the next unrelated pull request happens to go green
+# against a database that has since been updated. On a crate that ships a
+# binary and pins its lockfile, "the next pull request" can be months.
+#
+# So: ask the database on a timer, not only when the tree changes.
+name: Security audit
+
+on:
+  schedule:
+    # Mondays, early UTC. The offset from the hour is deliberate -- the
+    # top of the hour is the busiest slot on the shared scheduler and
+    # runs there are the likeliest to be delayed or dropped.
+    - cron: "17 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+jobs:
+  advisories:
+    name: cargo-deny advisories
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      # Only the advisory and source sections: licences and bans are
+      # properties of the tree, so they are already settled by the pull
+      # request that changed it, and re-litigating them on a timer would
+      # mean a `multiple-versions` warning some Monday morning is what
+      # tells the maintainer to look at a security report.
+      - uses: EmbarkStudios/cargo-deny-action@v2
+        with:
+          command: check advisories sources
