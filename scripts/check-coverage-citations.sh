@@ -18,7 +18,10 @@ work=$(mktemp -d)
 trap 'rm -rf "${work}"' EXIT
 
 echo "==> compiling the test suite"
-cargo test --all-features --no-run --message-format=json 2>/dev/null \
+# `--locked`: this script decides whether a few hundred documented
+# citations still resolve, so it had better be reading the same tree CI
+# builds rather than one the resolver refreshed on the way past.
+cargo test --locked --all-features --no-run --message-format=json 2>/dev/null \
     | sed -n 's/.*"executable":"\([^"]*\)".*/\1/p' \
     | grep '/deps/' >"${work}/bins"
 
@@ -39,6 +42,11 @@ total=$(wc -l <"${work}/tests" | tr -d ' ')
 echo "==> ${total} test functions found"
 
 # Citations look like `tests/foo.rs::bar` or `src/a/b.rs::bar`.
+# The backticks are literal markdown, matched as part of the pattern so a
+# citation has to be code-formatted to count -- prose naming a test in
+# passing is not a citation. Single quotes are therefore exactly right,
+# and the backticks must NOT be a command substitution.
+# shellcheck disable=SC2016
 grep -oE '`(src|tests)/[a-z0-9_/]+\.rs::[a-zA-Z0-9_:]+`' "${DOC}" \
     | tr -d '`' | sort -u >"${work}/cited"
 

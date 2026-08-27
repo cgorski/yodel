@@ -18,6 +18,14 @@
 #      imports and alloc-dependent unit tests could rot in silence for
 #      every feature set between "nothing" and "everything".
 #
+# Every cargo invocation below passes `--locked`. Cargo.lock is tracked
+# (see .gitignore for why), and a resolver that is free to update it on
+# the fly turns "the matrix is green" into "the matrix is green against
+# whatever crates.io served this morning" -- which is the property the
+# tracked lockfile exists to rule out. It also makes a lockfile that has
+# drifted out of sync with Cargo.toml a loud failure instead of a silent
+# rewrite of a tracked file.
+#
 # Usage: scripts/check-embedded.sh [all|embedded|tests]   (default: all)
 set -euo pipefail
 
@@ -39,6 +47,12 @@ targets=(
     riscv32imac-unknown-none-elf
     thumbv7em-none-eabihf
 )
+# The commas below are cargo feature-list syntax, not array separators:
+# each element is one `--features` argument naming a whole feature SET,
+# and `mod,demod` has to reach cargo as a single word. shellcheck reads a
+# comma inside an array as the C-programmer slip of writing `(a, b, c)`,
+# which is the only thing this suppression waives.
+# shellcheck disable=SC2054
 feature_sets=(
     mod
     demod
@@ -71,8 +85,8 @@ feature_sets=(
 if [[ "${mode}" != tests ]]; then
     for target in "${targets[@]}"; do
         for features in "${feature_sets[@]}"; do
-            echo "==> cargo build --no-default-features --features ${features} --target ${target}"
-            cargo build --no-default-features --features "${features}" --target "${target}"
+            echo "==> cargo build --locked --no-default-features --features ${features} --target ${target}"
+            cargo build --locked --no-default-features --features "${features}" --target "${target}"
         done
     done
 
@@ -82,6 +96,12 @@ if [[ "${mode}" != tests ]]; then
     # extension) builds cleanly today because yodel's core is atomics-free;
     # `imac` matches the matrix target above.
     for target in riscv32imac-unknown-none-elf riscv32imc-unknown-none-elf; do
+        #
+        # The one cargo invocation in this file WITHOUT `--locked`, and
+        # deliberately so: this sub-crate gitignores its lockfile (it is a
+        # library whose only dependency is `yodel` by path, so there is
+        # nothing to pin), and `--locked` against a lockfile that does not
+        # exist yet is a hard error on any fresh checkout -- CI's included.
         echo "==> (examples/esp32-riscv) cargo build --target ${target}"
         (cd examples/esp32-riscv && cargo build --target "${target}")
     done
@@ -109,6 +129,8 @@ fi
 # left out on purpose: it pulls cpal and a system audio stack, and CI's
 # `cargo test --all-features` job already compiles it.
 # ---------------------------------------------------------------------------
+# Comma-joined feature sets again; see the note on `feature_sets` above.
+# shellcheck disable=SC2054
 test_feature_sets=(
     mod
     demod
@@ -145,8 +167,8 @@ test_feature_sets=(
 
 if [[ "${mode}" != embedded ]]; then
     for features in "${test_feature_sets[@]}"; do
-        echo "==> cargo test --no-default-features --features ${features} --no-run"
-        cargo test --no-default-features --features "${features}" --no-run
+        echo "==> cargo test --locked --no-default-features --features ${features} --no-run"
+        cargo test --locked --no-default-features --features "${features}" --no-run
     done
 
     echo "test-compilation matrix: all feature sets compile"
