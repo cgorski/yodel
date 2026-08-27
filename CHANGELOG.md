@@ -78,6 +78,12 @@ actually is.
   from `main` rather than from every pull-request branch. Pushes to `main`
   are no longer cancelled by the concurrency group: those are the runs
   whose results are worth the minutes.
+- `actions/checkout` moved to v5, clearing the Node.js 20 deprecation
+  notice every job was posting, and the `cargo publish` job no longer asks
+  for a target cache. Its verify build compiles a freshly packaged copy of
+  the tree under `target/package/`, so a warm `./target` buys it nothing,
+  and the cache's post-run pruning walk failed on the packaged layout --
+  which showed up as a red annotation on an otherwise green job.
 
 ## [0.1.2] - 2026-08-26
 

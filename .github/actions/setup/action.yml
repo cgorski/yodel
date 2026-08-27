@@ -30,6 +30,14 @@ inputs:
       enables both. No-op on macOS and Windows.
     required: false
     default: "true"
+  cache:
+    description: >-
+      Restore and save the cargo/target cache. Turn it off for a job whose
+      real build does not happen in ./target -- `cargo publish` compiles a
+      freshly packaged copy of the tree under target/package/, which the
+      cache cannot help with and which its post-run pruning walk trips over.
+    required: false
+    default: "true"
 
 runs:
   using: composite
@@ -72,6 +80,7 @@ runs:
         rustup target add $TARGETS
 
     - uses: Swatinem/rust-cache@v2
+      if: inputs.cache == 'true'
       with:
         shared-key: ${{ inputs.cache-key }}
         # Fill the cache from main and read it everywhere else. A dozen jobs
