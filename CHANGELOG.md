@@ -11,6 +11,74 @@ turned out to be, which approach was tried and abandoned.
 
 ## [Unreleased]
 
+## [0.1.3] - 2026-08-26
+
+No functional change: the library, the CLI and the public API are
+byte-for-byte what 0.1.2 shipped. This release exists so the rendered
+crates.io page and the contributor-facing gates match the project as it
+actually is.
+
+### Added
+
+- **Status badges on the README**, which is what crates.io renders as the
+  landing page. Each badge reads its value from an authoritative source --
+  the version from crates.io, the docs build from docs.rs, the MSRV from
+  this crate's own `rust-version` key -- rather than restating a number
+  that then has to be remembered on every release.
+- **A scheduled advisory audit** (`.github/workflows/audit.yml`).
+  cargo-deny already ran on every pull request, which catches a bad
+  dependency as it is proposed and cannot catch the commoner direction:
+  the tree stays still and RUSTSEC publishes an advisory against
+  something already in `Cargo.lock`. On a crate that pins a lockfile and
+  ships a binary, "the next unrelated pull request" can be months away.
+- **`shellcheck` and `actionlint` as CI gates.** Six shell scripts decide
+  whether CI is green -- the public-API audit, the coordinate-unit audit,
+  the coverage citations and both passes of the feature matrix -- and
+  nothing checked the checkers. A quoting slip in one of them would have
+  surfaced as the audit passing, which is the failure mode all six were
+  written to prevent.
+- **Dependabot** for cargo, the detached `examples/esp32-riscv` crate and
+  the actions themselves. Committing `Cargo.lock` only pays off if
+  something keeps it moving; left alone it pins release-day versions and
+  hands them to every `cargo install --locked` thereafter, including past
+  the fix for an advisory the audit workflow is meanwhile reporting.
+
+### Fixed
+
+- **The `clippy` CI job never installed the ALSA headers it needs.**
+  `--all-features` enables `capture` and `audio`, both of which build
+  cpal, which needs them. Six other jobs installed the headers with a
+  comment explaining that relying on the runner image was a latent
+  break; the job that lints the entire tree was the one left relying on
+  it. The setup is now a single composite action, so there is one place
+  to get this right instead of seven places to get it wrong.
+- **`Cargo.lock` was tracked for reproducibility that CI never enforced.**
+  `.gitignore` explains at length that the lockfile is committed so a
+  semver-compatible upstream release cannot turn a green pull request red
+  -- but no cargo invocation passed `--locked`, so the resolver stayed
+  free to refresh it in passing, and a lockfile drifted out of sync with
+  `Cargo.toml` would have been silently rewritten rather than reported.
+  Every cargo invocation in CI and in `scripts/` now passes it.
+
+### Changed
+
+- **The cross-platform job runs clippy instead of `cargo check`.** It
+  costs the same wall clock, and it is the only thing that looks at the
+  `#[cfg(windows)]` and CoreAudio paths -- the two dependencies that
+  exist precisely because platforms differ -- with warnings denied.
+- **The MSRV job reads `rust-version` out of `Cargo.toml`** instead of
+  restating it. A hard-coded version stops matching the promise the day
+  someone bumps the manifest, and a gate that no longer tests what its
+  name claims is worse than no gate: it still reports green.
+- **A single `CI passed` check aggregates the rest**, so protecting a
+  branch means requiring one job rather than listing fourteen by hand and
+  remembering the fifteenth. A required check that was never added is
+  indistinguishable, in the UI, from one that passed.
+- Job timeouts, least-privilege `permissions`, and a cache that fills
+  from `main` rather than from every pull-request branch. Pushes to `main`
+  are no longer cancelled by the concurrency group: those are the runs
+  whose results are worth the minutes.
+
 ## [0.1.2] - 2026-08-26
 
 ### Added
@@ -782,7 +850,8 @@ WSPR, FT8 and M17 (packet data) modes.
   signals, benchmark, and serve as a KISS TNC over TCP.
 - Optional tokio (`async`) and Embassy (`embassy`) adapters.
 
-[Unreleased]: https://github.com/cgorski/yodel/compare/v0.1.2...HEAD
+[Unreleased]: https://github.com/cgorski/yodel/compare/v0.1.3...HEAD
+[0.1.3]: https://github.com/cgorski/yodel/compare/v0.1.2...v0.1.3
 [0.1.2]: https://github.com/cgorski/yodel/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/cgorski/yodel/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/cgorski/yodel/releases/tag/v0.1.0
