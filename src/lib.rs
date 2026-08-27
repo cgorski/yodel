@@ -120,9 +120,21 @@
 //! [Bell 202]: https://en.wikipedia.org/wiki/Bell_202_modem
 #![cfg_attr(not(feature = "std"), no_std)]
 // docs.rs sets `docsrs` (see [package.metadata.docs.rs]); this renders
-// the feature badge on every gated item. Nightly-only, and never set by
-// an ordinary build.
-#![cfg_attr(docsrs, feature(doc_auto_cfg))]
+// the "Available on crate feature ..." badge on every gated item.
+// Nightly-only, and never set by an ordinary build.
+//
+// This was `feature(doc_auto_cfg)` until Rust 1.92 removed it and merged
+// it into `doc_cfg` (rust-lang/rust#138907). Because the attribute is
+// reachable ONLY under `--cfg docsrs`, and docs.rs is the only builder
+// that sets it, the removal broke exactly one thing and broke it
+// invisibly: every release from 0.1.0 on carries a red "failed to build"
+// badge on docs.rs while `cargo doc` stayed green locally, in CI, and on
+// the `stable + beta` job added to watch for precisely this class of
+// upstream change. The `docsrs` job in .github/workflows/ci.yml now runs
+// the same invocation docs.rs does -- nightly, `--cfg docsrs`,
+// `--all-features` -- so the next one fails on a pull request instead of
+// on the published page.
+#![cfg_attr(docsrs, feature(doc_cfg))]
 // Without the DSP features, the shared sine-table machinery in `types` is
 // unused; it is not worth cfg-gating each item for feature-solo builds.
 #![cfg_attr(not(any(feature = "mod", feature = "demod")), allow(dead_code))]

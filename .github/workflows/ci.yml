@@ -96,6 +96,41 @@ jobs:
       - uses: ./.github/actions/setup
       - run: cargo doc --locked --all-features --no-deps
 
+  # The job above is not the docs.rs build, and the difference is not
+  # academic: docs.rs runs NIGHTLY rustdoc with `--cfg docsrs`, and the
+  # crate has a `#![cfg_attr(docsrs, feature(...))]` that is therefore
+  # reachable on docs.rs and nowhere else. When Rust 1.92 removed
+  # `doc_auto_cfg`, that made every published version fail to document
+  # while `cargo doc`, clippy, the test suite and the stable/beta advisory
+  # job all stayed green -- three releases shipped with a red "failed to
+  # build" badge before anyone looked at the page.
+  #
+  # So run what docs.rs runs. Advisory, like the stable/beta job and for
+  # the same reason: this tracks a moving nightly, and a rustdoc
+  # regression upstream must not block a pull request. It is here to make
+  # the breakage visible on the day it lands, not to gate on it.
+  docsrs:
+    name: docs.rs build (nightly, advisory)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    continue-on-error: true
+    env:
+      # `--cfg docsrs` is the whole point: it is what makes this the
+      # docs.rs build rather than a second copy of the `doc` job. No
+      # `-D warnings` here on purpose -- docs.rs passes `--cap-lints warn`,
+      # so denying warnings would make this job stricter than the thing it
+      # is meant to predict. The `doc` job above owns lint strictness, on a
+      # pinned compiler where it is reproducible; this one owns "does the
+      # published page build at all".
+      RUSTDOCFLAGS: --cfg docsrs
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup
+        with:
+          toolchain: nightly
+          cache-key: docsrs
+      - run: cargo +nightly doc --locked --all-features --no-deps
+
   # Cargo.toml claims a `rust-version`, but rust-toolchain.toml pins a
   # patch release of the same series, so the version the manifest
   # actually promises is never exercised.
