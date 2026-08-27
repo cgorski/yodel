@@ -6,77 +6,131 @@ on:
   push:
     branches: [main]
   pull_request:
+  # Lets a maintainer re-run the whole matrix after an infrastructure
+  # failure without pushing an empty commit to do it.
+  workflow_dispatch:
 
 # A force-push while the matrix is still running should not leave the
 # old run burning minutes: the feature matrix alone is ~30 cargo
-# invocations.
+# invocations. Pushes to main are exempt -- cancelling those would leave
+# commits on the release branch with no recorded result, which is the
+# one place the history is worth the minutes.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+# Least privilege. Nothing here writes to the repository; the default
+# token grant is wider than any job needs, and a compromised action in
+# the dependency tree of a build is exactly how that gets used.
+permissions:
+  contents: read
 
 env:
   CARGO_TERM_COLOR: always
+  # Every job is a fresh checkout, so incremental artifacts can never be
+  # reused: they are pure cache weight, and the cache is shared across a
+  # dozen jobs.
+  CARGO_INCREMENTAL: 0
+  # A transient crates.io or static.rust-lang.org hiccup should cost a
+  # retry, not a red matrix.
+  CARGO_NET_RETRY: 10
+  RUSTUP_MAX_RETRIES: 10
 
 jobs:
   fmt:
     name: rustfmt
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
+      # No cargo build happens here, so this job wants neither the ALSA
+      # headers nor the cache -- only rustfmt, which rust-toolchain.toml
+      # already lists as a component of the pinned toolchain.
       - run: cargo fmt --check
 
   clippy:
     name: clippy (-D warnings)
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
-      - run: rustup component add clippy
-      - uses: Swatinem/rust-cache@v2
-      - run: cargo clippy --all-features --all-targets -- -D warnings
+      # `rustup component add clippy` used to live here, which was both
+      # redundant (rust-toolchain.toml declares the component, so rustup
+      # installs it on first use) and misleading: it looked like this job
+      # had a setup step, while the ALSA headers that `--all-features`
+      # genuinely requires were the thing actually missing.
+      - uses: ./.github/actions/setup
+      - run: cargo clippy --locked --all-features --all-targets -- -D warnings
 
   test:
     name: test (--all-features)
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
-      # `--all-features` turns on `capture`, which builds cpal, which
-      # needs the ALSA headers. It has been working off whatever the
-      # runner image happened to ship; make the dependency explicit so a
-      # base-image change cannot break the build mysteriously.
-      - run: sudo apt-get update && sudo apt-get install -y libasound2-dev
-      - uses: Swatinem/rust-cache@v2
-      - run: cargo test --all-features
+      - uses: ./.github/actions/setup
+        with:
+          # `coverage-citations` compiles exactly this tree with exactly
+          # these features; sharing one cache entry saves the second job
+          # a cold build of the whole dependency graph.
+          cache-key: host-all-features
+      # `--no-fail-fast`: cargo otherwise stops at the first failing test
+      # BINARY, and there are 57 of them. On a red pull request that is
+      # the difference between "here is everything that broke" and "here
+      # is the alphabetically first thing that broke".
+      - run: cargo test --locked --all-features --no-fail-fast
 
   # rustdoc is a separate compiler with its own lint set, and
   # `#![deny(missing_docs)]` plus intra-doc links mean it can break while
   # `cargo build` and `cargo clippy` both stay green. Without this job the
   # first sign of a broken doc build is a red badge on the published
-  # crate, because docs.rs builds on nightly and CI pins 1.96.1.
+  # crate, because docs.rs builds on nightly and CI pins a release.
   doc:
     name: rustdoc (-D warnings)
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     env:
       RUSTDOCFLAGS: -D warnings
     steps:
       - uses: actions/checkout@v4
-      - run: sudo apt-get update && sudo apt-get install -y libasound2-dev
-      - uses: Swatinem/rust-cache@v2
-      - run: cargo doc --all-features --no-deps
+      - uses: ./.github/actions/setup
+      - run: cargo doc --locked --all-features --no-deps
 
-  # Cargo.toml claims `rust-version = "1.96"`, but rust-toolchain.toml
-  # pins 1.96.1, so 1.96.0 -- the version the manifest actually promises
-  # -- is never exercised. RUSTUP_TOOLCHAIN overrides the toolchain file.
+  # Cargo.toml claims a `rust-version`, but rust-toolchain.toml pins a
+  # patch release of the same series, so the version the manifest
+  # actually promises is never exercised.
   msrv:
-    name: MSRV 1.96.0
+    name: MSRV (as promised by Cargo.toml)
     runs-on: ubuntu-latest
-    env:
-      RUSTUP_TOOLCHAIN: 1.96.0
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - run: sudo apt-get update && sudo apt-get install -y libasound2-dev
-      - run: rustup toolchain install 1.96.0 --profile minimal
-      - uses: Swatinem/rust-cache@v2
-      - run: cargo check --all-features --all-targets
+      # Read the number out of the manifest rather than restating it. A
+      # hard-coded "1.96.0" stops matching the promise the moment someone
+      # bumps `rust-version`, and a gate that no longer tests the thing
+      # its name claims is worse than no gate at all: it still reports
+      # green.
+      - name: Resolve the promised MSRV
+        id: msrv
+        run: |
+          set -euo pipefail
+          msrv=$(sed -n 's/^rust-version[[:space:]]*=[[:space:]]*"\([0-9.]*\)".*/\1/p' Cargo.toml | head -1)
+          if [ -z "$msrv" ]; then
+            echo "Cargo.toml has no rust-version key to check against." >&2
+            exit 1
+          fi
+          # `rust-version = "1.96"` promises 1.96.0. rustup wants all three
+          # components, so supply the patch level the manifest implies.
+          case "$msrv" in
+            *.*.*) ;;
+            *) msrv="$msrv.0" ;;
+          esac
+          echo "version=$msrv" >>"$GITHUB_OUTPUT"
+          echo "Cargo.toml promises rustc $msrv; checking against it."
+      - uses: ./.github/actions/setup
+        with:
+          toolchain: ${{ steps.msrv.outputs.version }}
+      - run: cargo check --locked --all-features --all-targets
 
   # docs.rs builds on current nightly and ignores rust-toolchain.toml.
   # Nothing else in CI ever compiles this crate on a compiler newer than
@@ -85,33 +139,36 @@ jobs:
   stable:
     name: stable + beta (advisory)
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     continue-on-error: true
     strategy:
+      fail-fast: false
       matrix:
         channel: [stable, beta]
-    env:
-      RUSTUP_TOOLCHAIN: ${{ matrix.channel }}
     steps:
       - uses: actions/checkout@v4
-      - run: sudo apt-get update && sudo apt-get install -y libasound2-dev
-      - run: rustup toolchain install ${{ matrix.channel }} --profile minimal
-      - uses: Swatinem/rust-cache@v2
-      - run: cargo check --all-features
+      - uses: ./.github/actions/setup
+        with:
+          toolchain: ${{ matrix.channel }}
+      - run: cargo check --locked --all-features
 
   # `cpal` and `serialport` are the platform-specific dependencies and
-  # have only ever been compiled against ALSA. A check-only job on the
-  # other two hosts is cheap next to finding out from a bug report.
+  # have only ever been compiled against ALSA. Running the linter rather
+  # than a bare `cargo check` costs the same wall clock and is the only
+  # thing that ever looks at the `#[cfg(windows)]` and CoreAudio paths
+  # with warnings denied.
   cross-os:
-    name: check (${{ matrix.os }})
+    name: clippy (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
         os: [macos-latest, windows-latest]
     steps:
       - uses: actions/checkout@v4
-      - uses: Swatinem/rust-cache@v2
-      - run: cargo check --all-features --all-targets
+      - uses: ./.github/actions/setup
+      - run: cargo clippy --locked --all-features --all-targets -- -D warnings
 
   # `cargo publish` runs a verify build of the packaged tree, which is
   # not the same tree as the working copy: `exclude` in Cargo.toml drops
@@ -121,11 +178,11 @@ jobs:
   package:
     name: cargo publish --dry-run
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
-      - run: sudo apt-get update && sudo apt-get install -y libasound2-dev
-      - uses: Swatinem/rust-cache@v2
-      - run: cargo publish --dry-run --all-features
+      - uses: ./.github/actions/setup
+      - run: cargo publish --dry-run --locked --all-features
 
   # CONTRIBUTING.md: "no public function should be reachable by users and
   # by nothing else". The recipe there found four unexercised functions
@@ -134,6 +191,7 @@ jobs:
   public-api:
     name: public API is exercised
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - run: scripts/check-public-api-exercised.sh
@@ -147,6 +205,7 @@ jobs:
   coordinate-units:
     name: coordinate constructions name their unit
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - run: scripts/check-coordinate-units.sh
@@ -158,18 +217,58 @@ jobs:
   coverage-citations:
     name: docs/COVERAGE.md citations
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
-      - run: sudo apt-get update && sudo apt-get install -y libasound2-dev
-      - uses: Swatinem/rust-cache@v2
+      - uses: ./.github/actions/setup
+        with:
+          cache-key: host-all-features
       - run: scripts/check-coverage-citations.sh
+
+  # Six shell scripts gate this workflow: the public-API audit, the
+  # coordinate-unit audit, the coverage citations and both passes of the
+  # feature matrix. Nothing checked the checkers, so a quoting slip in a
+  # gate would surface as the gate silently passing -- the exact failure
+  # mode every one of those scripts exists to prevent.
+  lint-ci:
+    name: shellcheck + actionlint
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      # Preinstalled on the runner image. Default severity is `style`,
+      # i.e. report everything; the scripts carry `disable` comments with
+      # a reason where a finding is a deliberate idiom.
+      - run: shellcheck scripts/*.sh
+      # actionlint type-checks the workflows under .github/workflows --
+      # misspelled `needs:` entries, invalid contexts, unknown runner
+      # labels -- and runs shellcheck over every `run:` block in them. It
+      # does not read composite actions (it parses any file it is handed
+      # as a workflow), so .github/actions/setup is covered only by the
+      # shellcheck directives written into it. Pinned: an unpinned linter
+      # turns an upstream release into a red build on an unrelated pull
+      # request.
+      - name: actionlint
+        env:
+          ACTIONLINT_VERSION: 1.7.12
+        run: |
+          set -euo pipefail
+          curl -fsSL --retry 3 \
+            "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz" \
+            | tar -xz actionlint
+          ./actionlint -color
 
   # #![forbid(unsafe_code)] covers this crate only. The CLI pulls cpal,
   # serialport and the tokio stack, all of which are unsafe FFI, and the
   # LICENSE story in third_party/ is documented but unenforced.
+  #
+  # This copy catches a bad dependency as it is proposed. The scheduled
+  # twin in audit.yml catches the other direction, where the tree does
+  # not change and the advisory database does.
   deny:
     name: cargo-deny
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: EmbarkStudios/cargo-deny-action@v2
@@ -179,6 +278,7 @@ jobs:
   embedded:
     name: embedded no_std matrix
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
       # Pass 1 of the script builds the LIBRARY for every no_std feature set
@@ -186,13 +286,23 @@ jobs:
       # sub-crate; only rustup target installation is needed. The `embedded`
       # argument skips the host test-compilation pass, which the
       # feature-matrix job below runs in parallel instead.
-      - run: rustup target add riscv32imac-unknown-none-elf riscv32imc-unknown-none-elf thumbv7em-none-eabihf
-      - uses: Swatinem/rust-cache@v2
+      #
+      # No ALSA: not one feature set in this pass enables `capture` or
+      # `audio`, and a bare-metal target could not link cpal anyway.
+      - uses: ./.github/actions/setup
+        with:
+          alsa: "false"
+          targets: >-
+            riscv32imac-unknown-none-elf
+            riscv32imc-unknown-none-elf
+            thumbv7em-none-eabihf
+          cache-key: embedded
       - run: scripts/check-embedded.sh embedded
 
   feature-matrix:
     name: feature-set test compilation
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
       # Pass 2 of the same script, on the HOST target: compiles (--no-run)
@@ -201,6 +311,55 @@ jobs:
       # and bare-metal targets cannot host a test binary) ever compiles the
       # tests for a PARTIAL feature set, which is how unresolved imports and
       # alloc-dependent unit tests used to rot unnoticed. No rustup targets
-      # needed: this pass never leaves the host.
-      - uses: Swatinem/rust-cache@v2
+      # needed: this pass never leaves the host, and it deliberately never
+      # enables `capture`, so it needs no ALSA either.
+      - uses: ./.github/actions/setup
+        with:
+          alsa: "false"
+          cache-key: feature-matrix
       - run: scripts/check-embedded.sh tests
+
+  # One check to require in the branch-protection settings. Without it,
+  # protecting this branch means listing fourteen job names by hand and
+  # remembering to add the fifteenth -- and a required check that was
+  # never added is indistinguishable, in the UI, from one that passed.
+  #
+  # `always()` so this still runs (and fails) when something upstream
+  # failed or the run was cancelled; a plain `needs` would skip it, and a
+  # skipped required check reads as success.
+  ci:
+    name: CI passed
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs:
+      - fmt
+      - clippy
+      - test
+      - doc
+      - msrv
+      - cross-os
+      - package
+      - public-api
+      - coordinate-units
+      - coverage-citations
+      - lint-ci
+      - deny
+      - embedded
+      - feature-matrix
+    steps:
+      # `stable` is deliberately absent from `needs`: it is advisory, and
+      # a nightly-side lint change must not block a pull request.
+      - name: Check that every required job succeeded
+        env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          set -euo pipefail
+          echo "upstream results: $RESULTS"
+          for result in $RESULTS; do
+            if [ "$result" != "success" ]; then
+              echo "A required job did not succeed." >&2
+              exit 1
+            fi
+          done
+          echo "All required jobs succeeded."

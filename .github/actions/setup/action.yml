@@ -1,0 +1,81 @@
+name: Set up the yodel build environment
+description: >-
+  System headers, toolchain selection and the cargo/target cache: the three
+  things every cargo job in this repository needs before it can run, in one
+  place so a job cannot quietly end up with a different set than its peers.
+
+inputs:
+  toolchain:
+    description: >-
+      Toolchain to install and pin for the remainder of the job. Empty (the
+      default) means "obey rust-toolchain.toml", which is what every job that
+      is not deliberately exercising a different compiler wants.
+    required: false
+    default: ""
+  targets:
+    description: Space-separated list of rustup targets to add.
+    required: false
+    default: ""
+  cache-key:
+    description: >-
+      rust-cache `shared-key`. Jobs that build the same artifacts should pass
+      the same value so they share one cache entry instead of each paying for
+      a cold build of the same tree.
+    required: false
+    default: ""
+  alsa:
+    description: >-
+      Install the ALSA development headers. Any build that enables `capture`
+      or `audio` needs them, because both pull cpal, and `--all-features`
+      enables both. No-op on macOS and Windows.
+    required: false
+    default: "true"
+
+runs:
+  using: composite
+  steps:
+    # `--all-features` turns on `capture` and `audio`, which build cpal,
+    # which needs the ALSA headers. This install used to be copy-pasted into
+    # six jobs and was missing from a seventh -- clippy, which compiles cpal
+    # exactly like the others and had been passing only because the runner
+    # image happened to ship the headers. That is the failure mode the
+    # original comment warned about, so the fix is one definition, not seven.
+    - name: Install ALSA headers
+      if: inputs.alsa == 'true' && runner.os == 'Linux'
+      shell: bash
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y --no-install-recommends libasound2-dev
+
+    - name: Select toolchain
+      if: inputs.toolchain != ''
+      shell: bash
+      env:
+        TOOLCHAIN: ${{ inputs.toolchain }}
+      run: |
+        rustup toolchain install "$TOOLCHAIN" --profile minimal
+        # Pin it for every later step in the JOB, not merely for the rest of
+        # this action: rust-cache below keys on the compiler version, and the
+        # caller's own cargo invocations have to agree with what was just
+        # installed. An `env:` block on the caller's step cannot see a value
+        # computed here, but $GITHUB_ENV can.
+        echo "RUSTUP_TOOLCHAIN=$TOOLCHAIN" >>"$GITHUB_ENV"
+
+    - name: Add cross-compilation targets
+      if: inputs.targets != ''
+      shell: bash
+      env:
+        TARGETS: ${{ inputs.targets }}
+      run: |
+        # Word splitting is the point: TARGETS is a space-separated list.
+        # shellcheck disable=SC2086
+        rustup target add $TARGETS
+
+    - uses: Swatinem/rust-cache@v2
+      with:
+        shared-key: ${{ inputs.cache-key }}
+        # Fill the cache from main and read it everywhere else. A dozen jobs
+        # each saving a branch-scoped entry on every pull-request push evicts
+        # main's warm caches long before anyone benefits from them, and the
+        # repository-wide limit is 10 GB for all branches combined.
+        save-if: ${{ github.ref == 'refs/heads/main' }}
