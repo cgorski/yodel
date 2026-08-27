@@ -90,9 +90,20 @@ All of these must be clean before any commit:
 
 ```sh
 cargo fmt --check
-cargo clippy --all-features --all-targets -- -D warnings
+cargo clippy --locked --all-features --all-targets -- -D warnings
 scripts/check-coordinate-units.sh
+shellcheck scripts/*.sh   # if you touched scripts/
+actionlint                # if you touched .github/workflows/
 ```
+
+`--locked` is not decoration. `Cargo.lock` is tracked (see `.gitignore`
+for the reasoning), and without the flag the resolver is free to refresh
+it in passing, which turns "clippy is clean" into "clippy is clean
+against whatever crates.io served this morning" and rewrites a tracked
+file while it is at it. Every cargo invocation in CI and in
+`scripts/` passes it, so a lockfile that has drifted out of sync with
+`Cargo.toml` fails loudly instead of being quietly repaired on each
+machine that notices.
 
 The third is a text audit, not a compiler pass, because the property it
 checks is invisible to the compiler: `Latitude::new` and
@@ -102,6 +113,18 @@ checks is invisible to the compiler: `Latitude::new` and
 whose argument does not name its unit. Reach for
 `Latitude::from_hundredths_minute` or `from_degrees_minutes` rather than
 scaling by hand.
+
+The last two lint the gates themselves. Six shell scripts in `scripts/`
+decide whether CI is green, and for a long time nothing checked them, so
+a quoting slip in an audit would have surfaced as the audit passing --
+precisely the failure every one of those scripts was written to prevent.
+Where shellcheck flags a deliberate idiom (the comma-joined cargo
+feature sets in `check-embedded.sh`, the literal markdown backticks in
+`check-coverage-citations.sh`) the suppression is written inline with the
+reason, never waived wholesale. `actionlint` type-checks the workflows --
+misspelled `needs:` entries, invalid contexts, unknown runner labels --
+and runs shellcheck over their `run:` blocks; it does not read composite
+actions, so `.github/actions/setup` relies on its own inline directives.
 
 ## Embedded matrix
 
@@ -963,14 +986,16 @@ broke it.
 ```sh
 # 1. Everything CI runs, locally.
 cargo fmt --check
-cargo clippy --all-features --all-targets -- -D warnings
-cargo test --all-features
-RUSTDOCFLAGS='-D warnings' cargo doc --all-features --no-deps
+cargo clippy --locked --all-features --all-targets -- -D warnings
+cargo test --locked --all-features --no-fail-fast
+RUSTDOCFLAGS='-D warnings' cargo doc --locked --all-features --no-deps
+shellcheck scripts/*.sh
+actionlint
 scripts/check-public-api-exercised.sh
 scripts/check-coordinate-units.sh
 scripts/check-coverage-citations.sh
 scripts/check-embedded.sh
-cargo publish --dry-run --all-features
+cargo publish --dry-run --locked --all-features
 
 # 2. The corpus and reference tiers. See "The `reference/` directory"
 #    for the variables; keep them in a gitignored scratch/ref-env.sh.

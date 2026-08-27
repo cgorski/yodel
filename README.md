@@ -1,5 +1,11 @@
 # yodel
 
+[![CI](https://github.com/cgorski/yodel/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/cgorski/yodel/actions/workflows/ci.yml)
+[![crates.io](https://img.shields.io/crates/v/yodel.svg)](https://crates.io/crates/yodel)
+[![docs.rs](https://docs.rs/yodel/badge.svg)](https://docs.rs/yodel)
+[![MSRV](https://img.shields.io/crates/msrv/yodel.svg)](Cargo.toml)
+[![License: MIT OR Apache-2.0](https://img.shields.io/crates/l/yodel.svg)](#license)
+
 An amateur radio digital stack in Rust, from PCM samples up to decoded
 APRS, with the whole core `#![no_std]`, `#![forbid(unsafe_code)]`,
 allocation-free and free of runtime dependencies.
