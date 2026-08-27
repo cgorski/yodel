@@ -11,6 +11,40 @@ turned out to be, which approach was tried and abandoned.
 
 ## [Unreleased]
 
+## [0.1.4] - 2026-08-27
+
+### Fixed
+
+- **docs.rs has never successfully built this crate, and now does.**
+  Every published version -- 0.1.0 through 0.1.3 -- carries a red "failed
+  to build" badge and has no rendered documentation at all, which is
+  where `documentation = "https://docs.rs/yodel"` in the manifest sends
+  everyone.
+
+  The cause is one line. `src/lib.rs` carried
+  `#![cfg_attr(docsrs, feature(doc_auto_cfg))]`, and Rust 1.92 **removed**
+  `doc_auto_cfg`, merging it into `doc_cfg` (rust-lang/rust#138907). The
+  attribute is reachable only under `--cfg docsrs`, and docs.rs is the
+  only builder that sets it, so the removal broke exactly one thing and
+  broke it where nobody was looking: `cargo doc` stayed green locally, in
+  the `rustdoc (-D warnings)` CI job, and in the `stable + beta` advisory
+  job that exists to catch upstream changes of precisely this kind. None
+  of the three sets `docsrs`, so none of them ever compiled the line that
+  was failing.
+
+  Now `feature(doc_cfg)`, which restores the "Available on crate feature
+  ..." badge on every gated item -- 519 of them, against 5 that survive on
+  rustdoc's default auto-cfg without the feature enabled.
+
+### Added
+
+- **A `docs.rs build (nightly)` CI job** that runs what docs.rs runs:
+  nightly rustdoc, `--cfg docsrs`, `--all-features`. Advisory, like the
+  stable/beta job and for the same reason -- it tracks a moving nightly,
+  so it reports rather than blocks. Three releases shipped with unusable
+  documentation because no gate compiled the crate the way its own
+  publisher does.
+
 ## [0.1.3] - 2026-08-26
 
 No functional change: the library, the CLI and the public API are
@@ -856,7 +890,8 @@ WSPR, FT8 and M17 (packet data) modes.
   signals, benchmark, and serve as a KISS TNC over TCP.
 - Optional tokio (`async`) and Embassy (`embassy`) adapters.
 
-[Unreleased]: https://github.com/cgorski/yodel/compare/v0.1.3...HEAD
+[Unreleased]: https://github.com/cgorski/yodel/compare/v0.1.4...HEAD
+[0.1.4]: https://github.com/cgorski/yodel/compare/v0.1.3...v0.1.4
 [0.1.3]: https://github.com/cgorski/yodel/compare/v0.1.2...v0.1.3
 [0.1.2]: https://github.com/cgorski/yodel/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/cgorski/yodel/compare/v0.1.0...v0.1.1
